@@ -175,7 +175,7 @@ export function IncidentSelectionScreen({
       </div>
 
       {/* Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent pt-8 safe-area-inset">
+      <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-6 bg-gradient-to-t from-background via-background to-transparent">
         <div className="flex gap-3">
           <Button
             variant="outline"
