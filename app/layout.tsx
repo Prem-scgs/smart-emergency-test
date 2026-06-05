@@ -1,17 +1,24 @@
 import { Analytics } from '@vercel/analytics/next'
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Inter, Geist_Mono } from 'next/font/google'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
+const inter = Inter({ 
+  variable: '--font-inter', 
+  subsets: ['latin'],
+  display: 'swap',
+})
+
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Smart Emergency - Emergency Response Platform',
+  description: 'Enterprise-grade emergency response application for citizens to quickly contact emergency services based on incident type and current location.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -32,15 +39,39 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#D32F2F' },
+    { media: '(prefers-color-scheme: dark)', color: '#EF5350' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html 
+      lang="en" 
+      className={`${inter.variable} ${geistMono.variable} bg-background`}
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased">
-        {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster position="top-center" richColors />
+        </ThemeProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
