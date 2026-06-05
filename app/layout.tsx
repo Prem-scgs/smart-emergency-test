@@ -59,11 +59,11 @@ export default function RootLayout({
 }>) {
   return (
     <html 
-      lang="en" 
-      className={`${ibmPlexSansThai.variable} ${geistMono.variable} bg-background`}
+      lang="th" 
+      className={`${ibmPlexSansThai.variable} ${geistMono.variable} bg-background font-sans`}
       suppressHydrationWarning
     >
-      <body className="font-sans antialiased">
+      <body className="antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
