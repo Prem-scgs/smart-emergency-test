@@ -18,7 +18,6 @@ import { IncidentSelectionScreen } from './incident-selection-screen'
 import { EmergencyCallScreen } from './emergency-call-screen'
 import { LocationSharingScreen } from './location-sharing-screen'
 import { IncidentHistoryScreen } from './incident-history-screen'
-import { UserProfileScreen } from './user-profile-screen'
 import { MobileNav, NavItem } from './mobile-nav'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmergencyCategory, EmergencyContact, CallStatus } from '@/lib/types'
@@ -32,7 +31,6 @@ type Screen =
   | 'call'
   | 'location-share'
   | 'history'
-  | 'profile'
 
 export function MobileApp() {
   const [screen, setScreen] = useState<Screen>('splash')
@@ -81,9 +79,6 @@ export function MobileApp() {
       case 'location':
         setScreen('location-share')
         break
-      case 'profile':
-        setScreen('profile')
-        break
     }
   }
 
@@ -131,20 +126,7 @@ export function MobileApp() {
   // Render history screen
   if (screen === 'history') {
     return (
-      <>
-        <IncidentHistoryScreen onBack={handleBack} />
-        <MobileNav active={activeNav} onNavigate={handleNavigate} />
-      </>
-    )
-  }
-
-  // Render profile screen
-  if (screen === 'profile') {
-    return (
-      <>
-        <UserProfileScreen onBack={handleBack} />
-        <MobileNav active={activeNav} onNavigate={handleNavigate} />
-      </>
+      <IncidentHistoryScreen onBack={handleBack} />
     )
   }
 
@@ -170,6 +152,8 @@ export function MobileApp() {
             </Button>
           </div>
         </div>
+        {/* Top Tab Navigation */}
+        <MobileNav active={activeNav} onNavigate={handleNavigate} />
       </header>
 
       {/* Main Content */}
@@ -189,12 +173,7 @@ export function MobileApp() {
       </ScrollArea>
 
       {/* SOS Button */}
-      <div className="pb-16">
-        <SOSButton onPress={handleSOSPress} />
-      </div>
-
-      {/* Bottom Navigation */}
-      <MobileNav active={activeNav} onNavigate={handleNavigate} />
+      <SOSButton onPress={handleSOSPress} />
     </div>
   )
 }

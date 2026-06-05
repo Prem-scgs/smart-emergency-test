@@ -1,9 +1,8 @@
 'use client'
 
-import { Home, History, User, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type NavItem = 'home' | 'history' | 'location' | 'profile'
+type NavItem = 'home' | 'history' | 'location'
 
 interface MobileNavProps {
   active: NavItem
@@ -11,16 +10,15 @@ interface MobileNavProps {
 }
 
 const navItems = [
-  { id: 'home' as const, label: 'Home', icon: Home },
-  { id: 'history' as const, label: 'History', icon: History },
-  { id: 'location' as const, label: 'Location', icon: MapPin },
-  { id: 'profile' as const, label: 'Profile', icon: User },
+  { id: 'home' as const, label: 'หน้าหลัก' },
+  { id: 'history' as const, label: 'ประวัติ' },
+  { id: 'location' as const, label: 'ตำแหน่ง' },
 ]
 
 export function MobileNav({ active, onNavigate }: MobileNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-card border-t safe-area-inset z-50">
-      <div className="flex items-center justify-around h-16">
+    <nav className="bg-card border-b">
+      <div className="flex items-center h-12">
         {navItems.map((item) => {
           const isActive = active === item.id
           return (
@@ -28,15 +26,19 @@ export function MobileNav({ active, onNavigate }: MobileNavProps) {
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={cn(
-                'flex flex-col items-center justify-center w-full h-full gap-1 transition-colors',
-                'touch-target',
-                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                'flex-1 h-full flex items-center justify-center transition-colors relative',
+                'text-sm font-medium',
+                isActive 
+                  ? 'text-primary' 
+                  : 'text-muted-foreground hover:text-foreground'
               )}
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
             >
-              <item.icon className="h-5 w-5" />
-              <span className="text-xs font-medium">{item.label}</span>
+              {item.label}
+              {isActive && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
             </button>
           )
         })}
