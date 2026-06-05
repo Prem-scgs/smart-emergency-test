@@ -141,9 +141,9 @@ export default function AdminLoginPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {ROLE_OPTIONS.map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
-                          <div className="flex flex-col">
-                            <span>{role.label}</span>
+                        <SelectItem key={role.value} value={role.value} className="py-3">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium">{role.label}</span>
                             <span className="text-xs text-muted-foreground">{role.description}</span>
                           </div>
                         </SelectItem>
@@ -169,10 +169,10 @@ export default function AdminLoginPage() {
                       </SelectTrigger>
                       <SelectContent>
                         {AGENCIES.map((agency) => (
-                          <SelectItem key={agency.id} value={agency.id}>
+                          <SelectItem key={agency.id} value={agency.id} className="py-3">
                             <div className="flex items-center gap-2">
-                              <span className={agency.color}>●</span>
-                              <span>{agency.nameTh}</span>
+                              <span className={`text-lg ${agency.color}`}>●</span>
+                              <span className="text-sm font-medium">{agency.nameTh}</span>
                             </div>
                           </SelectItem>
                         ))}
