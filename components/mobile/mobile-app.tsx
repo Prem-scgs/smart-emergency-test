@@ -18,6 +18,7 @@ import { IncidentSelectionScreen } from './incident-selection-screen'
 import { EmergencyCallScreen } from './emergency-call-screen'
 import { LocationSharingScreen } from './location-sharing-screen'
 import { IncidentHistoryScreen } from './incident-history-screen'
+import { IncidentTrackingScreen } from './incident-tracking-screen'
 import { MobileNav, NavItem } from './mobile-nav'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmergencyCategory, EmergencyContact, CallStatus } from '@/lib/types'
@@ -31,12 +32,14 @@ type Screen =
   | 'call'
   | 'location-share'
   | 'history'
+  | 'tracking'
 
 export function MobileApp() {
   const [screen, setScreen] = useState<Screen>('splash')
   const [activeNav, setActiveNav] = useState<NavItem>('home')
   const [selectedCategory, setSelectedCategory] = useState<EmergencyCategory | null>(null)
   const [selectedContact, setSelectedContact] = useState<EmergencyContact | null>(null)
+  const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(null)
   const { theme, setTheme } = useTheme()
 
   const handleSplashComplete = useCallback(() => {
@@ -62,9 +65,16 @@ export function MobileApp() {
 
   const handleCallComplete = (status: CallStatus) => {
     toast.success(`Call logged: ${status}`)
-    setScreen('home')
-    setSelectedContact(null)
-    setSelectedCategory(null)
+    // Generate incident ID and go to tracking
+    const newIncidentId = `INC-${Date.now().toString(36).toUpperCase()}`
+    setTrackingIncidentId(newIncidentId)
+    setScreen('tracking')
+  }
+
+  const handleViewTracking = (incidentId: string, category: EmergencyCategory) => {
+    setTrackingIncidentId(incidentId)
+    setSelectedCategory(category)
+    setScreen('tracking')
   }
 
   const handleNavigate = (item: NavItem) => {
@@ -87,6 +97,7 @@ export function MobileApp() {
     setActiveNav('home')
     setSelectedCategory(null)
     setSelectedContact(null)
+    setTrackingIncidentId(null)
   }
 
   // Render splash screen
@@ -126,7 +137,26 @@ export function MobileApp() {
   // Render history screen
   if (screen === 'history') {
     return (
-      <IncidentHistoryScreen onBack={handleBack} />
+      <IncidentHistoryScreen 
+        onBack={handleBack} 
+        onViewTracking={handleViewTracking}
+      />
+    )
+  }
+
+  // Render tracking screen
+  if (screen === 'tracking' && trackingIncidentId && selectedCategory) {
+    return (
+      <IncidentTrackingScreen
+        incidentId={trackingIncidentId}
+        categoryId={selectedCategory}
+        onBack={handleBack}
+        onCall={() => {
+          const contact = mockEmergencyContacts.find(c => c.category === selectedCategory) || mockEmergencyContacts[0]
+          setSelectedContact(contact)
+          setScreen('call')
+        }}
+      />
     )
   }
 

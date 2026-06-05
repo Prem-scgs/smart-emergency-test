@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils'
 
 interface IncidentHistoryScreenProps {
   onBack: () => void
+  onViewTracking?: (incidentId: string, category: EmergencyCategory) => void
 }
 
 const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: string; label: string }> = {
@@ -36,7 +37,7 @@ const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: strin
   'cancelled': { icon: XCircle, color: 'text-muted-foreground', label: 'Cancelled' },
 }
 
-export function IncidentHistoryScreen({ onBack }: IncidentHistoryScreenProps) {
+export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistoryScreenProps) {
   const [filter, setFilter] = useState<EmergencyCategory | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<CallStatus | 'all'>('all')
 
@@ -130,7 +131,11 @@ export function IncidentHistoryScreen({ onBack }: IncidentHistoryScreenProps) {
               const StatusIcon = statusConfig[log.status].icon
 
               return (
-                <Card key={log.id} className="overflow-hidden">
+                <Card 
+                  key={log.id} 
+                  className="overflow-hidden cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => onViewTracking?.(log.id, log.incidentType)}
+                >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
