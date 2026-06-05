@@ -1,13 +1,14 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Inter, Geist_Mono } from 'next/font/google'
+import { IBM_Plex_Sans_Thai, Geist_Mono } from 'next/font/google'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const inter = Inter({ 
-  variable: '--font-inter', 
-  subsets: ['latin'],
+const ibmPlexSansThai = IBM_Plex_Sans_Thai({ 
+  variable: '--font-ibm-plex-sans-thai', 
+  subsets: ['latin', 'thai'],
+  weight: ['100', '200', '300', '400', '500', '600', '700'],
   display: 'swap',
 })
 
@@ -59,7 +60,7 @@ export default function RootLayout({
   return (
     <html 
       lang="en" 
-      className={`${inter.variable} ${geistMono.variable} bg-background`}
+      className={`${ibmPlexSansThai.variable} ${geistMono.variable} bg-background`}
       suppressHydrationWarning
     >
       <body className="font-sans antialiased">

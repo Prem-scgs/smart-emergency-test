@@ -17,7 +17,8 @@ import {
   Sun,
   Menu,
   Users,
-  Bell
+  Bell,
+  BarChart3
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -35,11 +36,13 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
 const sidebarItems = [
-  { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/contacts', label: 'Emergency Contacts', icon: Phone },
-  { href: '/admin/call-logs', label: 'Call Logs', icon: FileText },
-  { href: '/admin/gis', label: 'GIS Management', icon: MapPin },
-  { href: '/admin/settings', label: 'System Settings', icon: Settings },
+  { href: '/admin/dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard },
+  { href: '/admin/contacts', label: 'ข้อมูลการติดต่อฉุกเฉิน', icon: Phone },
+  { href: '/admin/call-logs', label: 'บันทึกการโทร', icon: FileText },
+  { href: '/admin/gis', label: 'จัดการ GIS', icon: MapPin },
+  { href: '/admin/users', label: 'จัดการผู้ใช้', icon: Users },
+  { href: '/admin/reports', label: 'รายงานและสถิติ', icon: BarChart3 },
+  { href: '/admin/settings', label: 'ตั้งค่าระบบ', icon: Settings },
 ]
 
 interface AdminLayoutClientProps {
