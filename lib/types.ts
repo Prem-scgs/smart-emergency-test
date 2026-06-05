@@ -129,12 +129,76 @@ export interface SystemSettings {
   apiKeys: Record<string, string>
 }
 
+// Admin User Roles
+export type AdminRole = 'superadmin' | 'agency-admin' | 'operator' | 'viewer'
+
+// Agency (based on Emergency Category)
+export interface Agency {
+  id: string
+  name: string
+  nameTh: string
+  category: EmergencyCategory
+  description: string
+  icon: string
+  color: string
+}
+
 // Admin User
 export interface AdminUser {
   id: string
   email: string
   name: string
-  role: 'super-admin' | 'admin' | 'operator' | 'viewer'
+  role: AdminRole
+  agencyId?: string // Required for agency-admin, operator, viewer
+  agency?: Agency
   permissions: string[]
   lastLogin: Date
+}
+
+// Auth Context Types
+export interface AuthState {
+  user: AdminUser | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
+
+// Permission definitions per role
+export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
+  superadmin: [
+    'dashboard.view',
+    'dashboard.all-agencies',
+    'contacts.view',
+    'contacts.create',
+    'contacts.edit',
+    'contacts.delete',
+    'call-logs.view',
+    'call-logs.all-agencies',
+    'gis.view',
+    'gis.edit',
+    'users.view',
+    'users.create',
+    'users.edit',
+    'users.delete',
+    'reports.view',
+    'reports.export',
+    'settings.view',
+    'settings.edit',
+  ],
+  'agency-admin': [
+    'dashboard.view',
+    'contacts.view',
+    'call-logs.view',
+    'gis.view',
+    'reports.view',
+    'reports.export',
+  ],
+  operator: [
+    'dashboard.view',
+    'call-logs.view',
+    'gis.view',
+  ],
+  viewer: [
+    'dashboard.view',
+    'call-logs.view',
+  ],
 }

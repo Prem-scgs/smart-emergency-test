@@ -2,40 +2,101 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Shield, Mail, Lock, Eye, EyeOff, Loader2, Building2, UserCog } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from 'sonner'
+import { useAuth, AGENCIES } from '@/lib/auth-context'
+import { AdminRole } from '@/lib/types'
+
+const ROLE_OPTIONS: { value: AdminRole; label: string; description: string }[] = [
+  { 
+    value: 'superadmin', 
+    label: 'ผู้ดูแลระบบสูงสุด (Superadmin)', 
+    description: 'เข้าถึงข้อมูลทุกหน่วยงาน' 
+  },
+  { 
+    value: 'agency-admin', 
+    label: 'ผู้ดูแลหน่วยงาน (Agency Admin)', 
+    description: 'จัดการข้อมูลเฉพาะหน่วยงาน' 
+  },
+  { 
+    value: 'operator', 
+    label: 'เจ้าหน้าที่ปฏิบัติการ (Operator)', 
+    description: 'ดูข้อมูลและรับแจ้งเหตุ' 
+  },
+  { 
+    value: 'viewer', 
+    label: 'ผู้ดู (Viewer)', 
+    description: 'ดูข้อมูลอย่างเดียว' 
+  },
+]
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [selectedRole, setSelectedRole] = useState<AdminRole | ''>('')
+  const [selectedAgency, setSelectedAgency] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  const needsAgency = selectedRole && selectedRole !== 'superadmin'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!email || !password) {
-      toast.error('Please fill in all fields')
+      toast.error('กรุณากรอกอีเมลและรหัสผ่าน')
+      return
+    }
+
+    if (!selectedRole) {
+      toast.error('กรุณาเลือกประเภทผู้ใช้')
+      return
+    }
+
+    if (needsAgency && !selectedAgency) {
+      toast.error('กรุณาเลือกหน่วยงาน')
       return
     }
 
     setIsLoading(true)
     
-    // Simulate login
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // Mock successful login
-    toast.success('Login successful')
-    router.push('/admin/dashboard')
-    
-    setIsLoading(false)
+    try {
+      const success = await login(
+        email, 
+        password, 
+        selectedRole as AdminRole, 
+        needsAgency ? selectedAgency : undefined
+      )
+      
+      if (success) {
+        const agency = AGENCIES.find(a => a.id === selectedAgency)
+        toast.success(
+          selectedRole === 'superadmin' 
+            ? 'เข้าสู่ระบบศูนย์บัญชาการสำเร็จ' 
+            : `เข้าสู่ระบบ${agency?.nameTh || ''}สำเร็จ`
+        )
+        router.push('/admin/dashboard')
+      }
+    } catch {
+      toast.error('เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -47,21 +108,82 @@ export default function AdminLoginPage() {
             <Shield className="h-8 w-8 text-primary-foreground" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Smart Emergency</h1>
-          <p className="text-sm text-muted-foreground">Admin Portal</p>
+          <p className="text-sm text-muted-foreground">ศูนย์บัญชาการเหตุฉุกเฉิน</p>
         </div>
 
         {/* Login Card */}
         <Card>
           <CardHeader className="text-center">
-            <CardTitle>Welcome Back</CardTitle>
+            <CardTitle>เข้าสู่ระบบ</CardTitle>
             <CardDescription>
-              Sign in to access the admin dashboard
+              ลงชื่อเข้าใช้เพื่อเข้าถึงแดชบอร์ด
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Role Selection */}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="role">ประเภทผู้ใช้</Label>
+                <div className="relative">
+                  <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                  <Select
+                    value={selectedRole}
+                    onValueChange={(value) => {
+                      setSelectedRole(value as AdminRole)
+                      if (value === 'superadmin') {
+                        setSelectedAgency('')
+                      }
+                    }}
+                    disabled={isLoading}
+                  >
+                    <SelectTrigger className="pl-10">
+                      <SelectValue placeholder="เลือกประเภทผู้ใช้" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          <div className="flex flex-col">
+                            <span>{role.label}</span>
+                            <span className="text-xs text-muted-foreground">{role.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Agency Selection (conditional) */}
+              {needsAgency && (
+                <div className="space-y-2">
+                  <Label htmlFor="agency">หน่วยงาน</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                    <Select
+                      value={selectedAgency}
+                      onValueChange={setSelectedAgency}
+                      disabled={isLoading}
+                    >
+                      <SelectTrigger className="pl-10">
+                        <SelectValue placeholder="เลือกหน่วยงาน" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AGENCIES.map((agency) => (
+                          <SelectItem key={agency.id} value={agency.id}>
+                            <div className="flex items-center gap-2">
+                              <span className={agency.color}>●</span>
+                              <span>{agency.nameTh}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="email">อีเมล</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -77,13 +199,13 @@ export default function AdminLoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">รหัสผ่าน</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
+                    placeholder="กรอกรหัสผ่าน"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
@@ -113,11 +235,11 @@ export default function AdminLoginPage() {
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                   />
                   <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-                    Remember me
+                    จดจำการเข้าสู่ระบบ
                   </Label>
                 </div>
                 <Button variant="link" className="px-0 text-sm" type="button">
-                  Forgot password?
+                  ลืมรหัสผ่าน?
                 </Button>
               </div>
 
@@ -125,19 +247,40 @@ export default function AdminLoginPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
+                    กำลังเข้าสู่ระบบ...
                   </>
                 ) : (
-                  'Sign In'
+                  'เข้าสู่ระบบ'
                 )}
               </Button>
             </form>
           </CardContent>
         </Card>
 
+        {/* Info Box */}
+        {selectedRole === 'superadmin' && (
+          <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+            <p className="text-sm text-primary font-medium">ศูนย์บัญชาการใหญ่</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              สามารถดูข้อมูลและจัดการทุกหน่วยงานในระบบ
+            </p>
+          </div>
+        )}
+
+        {selectedRole && selectedRole !== 'superadmin' && selectedAgency && (
+          <div className="mt-4 p-4 bg-muted rounded-lg border">
+            <p className="text-sm font-medium">
+              {AGENCIES.find(a => a.id === selectedAgency)?.nameTh}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              สามารถดูข้อมูลเฉพาะหน่วยงานของตนเอง
+            </p>
+          </div>
+        )}
+
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-6">
-          Protected by enterprise-grade security
+          ระบบรักษาความปลอดภัยระดับองค์กร
         </p>
       </div>
     </div>
