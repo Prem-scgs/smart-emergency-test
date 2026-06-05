@@ -60,7 +60,7 @@ export default function RootLayout({
   return (
     <html 
       lang="th" 
-      className={`${ibmPlexSansThai.variable} ${geistMono.variable} bg-background font-sans`}
+      className={`${ibmPlexSansThai.className} ${geistMono.variable} bg-background`}
       suppressHydrationWarning
     >
       <body className="antialiased">
