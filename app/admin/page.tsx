@@ -139,12 +139,15 @@ export default function AdminLoginPage() {
                     <SelectTrigger className="pl-10">
                       <SelectValue placeholder="เลือกประเภทผู้ใช้" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent
+                      alignItemWithTrigger={false}
+                      className="w-auto min-w-[var(--anchor-width)] max-w-[calc(100vw-3rem)]"
+                    >
                       {ROLE_OPTIONS.map((role) => (
                         <SelectItem key={role.value} value={role.value} className="py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-medium">{role.label}</span>
-                            <span className="text-xs text-muted-foreground">{role.description}</span>
+                          <div className="flex flex-col gap-0.5 whitespace-normal">
+                            <span className="text-sm font-medium leading-tight">{role.label}</span>
+                            <span className="text-xs text-muted-foreground leading-tight">{role.description}</span>
                           </div>
                         </SelectItem>
                       ))}
@@ -167,7 +170,10 @@ export default function AdminLoginPage() {
                       <SelectTrigger className="pl-10">
                         <SelectValue placeholder="เลือกหน่วยงาน" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent
+                        alignItemWithTrigger={false}
+                        className="w-auto min-w-[var(--anchor-width)] max-w-[calc(100vw-3rem)]"
+                      >
                         {AGENCIES.map((agency) => (
                           <SelectItem key={agency.id} value={agency.id} className="py-3">
                             <div className="flex items-center gap-2">
