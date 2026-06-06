@@ -1,0 +1,148 @@
+'use client'
+
+import { useState } from 'react'
+import { X, Trash2, CheckCheck } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { useNotifications } from '@/lib/notification-context'
+import { cn } from '@/lib/utils'
+
+interface NotificationCenterProps {
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterProps) {
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications()
+
+  const handleMarkAsRead = (id: string) => {
+    markAsRead(id)
+  }
+
+  return (
+    <Drawer open={isOpen} onOpenChange={onOpenChange}>
+      <DrawerContent className="h-[80vh] flex flex-col">
+        <DrawerHeader className="border-b">
+          <div className="flex items-center justify-between w-full">
+            <DrawerTitle>แจ้งเตือน ({unreadCount})</DrawerTitle>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={markAllAsRead}
+                  className="text-xs"
+                >
+                  <CheckCheck className="h-4 w-4 mr-1" />
+                  ทำเครื่องหมายว่าอ่านแล้วทั้งหมด
+                </Button>
+              )}
+              {notifications.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearAll}
+                  className="text-xs text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  ลบทั้งหมด
+                </Button>
+              )}
+            </div>
+          </div>
+        </DrawerHeader>
+
+        <ScrollArea className="flex-1">
+          {notifications.length === 0 ? (
+            <div className="flex items-center justify-center h-40 text-muted-foreground">
+              <p>ไม่มีแจ้งเตือน</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={cn(
+                    'p-4 flex gap-3 hover:bg-accent/50 transition-colors cursor-pointer',
+                    !notification.read && 'bg-accent/20'
+                  )}
+                  onClick={() => handleMarkAsRead(notification.id)}
+                >
+                  {/* Indicator dot */}
+                  <div className="flex-shrink-0 mt-1">
+                    {!notification.read ? (
+                      <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-muted" />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-medium truncate">
+                        {notification.title}
+                      </h3>
+                      <span className="text-xs text-muted-foreground flex-shrink-0">
+                        {formatTime(notification.timestamp)}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {notification.message}
+                    </p>
+                    {notification.category && (
+                      <div className="mt-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                          {getCategoryLabel(notification.category)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action */}
+                  {notification.actionUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="flex-shrink-0"
+                    >
+                      <a href={notification.actionUrl}>ดู</a>
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+function formatTime(date: Date): string {
+  const now = new Date()
+  const diff = now.getTime() - new Date(date).getTime()
+  const minutes = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+
+  if (minutes < 1) return 'เมื่อสักครู่'
+  if (minutes < 60) return `${minutes}นาทีที่แล้ว`
+  if (hours < 24) return `${hours}ชั่วโมงที่แล้ว`
+  if (days < 7) return `${days}วันที่แล้ว`
+  return new Date(date).toLocaleDateString('th-TH')
+}
+
+function getCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    police: 'ตำรวจ',
+    medical: 'การแพทย์',
+    fire: 'ดับเพลิง',
+    rescue: 'กู้ภัย',
+    flood: 'น้ำท่วม',
+    'road-accident': 'อุบัติเหตุ',
+  }
+  return labels[category] || category
+}

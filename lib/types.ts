@@ -202,3 +202,26 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'call-logs.view',
   ],
 }
+
+// Notification Types
+export type NotificationType = 'new-incident' | 'incident-update' | 'agency-status' | 'call-log' | 'alert'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  title: string
+  message: string
+  agencyId?: string
+  category?: EmergencyCategory
+  incidentId?: string
+  read: boolean
+  timestamp: Date
+  actionUrl?: string
+}
+
+export interface WebSocketEvent {
+  type: NotificationType
+  data: any
+  timestamp: Date
+  agencyId?: string
+}

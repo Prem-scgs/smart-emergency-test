@@ -36,6 +36,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { NotificationBell } from './notification-bell'
 
 // Menu items with required permissions
 const sidebarItems = [
@@ -209,11 +210,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
           {/* Header Actions */}
           <div className="flex items-center gap-2">
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
-              <span className="sr-only">Notifications</span>
-            </Button>
+            <NotificationBell />
 
             {/* Theme Toggle */}
             <Button

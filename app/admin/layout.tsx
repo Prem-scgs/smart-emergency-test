@@ -1,4 +1,5 @@
 import { AuthProvider } from '@/lib/auth-context'
+import { NotificationProvider } from '@/lib/notification-context'
 
 export default function AdminRootLayout({
   children,
@@ -7,7 +8,9 @@ export default function AdminRootLayout({
 }) {
   return (
     <AuthProvider>
-      {children}
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
     </AuthProvider>
   )
 }
