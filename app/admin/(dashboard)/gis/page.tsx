@@ -45,6 +45,16 @@ const initialLayers: GISLayer[] = [
   { id: 'emergency', name: 'Emergency Zones', type: 'emergency', visible: true, color: '#D32F2F', count: 156 },
 ]
 
+// Agency-specific zones (filter based on category)
+const agencyZones: Record<string, { name: string; area: string; count: number }> = {
+  'medical': { name: 'Medical Service Zones', area: '12.5 km²', count: 12 },
+  'police': { name: 'Police Patrol Zones', area: '8.3 km²', count: 8 },
+  'fire': { name: 'Fire Station Coverage', area: '15.2 km²', count: 5 },
+  'rescue': { name: 'Rescue Operation Zones', area: '20.1 km²', count: 10 },
+  'flood': { name: 'Flood Risk Areas', area: '45.8 km²', count: 18 },
+  'road-accident': { name: 'Traffic Control Zones', area: '30.5 km²', count: 15 },
+}
+
 const mockPolygons = [
   { id: '1', name: 'Bangkok High Risk Zone', type: 'emergency', province: 'Bangkok', area: '45.2 km2', category: 'medical' },
   { id: '2', name: 'Chiang Mai Flood Zone', type: 'emergency', province: 'Chiang Mai', area: '23.8 km2', category: 'flood' },
@@ -54,20 +64,29 @@ const mockPolygons = [
 
 export default function GISPage() {
   const { user } = useAuth()
-  const [layers, setLayers] = useState(initialLayers)
+  const [layers, setLayers] = useState<GISLayer[]>([])
   const [selectedTool, setSelectedTool] = useState<'select' | 'draw' | 'edit' | 'delete'>('select')
   const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(true)
 
-  // Filter contacts and polygons based on user role
-  const filteredContacts = useMemo(() => {
+  // Update layers based on user role
+  useMemo(() => {
     if (user?.role === 'superadmin') {
-      return mockEmergencyContacts
+      setLayers(initialLayers)
+    } else if (user?.agency) {
+      // Agency Admin: show specific layers with counts for their agency
+      const agencyZoneData = agencyZones[user.agency.category]
+      const adjustedLayers = initialLayers.map(layer => {
+        if (layer.type === 'emergency') {
+          return {
+            ...layer,
+            name: agencyZoneData.name,
+            count: agencyZoneData.count,
+          }
+        }
+        return layer
+      })
+      setLayers(adjustedLayers)
     }
-    // Agency Admin เห็นเฉพาะหน่วยงานตัวเอง
-    if (user?.agencyId) {
-      return mockEmergencyContacts.filter(contact => contact.category === user.agencyId)
-    }
-    return []
   }, [user])
 
   const filteredPolygons = useMemo(() => {
@@ -75,8 +94,8 @@ export default function GISPage() {
       return mockPolygons
     }
     // Agency Admin เห็นเฉพาะ polygon ของหน่วยงานตัวเอง
-    if (user?.agencyId) {
-      return mockPolygons.filter(polygon => polygon.category === user.agencyId)
+    if (user?.agency) {
+      return mockPolygons.filter(polygon => polygon.category === user.agency.category)
     }
     return []
   }, [user])
