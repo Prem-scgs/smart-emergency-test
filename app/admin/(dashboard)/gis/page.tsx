@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { 
   MapPin, 
   Layers, 
@@ -25,6 +25,8 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/auth-context'
+import { mockEmergencyContacts } from '@/lib/mock-data'
 import { toast } from 'sonner'
 
 interface GISLayer {
@@ -44,16 +46,40 @@ const initialLayers: GISLayer[] = [
 ]
 
 const mockPolygons = [
-  { id: '1', name: 'Bangkok High Risk Zone', type: 'emergency', province: 'Bangkok', area: '45.2 km2' },
-  { id: '2', name: 'Chiang Mai Flood Zone', type: 'emergency', province: 'Chiang Mai', area: '23.8 km2' },
-  { id: '3', name: 'Phuket Tourist Area', type: 'emergency', province: 'Phuket', area: '12.5 km2' },
-  { id: '4', name: 'Pattaya Beach Zone', type: 'emergency', province: 'Chonburi', area: '8.3 km2' },
+  { id: '1', name: 'Bangkok High Risk Zone', type: 'emergency', province: 'Bangkok', area: '45.2 km2', category: 'medical' },
+  { id: '2', name: 'Chiang Mai Flood Zone', type: 'emergency', province: 'Chiang Mai', area: '23.8 km2', category: 'flood' },
+  { id: '3', name: 'Phuket Tourist Area', type: 'emergency', province: 'Phuket', area: '12.5 km2', category: 'police' },
+  { id: '4', name: 'Pattaya Beach Zone', type: 'emergency', province: 'Chonburi', area: '8.3 km2', category: 'rescue' },
 ]
 
 export default function GISPage() {
+  const { user } = useAuth()
   const [layers, setLayers] = useState(initialLayers)
   const [selectedTool, setSelectedTool] = useState<'select' | 'draw' | 'edit' | 'delete'>('select')
   const [isLayersPanelOpen, setIsLayersPanelOpen] = useState(true)
+
+  // Filter contacts and polygons based on user role
+  const filteredContacts = useMemo(() => {
+    if (user?.role === 'superadmin') {
+      return mockEmergencyContacts
+    }
+    // Agency Admin เห็นเฉพาะหน่วยงานตัวเอง
+    if (user?.agencyId) {
+      return mockEmergencyContacts.filter(contact => contact.category === user.agencyId)
+    }
+    return []
+  }, [user])
+
+  const filteredPolygons = useMemo(() => {
+    if (user?.role === 'superadmin') {
+      return mockPolygons
+    }
+    // Agency Admin เห็นเฉพาะ polygon ของหน่วยงานตัวเอง
+    if (user?.agencyId) {
+      return mockPolygons.filter(polygon => polygon.category === user.agencyId)
+    }
+    return []
+  }, [user])
 
   const toggleLayerVisibility = (id: string) => {
     setLayers(layers.map(layer => 
@@ -76,7 +102,11 @@ export default function GISPage() {
       <div className="w-80 border-r bg-card flex flex-col">
         <div className="p-4 border-b">
           <h2 className="font-semibold text-foreground">GIS Management</h2>
-          <p className="text-sm text-muted-foreground">Manage geographic boundaries</p>
+          <p className="text-sm text-muted-foreground">
+            {user?.role === 'superadmin' 
+              ? 'Manage geographic boundaries nationwide' 
+              : `Manage ${user?.agency?.nameTh || 'your agency'} zones`}
+          </p>
         </div>
 
         <ScrollArea className="flex-1">
@@ -172,7 +202,37 @@ export default function GISPage() {
 
           <Separator />
 
-          {/* Polygons List */}
+          {/* Emergency Contacts/Locations */}
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Locations</Label>
+              <span className="text-xs font-medium text-muted-foreground">{filteredContacts.length}</span>
+            </div>
+            <div className="space-y-2">
+              {filteredContacts.length > 0 ? (
+                filteredContacts.map((contact) => (
+                  <div 
+                    key={contact.id}
+                    className="p-3 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <p className="text-sm font-medium">{contact.agencyName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="text-xs">
+                        {contact.province}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{contact.distance} km</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No locations to display</p>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Emergency Zones */}
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Emergency Zones</Label>
@@ -182,32 +242,36 @@ export default function GISPage() {
               </Button>
             </div>
             <div className="space-y-2">
-              {mockPolygons.map((polygon) => (
-                <div 
-                  key={polygon.id}
-                  className="p-3 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{polygon.name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-xs">
-                          {polygon.province}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">{polygon.area}</span>
+              {filteredPolygons.length > 0 ? (
+                filteredPolygons.map((polygon) => (
+                  <div 
+                    key={polygon.id}
+                    className="p-3 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{polygon.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="secondary" className="text-xs">
+                            {polygon.province}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{polygon.area}</span>
+                        </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleDeletePolygon(polygon.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0"
-                      onClick={() => handleDeletePolygon(polygon.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No zones to display</p>
+              )}
             </div>
           </div>
         </ScrollArea>
@@ -223,7 +287,9 @@ export default function GISPage() {
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">Interactive Map</h3>
             <p className="text-sm text-muted-foreground max-w-sm">
-              Google Maps integration area. Draw, edit, and manage geographic boundaries for emergency response zones.
+              {user?.role === 'superadmin' 
+                ? 'Google Maps integration area. Draw, edit, and manage geographic boundaries for all emergency response zones nationwide.'
+                : `Google Maps integration for ${user?.agency?.nameTh || 'your agency'}. Draw, edit, and manage geographic boundaries and coverage areas.`}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               {layers.filter(l => l.visible).map((layer) => (
