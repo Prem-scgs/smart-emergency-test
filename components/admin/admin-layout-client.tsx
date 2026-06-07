@@ -236,23 +236,21 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium leading-none">{user?.name || 'Admin User'}</p>
-                      {getRoleBadge()}
-                    </div>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email || 'admin@smartemergency.gov'}
-                    </p>
-                    {user?.agency && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Building2 className="h-3 w-3" />
-                        {user.agency.nameTh}
-                      </div>
-                    )}
+                <div className="flex flex-col space-y-2 px-1.5 py-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium leading-none">{user?.name || 'Admin User'}</p>
+                    {getRoleBadge()}
                   </div>
-                </DropdownMenuLabel>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email || 'admin@smartemergency.gov'}
+                  </p>
+                  {user?.agency && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Building2 className="h-3 w-3" />
+                      {user.agency.nameTh}
+                    </div>
+                  )}
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Users className="mr-2 h-4 w-4" />

@@ -54,21 +54,25 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   }, [connect])
 
   const simulateWebSocketEvents = () => {
+    // Use counter instead of Date.now() to avoid hydration mismatch
+    let idCounter = 0
+    const baseId = Math.random().toString(36).substr(2, 9)
+
     // Simulate receiving notifications
     const mockNotifications: Notification[] = [
       {
-        id: `notif-${Date.now()}`,
+        id: `notif-${baseId}-${++idCounter}`,
         type: 'new-incident',
         title: 'แจ้งเหตุฉุกเฉินใหม่',
         message: 'มีการแจ้งเหตุฉุกเฉินประเภทการแพทย์ที่ Pathum Wan',
         category: 'medical',
-        incidentId: `INC-${Date.now()}`,
+        incidentId: `INC-${baseId}`,
         read: false,
         timestamp: new Date(),
         agencyId: 'medical-1'
       },
       {
-        id: `notif-${Date.now() + 1}`,
+        id: `notif-${baseId}-${++idCounter}`,
         type: 'incident-update',
         title: 'ทีมกู้ภัยกำลังเดินทาง',
         message: 'ทีมกู้ภัยได้รับเรื่องและกำลังเดินทางไปยังจุดเกิดเหตุ ETA 5 นาที',
@@ -80,7 +84,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     // Simulate critical alerts
     const mockAlerts: Alert[] = [
       {
-        id: `alert-${Date.now()}`,
+        id: `alert-${baseId}-${++idCounter}`,
         severity: 'critical',
         title: 'เหตุฉุกเฉินขนาดใหญ่',
         message: 'มีการแจ้งเหตุฉุกเฉินขนาดใหญ่ที่ต้องมีการระดมเทพ',
