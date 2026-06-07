@@ -205,6 +205,7 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
 
 // Notification Types
 export type NotificationType = 'new-incident' | 'incident-update' | 'agency-status' | 'call-log' | 'alert'
+export type AlertSeverity = 'critical' | 'warning' | 'info'
 
 export interface Notification {
   id: string
@@ -216,6 +217,20 @@ export interface Notification {
   incidentId?: string
   read: boolean
   timestamp: Date
+  actionUrl?: string
+}
+
+export interface Alert {
+  id: string
+  severity: AlertSeverity
+  title: string
+  message: string
+  description?: string
+  agencyId?: string
+  category?: EmergencyCategory
+  timestamp: Date
+  dismissible: boolean
+  actionLabel?: string
   actionUrl?: string
 }
 

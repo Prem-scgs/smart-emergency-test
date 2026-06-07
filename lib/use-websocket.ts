@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect, useCallback, useRef } from 'react'
-import { Notification, WebSocketEvent } from './types'
+import { Notification, WebSocketEvent, Alert } from './types'
 
 interface UseWebSocketOptions {
   onNotification?: (notification: Notification) => void
+  onAlert?: (alert: Alert) => void
   onEvent?: (event: WebSocketEvent) => void
   enabled?: boolean
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onNotification, onEvent, enabled = true } = options
+  const { onNotification, onAlert, onEvent, enabled = true } = options
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isConnectingRef = useRef(false)
@@ -76,9 +77,37 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       }
     ]
 
+    // Simulate critical alerts
+    const mockAlerts: Alert[] = [
+      {
+        id: `alert-${Date.now()}`,
+        severity: 'critical',
+        title: 'เหตุฉุกเฉินขนาดใหญ่',
+        message: 'มีการแจ้งเหตุฉุกเฉินขนาดใหญ่ที่ต้องมีการระดมเทพ',
+        description: 'เหตุการณ์อุบัติเหตุรถชนขนาดใหญ่ที่สี่แยก Phaya Thai - Sukhumvit จำนวนผู้บาดเจ็บเบื้องต้น 15 คน',
+        timestamp: new Date(),
+        dismissible: true,
+        actionLabel: 'ดูรายละเอียด',
+        actionUrl: '/admin/dashboard',
+        category: 'road-accident'
+      }
+    ]
+
     // Simulate events at intervals
     const eventIntervals: NodeJS.Timeout[] = []
     
+    // Send alert first (for attention)
+    mockAlerts.forEach((alert, idx) => {
+      const interval = setTimeout(() => {
+        if (onAlert) {
+          onAlert(alert)
+        }
+      }, 1000 + (idx * 2000))
+      
+      eventIntervals.push(interval)
+    })
+
+    // Then send notifications
     mockNotifications.forEach((notif, idx) => {
       const interval = setTimeout(() => {
         if (onNotification) {
@@ -92,7 +121,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             agencyId: notif.agencyId
           })
         }
-      }, (idx + 1) * 2000)
+      }, 3000 + (idx * 2000))
       
       eventIntervals.push(interval)
     })
