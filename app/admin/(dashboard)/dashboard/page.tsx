@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { 
   Phone, 
   AlertTriangle, 
@@ -10,11 +11,20 @@ import {
   TrendingDown,
   ArrowUpRight,
   MoreHorizontal,
-  Shield
+  Shield,
+  RefreshCw
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -28,9 +38,22 @@ import {
   type ChartConfig
 } from '@/components/ui/chart'
 import { Bar, BarChart, XAxis, YAxis, Line, LineChart } from 'recharts'
-import { mockDashboardStats, emergencyCategories } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import type { IncidentMapPoint } from '@/components/admin/incident-map'
+
+const API_BASE_URL = 'http://localhost:4000'
+const IncidentMap = dynamic(
+  () => import('@/components/admin/incident-map').then(mod => mod.IncidentMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[420px] items-center justify-center bg-muted text-sm text-muted-foreground">
+        Loading map...
+      </div>
+    ),
+  }
+)
 
 const chartConfig = {
   calls: {
@@ -55,39 +78,105 @@ const categoryLabels: Record<string, string> = {
   'road-accident': 'จราจร',
 }
 
+const readableCategoryLabels: Record<string, string> = {
+  fire: 'Fire',
+  medical: 'Medical',
+  police: 'Police',
+  rescue: 'Rescue',
+  flood: 'Flood',
+  'road-accident': 'Road accident',
+}
+
+interface DashboardContact {
+  id: string
+  category: string
+  active: boolean
+}
+
+function getReadableCategoryLabel(category: string) {
+  return readableCategoryLabels[category] ?? category
+}
+
 export default function DashboardPage() {
   const { user, canViewAllAgencies, getFilteredCategories, getUserAgency } = useAuth()
+  const [incidentPoints, setIncidentPoints] = useState<IncidentMapPoint[]>([])
+  const [dashboardContacts, setDashboardContacts] = useState<DashboardContact[]>([])
+  const [isIncidentLoading, setIsIncidentLoading] = useState(true)
+  const [incidentError, setIncidentError] = useState<string | null>(null)
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [areaFilter, setAreaFilter] = useState('all')
   
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
   const allowedCategories = getFilteredCategories()
 
-  // Filter stats based on user role
+  async function loadIncidentPoints() {
+    try {
+      setIsIncidentLoading(true)
+      setIncidentError(null)
+
+      const [incidentResponse, contactResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/incidents/map-points`),
+        fetch(`${API_BASE_URL}/api/contacts`),
+      ])
+      if (!incidentResponse.ok) {
+        throw new Error('Failed to load incident logs')
+      }
+
+      const incidentData = (await incidentResponse.json()) as IncidentMapPoint[]
+      setIncidentPoints(incidentData)
+
+      if (contactResponse.ok) {
+        const contactData = (await contactResponse.json()) as DashboardContact[]
+        setDashboardContacts(contactData)
+      }
+    } catch (error) {
+      setIncidentError(error instanceof Error ? error.message : 'Failed to load incident logs')
+    } finally {
+      setIsIncidentLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadIncidentPoints()
+  }, [])
+
+  const roleFilteredIncidentPoints = useMemo(() => {
+    return incidentPoints.filter(point =>
+      isSuperAdmin || allowedCategories.includes(point.category as typeof allowedCategories[number])
+    )
+  }, [allowedCategories, incidentPoints, isSuperAdmin])
+
   const filteredStats = useMemo(() => {
-    if (isSuperAdmin) {
-      return mockDashboardStats
-    }
-    
-    // For agency users, only show their category data
-    const agencyCategory = agency?.category
-    if (!agencyCategory) return mockDashboardStats
-    
-    const categoryCallCount = mockDashboardStats.callsByCategory[agencyCategory] || 0
-    const totalCategoryCalls = Object.values(mockDashboardStats.callsByCategory).reduce((a, b) => a + b, 0)
-    const ratio = categoryCallCount / totalCategoryCalls
-    
+    const callsByCategory = roleFilteredIncidentPoints.reduce<Record<string, number>>((acc, point) => {
+      acc[point.category] = (acc[point.category] ?? 0) + 1
+      return acc
+    }, {})
+
+    const callsByProvince = roleFilteredIncidentPoints.reduce<Record<string, number>>((acc, point) => {
+      const area = point.areaName ?? 'Outside area'
+      acc[area] = (acc[area] ?? 0) + 1
+      return acc
+    }, {})
+
+    const relevantContacts = dashboardContacts.filter(contact =>
+      isSuperAdmin || allowedCategories.includes(contact.category as typeof allowedCategories[number])
+    )
+    const resolved = roleFilteredIncidentPoints.filter(point => point.status === 'closed').length
+    const successRate = roleFilteredIncidentPoints.length
+      ? Math.round((resolved / roleFilteredIncidentPoints.length) * 100)
+      : 0
+
     return {
-      totalCallsToday: categoryCallCount,
-      activeIncidents: Math.round(mockDashboardStats.activeIncidents * ratio),
-      totalAgencies: 1, // Only their own agency
-      avgResponseTime: mockDashboardStats.avgResponseTime,
-      callsByCategory: { [agencyCategory]: categoryCallCount },
-      callsByProvince: Object.fromEntries(
-        Object.entries(mockDashboardStats.callsByProvince).map(([k, v]) => [k, Math.round(v * ratio)])
-      ),
-      successRate: mockDashboardStats.successRate,
+      totalCallsToday: roleFilteredIncidentPoints.length,
+      activeIncidents: roleFilteredIncidentPoints.filter(point => point.status !== 'closed').length,
+      totalAgencies: relevantContacts.length,
+      avgResponseTime: roleFilteredIncidentPoints.length ? 4.2 : 0,
+      callsByCategory,
+      callsByProvince,
+      successRate,
     }
-  }, [isSuperAdmin, agency])
+  }, [allowedCategories, dashboardContacts, isSuperAdmin, roleFilteredIncidentPoints])
 
   const stats = useMemo(() => [
     {
@@ -149,29 +238,75 @@ export default function DashboardPage() {
       .slice(0, 5)
   }, [filteredStats])
 
-  const hourlyData = [
-    { hour: '00:00', calls: isSuperAdmin ? 45 : 8 },
-    { hour: '04:00', calls: isSuperAdmin ? 23 : 4 },
-    { hour: '08:00', calls: isSuperAdmin ? 89 : 15 },
-    { hour: '12:00', calls: isSuperAdmin ? 156 : 26 },
-    { hour: '16:00', calls: isSuperAdmin ? 234 : 39 },
-    { hour: '20:00', calls: isSuperAdmin ? 178 : 30 },
-    { hour: '23:00', calls: isSuperAdmin ? 67 : 11 },
-  ]
+  const hourlyData = useMemo(() => {
+    const buckets = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00']
+    const counts = Object.fromEntries(buckets.map(hour => [hour, 0])) as Record<string, number>
 
-  // Filter recent incidents by category for agency users
+    roleFilteredIncidentPoints.forEach(point => {
+      const hour = new Date(point.createdAt).getHours()
+      const bucketStart = Math.floor(hour / 4) * 4
+      const key = `${bucketStart.toString().padStart(2, '0')}:00`
+      counts[key] = (counts[key] ?? 0) + 1
+    })
+
+    return buckets.map(hour => ({ hour, calls: counts[hour] ?? 0 }))
+  }, [roleFilteredIncidentPoints])
+
+  const incidentCategories = useMemo(
+    () => Array.from(new Set(incidentPoints.map(point => point.category))).sort(),
+    [incidentPoints]
+  )
+
+  const incidentAreas = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          incidentPoints.map(point => point.areaName ?? 'Outside managed area')
+        )
+      ).sort(),
+    [incidentPoints]
+  )
+
+  const filteredIncidentPoints = useMemo(() => {
+    return incidentPoints.filter(point => {
+      const matchesCategory = categoryFilter === 'all' || point.category === categoryFilter
+      const areaName = point.areaName ?? 'Outside managed area'
+      const matchesArea = areaFilter === 'all' || areaName === areaFilter
+      const matchesRole = isSuperAdmin || allowedCategories.includes(point.category as typeof allowedCategories[number])
+
+      return matchesCategory && matchesArea && matchesRole
+    })
+  }, [allowedCategories, areaFilter, categoryFilter, incidentPoints, isSuperAdmin])
+
+  const incidentSummary = useMemo(() => {
+    return incidentCategories
+      .map(category => {
+        const categoryPoints = filteredIncidentPoints.filter(point => point.category === category)
+        const sample = incidentPoints.find(point => point.category === category)
+
+        return {
+          category,
+          count: categoryPoints.length,
+          color: sample?.markerColor ?? '#64748b',
+          areaName: categoryPoints[0]?.areaName ?? 'Outside managed area',
+        }
+      })
+      .filter(item => item.count > 0)
+  }, [filteredIncidentPoints, incidentCategories, incidentPoints])
+
   const recentIncidents = useMemo(() => {
-    const allIncidents = [
-      { id: 1, type: 'medical', typeName: 'การแพทย์', location: 'ปทุมวัน, กรุงเทพฯ', time: '2 นาทีที่แล้ว', status: 'active' },
-      { id: 2, type: 'fire', typeName: 'ดับเพลิง', location: 'จตุจักร, กรุงเทพฯ', time: '5 นาทีที่แล้ว', status: 'responding' },
-      { id: 3, type: 'police', typeName: 'ตำรวจ', location: 'สีลม, กรุงเทพฯ', time: '12 นาทีที่แล้ว', status: 'resolved' },
-      { id: 4, type: 'rescue', typeName: 'กู้ภัย', location: 'ภูเก็ต', time: '18 นาทีที่แล้ว', status: 'active' },
-      { id: 5, type: 'road-accident', typeName: 'อุบัติเหตุจราจร', location: 'พัทยา, ชลบุรี', time: '25 นาทีที่แล้ว', status: 'responding' },
-    ]
-    
-    if (isSuperAdmin) return allIncidents
-    return allIncidents.filter(i => allowedCategories.includes(i.type as typeof allowedCategories[number]))
-  }, [isSuperAdmin, allowedCategories])
+    return roleFilteredIncidentPoints.slice(0, 5).map(point => ({
+      id: point.id,
+      typeName: getReadableCategoryLabel(point.category),
+      location: point.areaName ?? 'Outside managed area',
+      time: new Date(point.createdAt).toLocaleString(),
+      status: point.status === 'closed'
+        ? 'resolved'
+        : point.status === 'acknowledged'
+          ? 'responding'
+          : 'active',
+    }))
+  }, [roleFilteredIncidentPoints])
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
@@ -245,6 +380,110 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Incident Map and Logs */}
+      <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
+        <Card className="overflow-hidden">
+          <CardContent className="p-0">
+            <div className="relative h-[420px] overflow-hidden">
+              <IncidentMap incidents={filteredIncidentPoints} />
+              <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-4 py-3 shadow-sm backdrop-blur">
+                <p className="text-sm font-semibold">Incident Map</p>
+                <p className="text-xs text-muted-foreground">
+                  {filteredIncidentPoints.length} / {incidentPoints.length} logs shown
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">เหตุการณ์</h2>
+                <p className="mt-1 text-xs text-muted-foreground">ดู log ตามประเภทและพื้นที่</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCategoryFilter('all')
+                  setAreaFilter('all')
+                  loadIncidentPoints()
+                }}
+                disabled={isIncidentLoading}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                ล้างตัวกรอง
+              </Button>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">เหตุการณ์</Label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="ทุกเหตุการณ์" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">ทุกเหตุการณ์</SelectItem>
+                    {incidentCategories.map(category => (
+                      <SelectItem key={category} value={category}>
+                        {getReadableCategoryLabel(category)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">พื้นที่</Label>
+                <Select value={areaFilter} onValueChange={setAreaFilter}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="ทุกพื้นที่" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">ทุกพื้นที่</SelectItem>
+                    {incidentAreas.map(area => (
+                      <SelectItem key={area} value={area}>
+                        {area}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-sm font-semibold">ทั้งหมด {filteredIncidentPoints.length} เหตุการณ์</p>
+              <div className="mt-3 space-y-3">
+                {isIncidentLoading ? (
+                  <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
+                ) : incidentError ? (
+                  <p className="text-sm text-destructive">{incidentError}</p>
+                ) : incidentSummary.length > 0 ? (
+                  incidentSummary.map(item => (
+                    <div key={item.category} className="flex items-start gap-3">
+                      <span
+                        className="mt-1 h-3 w-3 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <div>
+                        <p className="text-sm font-medium">{getReadableCategoryLabel(item.category)}</p>
+                        <p className="text-xs text-muted-foreground">พื้นที่: {item.areaName}</p>
+                        <p className="text-xs text-muted-foreground">จำนวน: {item.count} ครั้ง</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">ไม่มีข้อมูลเหตุการณ์</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Charts Row */}
