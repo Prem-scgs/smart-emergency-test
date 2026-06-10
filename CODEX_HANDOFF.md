@@ -72,6 +72,7 @@ pnpm build
 
 - Update this section with important decisions, bugs, and file changes.
 - Prefer concise bullets. Do not paste long logs unless they are essential.
+- Git identity rule: before any future commit or push, ask Prem which git user/email to use. Current local repo config is `user.name=Prem-scgs` and `user.email=premchai_j@scgs.co`.
 - Added `pnpm-workspace.yaml` to allow build scripts for `msw` and `sharp`; `pnpm install`/`pnpm dev` failed before approving these builds.
 - Architecture choice: keep Next.js as frontend and create `emergency-api` as the first backend microservice.
 - DB choice: use PostgreSQL/PostGIS in Docker because polygon and point-in-polygon are core requirements.
