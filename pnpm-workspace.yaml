@@ -1,0 +1,11 @@
+packages:
+  - "."
+  - "services/*"
+
+allowBuilds:
+  esbuild: true
+  msw: true
+  sharp: true
+onlyBuiltDependencies:
+  - msw
+  - sharp

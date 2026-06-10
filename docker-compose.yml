@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: smart-emergency-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smart_emergency
+      POSTGRES_USER: emergency
+      POSTGRES_PASSWORD: emergency_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - smart_emergency_db:/var/lib/postgresql/data
+      - ./services/emergency-api/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emergency -d smart_emergency"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dbgate:
+    image: dbgate/dbgate:latest
+    container_name: smart-emergency-dbgate
+    restart: unless-stopped
+    ports:
+      - "8081:3000"
+    environment:
+      CONNECTIONS: smart_emergency
+      LABEL_smart_emergency: Smart Emergency DB
+      SERVER_smart_emergency: db
+      USER_smart_emergency: emergency
+      PASSWORD_smart_emergency: emergency_dev
+      PORT_smart_emergency: 5432
+      ENGINE_smart_emergency: postgres@dbgate-plugin-postgres
+      DATABASE_smart_emergency: smart_emergency
+    volumes:
+      - smart_emergency_dbgate:/root/.dbgate
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  smart_emergency_db:
+  smart_emergency_dbgate:
