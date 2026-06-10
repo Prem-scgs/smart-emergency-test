@@ -53,16 +53,16 @@ import { useAuth } from '@/lib/auth-context'
 
 // Extended mock call logs
 const mockCallLogs = [
-  { id: '1', date: new Date('2024-01-15T10:30:00'), incidentType: 'medical' as EmergencyCategory, agency: 'หน่วยแพทย์ฉุกเฉิน', phone: '1669', location: 'ปทุมวัน, กรุงเทพฯ', status: 'connected' as CallStatus, duration: 245 },
-  { id: '2', date: new Date('2024-01-15T09:45:00'), incidentType: 'police' as EmergencyCategory, agency: 'สถานีตำรวจนครบาลปทุมวัน', phone: '191', location: 'จตุจักร, กรุงเทพฯ', status: 'connected' as CallStatus, duration: 180 },
-  { id: '3', date: new Date('2024-01-15T09:20:00'), incidentType: 'fire' as EmergencyCategory, agency: 'สถานีดับเพลิง เขต 1', phone: '199', location: 'สีลม, กรุงเทพฯ', status: 'no-answer' as CallStatus, duration: 0 },
-  { id: '4', date: new Date('2024-01-15T08:55:00'), incidentType: 'rescue' as EmergencyCategory, agency: 'มูลนิธิร่วมกตัญญู', phone: '1554', location: 'เมืองภูเก็ต', status: 'connected' as CallStatus, duration: 320 },
-  { id: '5', date: new Date('2024-01-15T08:30:00'), incidentType: 'road-accident' as EmergencyCategory, agency: 'ตำรวจทางหลวง', phone: '1193', location: 'พัทยา, ชลบุรี', status: 'busy' as CallStatus, duration: 0 },
-  { id: '6', date: new Date('2024-01-14T22:15:00'), incidentType: 'medical' as EmergencyCategory, agency: 'หน่วยแพทย์ฉุกเฉิน', phone: '1669', location: 'เมือง, เชียงใหม่', status: 'connected' as CallStatus, duration: 156 },
-  { id: '7', date: new Date('2024-01-14T20:45:00'), incidentType: 'police' as EmergencyCategory, agency: 'ตำรวจท่องเที่ยว', phone: '1155', location: 'กะทู้, ภูเก็ต', status: 'connected' as CallStatus, duration: 289 },
-  { id: '8', date: new Date('2024-01-14T18:30:00'), incidentType: 'fire' as EmergencyCategory, agency: 'สถานีดับเพลิงภูเก็ต', phone: '076-234567', location: 'เมืองภูเก็ต', status: 'wrong-number' as CallStatus, duration: 0 },
-  { id: '9', date: new Date('2024-01-14T16:20:00'), incidentType: 'flood' as EmergencyCategory, agency: 'ศูนย์ป้องกันภัยพิบัติ', phone: '1784', location: 'บางละมุง, ชลบุรี', status: 'connected' as CallStatus, duration: 412 },
-  { id: '10', date: new Date('2024-01-14T14:10:00'), incidentType: 'rescue' as EmergencyCategory, agency: 'มูลนิธิปอเต็กตึ๊ง', phone: '1418', location: 'ราชเทวี, กรุงเทพฯ', status: 'connected' as CallStatus, duration: 523 },
+  { id: '1', date: new Date('2024-01-15T10:30:00'), incidentType: 'medical' as EmergencyCategory, agency: 'หน่วยแพทย์ฉุกเฉิน', phone: '1669', location: 'ปทุมวัน, กรุงเทพฯ', status: 'connected' as CallStatus },
+  { id: '2', date: new Date('2024-01-15T09:45:00'), incidentType: 'police' as EmergencyCategory, agency: 'สถานีตำรวจนครบาลปทุมวัน', phone: '191', location: 'จตุจักร, กรุงเทพฯ', status: 'connected' as CallStatus },
+  { id: '3', date: new Date('2024-01-15T09:20:00'), incidentType: 'fire' as EmergencyCategory, agency: 'สถานีดับเพลิง เขต 1', phone: '199', location: 'สีลม, กรุงเทพฯ', status: 'no-answer' as CallStatus },
+  { id: '4', date: new Date('2024-01-15T08:55:00'), incidentType: 'rescue' as EmergencyCategory, agency: 'มูลนิธิร่วมกตัญญู', phone: '1554', location: 'เมืองภูเก็ต', status: 'connected' as CallStatus },
+  { id: '5', date: new Date('2024-01-15T08:30:00'), incidentType: 'road-accident' as EmergencyCategory, agency: 'ตำรวจทางหลวง', phone: '1193', location: 'พัทยา, ชลบุรี', status: 'busy' as CallStatus },
+  { id: '6', date: new Date('2024-01-14T22:15:00'), incidentType: 'medical' as EmergencyCategory, agency: 'หน่วยแพทย์ฉุกเฉิน', phone: '1669', location: 'เมือง, เชียงใหม่', status: 'connected' as CallStatus },
+  { id: '7', date: new Date('2024-01-14T20:45:00'), incidentType: 'police' as EmergencyCategory, agency: 'ตำรวจท่องเที่ยว', phone: '1155', location: 'กะทู้, ภูเก็ต', status: 'connected' as CallStatus },
+  { id: '8', date: new Date('2024-01-14T18:30:00'), incidentType: 'fire' as EmergencyCategory, agency: 'สถานีดับเพลิงภูเก็ต', phone: '076-234567', location: 'เมืองภูเก็ต', status: 'wrong-number' as CallStatus },
+  { id: '9', date: new Date('2024-01-14T16:20:00'), incidentType: 'flood' as EmergencyCategory, agency: 'ศูนย์ป้องกันภัยพิบัติ', phone: '1784', location: 'บางละมุง, ชลบุรี', status: 'connected' as CallStatus },
+  { id: '10', date: new Date('2024-01-14T14:10:00'), incidentType: 'rescue' as EmergencyCategory, agency: 'มูลนิธิปอเต็กตึ๊ง', phone: '1418', location: 'ราชเทวี, กรุงเทพฯ', status: 'connected' as CallStatus },
 ]
 
 const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: string; bgColor: string; label: string; labelTh: string }> = {
@@ -147,13 +147,6 @@ export default function CallLogsPage() {
       hour: '2-digit',
       minute: '2-digit',
     })
-  }
-
-  const formatDuration = (seconds: number) => {
-    if (seconds === 0) return '-'
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
@@ -283,13 +276,12 @@ export default function CallLogsPage() {
                   <TableHead>ประเภทเหตุ</TableHead>
                   <TableHead>หน่วยงาน</TableHead>
                   <TableHead>สถานะ</TableHead>
-                  <TableHead>ระยะเวลา</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       ไม่พบบันทึกการโทร
                     </TableCell>
                   </TableRow>
@@ -343,9 +335,6 @@ export default function CallLogsPage() {
                             <StatusIcon className="mr-1 h-3 w-3" />
                             {statusConfig[log.status].labelTh}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {formatDuration(log.duration)}
                         </TableCell>
                       </TableRow>
                     )

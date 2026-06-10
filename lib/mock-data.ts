@@ -141,7 +141,6 @@ export const mockCallLogs: CallLog[] = [
       lastUpdated: new Date('2024-01-15T10:30:00'),
     },
     status: 'connected',
-    duration: 245,
     notes: 'Ambulance dispatched successfully',
   },
   {
@@ -158,7 +157,6 @@ export const mockCallLogs: CallLog[] = [
       lastUpdated: new Date('2024-01-14T15:45:00'),
     },
     status: 'connected',
-    duration: 180,
     notes: 'Patrol unit responded',
   },
   {

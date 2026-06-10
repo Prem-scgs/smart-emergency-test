@@ -59,7 +59,6 @@ export interface CallLog {
   agency: EmergencyContact
   location: Location
   status: CallStatus
-  duration?: number
   notes?: string
 }
 
