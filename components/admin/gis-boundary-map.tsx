@@ -109,7 +109,7 @@ export function GisBoundaryMap({
       center={DEFAULT_CENTER}
       zoom={6}
       scrollWheelZoom
-      className="h-full w-full"
+      className="isolate z-0 h-full w-full"
       style={{ minHeight: 520 }}
     >
       <TileLayer

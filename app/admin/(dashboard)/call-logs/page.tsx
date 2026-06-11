@@ -1,35 +1,30 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { 
-  Search, 
-  Filter, 
-  Download,
-  Calendar,
-  Clock,
-  MapPin,
-  Phone,
-  CheckCircle2,
-  XCircle,
+import { useEffect, useMemo, useState } from 'react'
+import {
   AlertCircle,
-  PhoneMissed,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Download,
+  FileDown,
   FileSpreadsheet,
   FileText,
-  FileDown,
-  Shield
+  Filter,
+  Loader2,
+  MapPin,
+  Phone,
+  PhoneMissed,
+  RefreshCw,
+  Search,
+  Shield,
+  XCircle,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
+
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,42 +33,62 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
-import { emergencyCategories } from '@/lib/mock-data'
-import { CallStatus, EmergencyCategory } from '@/lib/types'
-import { toast } from 'sonner'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import type { CallStatus, EmergencyCategory } from '@/lib/types'
 
-// Extended mock call logs
-const mockCallLogs = [
-  { id: '1', date: new Date('2024-01-15T10:30:00'), incidentType: 'medical' as EmergencyCategory, agency: 'หน่วยแพทย์ฉุกเฉิน', phone: '1669', location: 'ปทุมวัน, กรุงเทพฯ', status: 'connected' as CallStatus },
-  { id: '2', date: new Date('2024-01-15T09:45:00'), incidentType: 'police' as EmergencyCategory, agency: 'สถานีตำรวจนครบาลปทุมวัน', phone: '191', location: 'จตุจักร, กรุงเทพฯ', status: 'connected' as CallStatus },
-  { id: '3', date: new Date('2024-01-15T09:20:00'), incidentType: 'fire' as EmergencyCategory, agency: 'สถานีดับเพลิง เขต 1', phone: '199', location: 'สีลม, กรุงเทพฯ', status: 'no-answer' as CallStatus },
-  { id: '4', date: new Date('2024-01-15T08:55:00'), incidentType: 'rescue' as EmergencyCategory, agency: 'มูลนิธิร่วมกตัญญู', phone: '1554', location: 'เมืองภูเก็ต', status: 'connected' as CallStatus },
-  { id: '5', date: new Date('2024-01-15T08:30:00'), incidentType: 'road-accident' as EmergencyCategory, agency: 'ตำรวจทางหลวง', phone: '1193', location: 'พัทยา, ชลบุรี', status: 'busy' as CallStatus },
-  { id: '6', date: new Date('2024-01-14T22:15:00'), incidentType: 'medical' as EmergencyCategory, agency: 'หน่วยแพทย์ฉุกเฉิน', phone: '1669', location: 'เมือง, เชียงใหม่', status: 'connected' as CallStatus },
-  { id: '7', date: new Date('2024-01-14T20:45:00'), incidentType: 'police' as EmergencyCategory, agency: 'ตำรวจท่องเที่ยว', phone: '1155', location: 'กะทู้, ภูเก็ต', status: 'connected' as CallStatus },
-  { id: '8', date: new Date('2024-01-14T18:30:00'), incidentType: 'fire' as EmergencyCategory, agency: 'สถานีดับเพลิงภูเก็ต', phone: '076-234567', location: 'เมืองภูเก็ต', status: 'wrong-number' as CallStatus },
-  { id: '9', date: new Date('2024-01-14T16:20:00'), incidentType: 'flood' as EmergencyCategory, agency: 'ศูนย์ป้องกันภัยพิบัติ', phone: '1784', location: 'บางละมุง, ชลบุรี', status: 'connected' as CallStatus },
-  { id: '10', date: new Date('2024-01-14T14:10:00'), incidentType: 'rescue' as EmergencyCategory, agency: 'มูลนิธิปอเต็กตึ๊ง', phone: '1418', location: 'ราชเทวี, กรุงเทพฯ', status: 'connected' as CallStatus },
-]
+const API_BASE_URL = 'http://localhost:4000'
 
-const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: string; bgColor: string; label: string; labelTh: string }> = {
-  'connected': { icon: CheckCircle2, color: 'text-success', bgColor: 'bg-success/10', label: 'Connected', labelTh: 'เชื่อมต่อสำเร็จ' },
-  'busy': { icon: AlertCircle, color: 'text-warning', bgColor: 'bg-warning/10', label: 'Busy', labelTh: 'สายไม่ว่าง' },
-  'no-answer': { icon: PhoneMissed, color: 'text-muted-foreground', bgColor: 'bg-muted', label: 'No Answer', labelTh: 'ไม่รับสาย' },
-  'wrong-number': { icon: XCircle, color: 'text-destructive', bgColor: 'bg-destructive/10', label: 'Wrong Number', labelTh: 'หมายเลขผิด' },
-  'cancelled': { icon: XCircle, color: 'text-muted-foreground', bgColor: 'bg-muted', label: 'Cancelled', labelTh: 'ยกเลิก' },
+interface ApiIncident {
+  id: string
+  category: EmergencyCategory
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  status: string
+  description: string | null
+  agencyContactId: string | null
+  agencyName: string | null
+  agencyPhone: string | null
+  province: string | null
+  district: string | null
+  accuracy: number | null
+  callStatus: CallStatus | null
+  latitude: number
+  longitude: number
+  createdAt: string
+  updatedAt: string
 }
 
-// Category labels in Thai
+interface EmergencyCategoryInfo {
+  id: EmergencyCategory
+  name: string
+  color: string
+  bgColor: string
+}
+
+const fallbackCategories: EmergencyCategoryInfo[] = [
+  { id: 'police', name: 'ตำรวจ', color: 'text-blue-600', bgColor: 'bg-blue-100' },
+  { id: 'medical', name: 'การแพทย์', color: 'text-red-600', bgColor: 'bg-red-100' },
+  { id: 'fire', name: 'ดับเพลิง', color: 'text-orange-600', bgColor: 'bg-orange-100' },
+  { id: 'rescue', name: 'กู้ภัย', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
+  { id: 'flood', name: 'ภัยพิบัติ', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
+  { id: 'road-accident', name: 'จราจร', color: 'text-amber-600', bgColor: 'bg-amber-100' },
+]
+
 const categoryLabels: Record<string, string> = {
   police: 'ตำรวจ',
   medical: 'การแพทย์',
@@ -83,42 +98,169 @@ const categoryLabels: Record<string, string> = {
   'road-accident': 'จราจร',
 }
 
+const dateFilterLabels: Record<'all' | 'today' | 'week' | 'month', string> = {
+  all: 'ทั้งหมด',
+  today: 'วันนี้',
+  week: 'สัปดาห์นี้',
+  month: 'เดือนนี้',
+}
+
+function selectLabel(label: string) {
+  return (
+    <span data-slot="select-value" className="flex flex-1 items-center gap-1.5 text-left">
+      {label}
+    </span>
+  )
+}
+
+const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: string; bgColor: string; labelTh: string }> = {
+  connected: {
+    icon: CheckCircle2,
+    color: 'text-success',
+    bgColor: 'bg-success/10',
+    labelTh: 'เชื่อมต่อสำเร็จ',
+  },
+  busy: {
+    icon: AlertCircle,
+    color: 'text-warning',
+    bgColor: 'bg-warning/10',
+    labelTh: 'สายไม่ว่าง',
+  },
+  'no-answer': {
+    icon: PhoneMissed,
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
+    labelTh: 'ไม่รับสาย',
+  },
+  'wrong-number': {
+    icon: XCircle,
+    color: 'text-destructive',
+    bgColor: 'bg-destructive/10',
+    labelTh: 'หมายเลขผิด',
+  },
+  cancelled: {
+    icon: XCircle,
+    color: 'text-muted-foreground',
+    bgColor: 'bg-muted',
+    labelTh: 'ยกเลิก',
+  },
+}
+
+function getCallStatus(incident: ApiIncident): CallStatus {
+  if (incident.callStatus) return incident.callStatus
+  if (incident.status === 'closed') return 'connected'
+  if (incident.status === 'acknowledged') return 'connected'
+  return 'no-answer'
+}
+
+function getLocation(incident: ApiIncident) {
+  const parts = [incident.district, incident.province].filter(Boolean)
+  if (parts.length > 0) return parts.join(', ')
+  return `${incident.latitude.toFixed(5)}, ${incident.longitude.toFixed(5)}`
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function formatTime(date: string) {
+  return new Date(date).toLocaleTimeString('th-TH', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export default function CallLogsPage() {
   const { canViewAllAgencies, getFilteredCategories, getUserAgency } = useAuth()
-  
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
   const allowedCategories = getFilteredCategories()
 
-  // Filter logs based on user role
-  const baseFilteredLogs = useMemo(() => {
-    if (isSuperAdmin) return mockCallLogs
-    return mockCallLogs.filter(log => allowedCategories.includes(log.incidentType))
-  }, [isSuperAdmin, allowedCategories])
-
+  const [incidents, setIncidents] = useState<ApiIncident[]>([])
+  const [categories, setCategories] = useState<EmergencyCategoryInfo[]>(fallbackCategories)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<CallStatus | 'all'>('all')
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
 
-  // Get available categories for filter dropdown
+  async function loadCallLogs() {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const [incidentsResponse, categoriesResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/incidents`),
+        fetch(`${API_BASE_URL}/api/reference/categories`),
+      ])
+
+      if (!incidentsResponse.ok) {
+        throw new Error('โหลดบันทึกการโทรไม่สำเร็จ')
+      }
+
+      setIncidents((await incidentsResponse.json()) as ApiIncident[])
+
+      if (categoriesResponse.ok) {
+        const apiCategories = (await categoriesResponse.json()) as EmergencyCategoryInfo[]
+        if (apiCategories.length > 0) {
+          setCategories(apiCategories)
+        }
+      }
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : 'โหลดบันทึกการโทรไม่สำเร็จ'
+      setError(message)
+      toast.error(message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadCallLogs()
+  }, [])
+
   const availableCategories = useMemo(() => {
-    if (isSuperAdmin) return emergencyCategories
-    return emergencyCategories.filter(cat => allowedCategories.includes(cat.id))
-  }, [isSuperAdmin, allowedCategories])
+    if (isSuperAdmin) return categories
+    return categories.filter(category => allowedCategories.includes(category.id))
+  }, [allowedCategories, categories, isSuperAdmin])
+
+  const baseFilteredLogs = useMemo(() => {
+    if (isSuperAdmin) return incidents
+    return incidents.filter(incident => allowedCategories.includes(incident.category))
+  }, [allowedCategories, incidents, isSuperAdmin])
 
   const filteredLogs = useMemo(() => {
-    return baseFilteredLogs.filter(log => {
-      const matchesSearch = 
-        log.agency.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.phone.includes(searchQuery)
-      const matchesCategory = categoryFilter === 'all' || log.incidentType === categoryFilter
-      const matchesStatus = statusFilter === 'all' || log.status === statusFilter
+    const keyword = searchQuery.trim().toLocaleLowerCase('th-TH')
 
-      // Date filter
+    return baseFilteredLogs.filter(incident => {
+      const callStatus = getCallStatus(incident)
+      const location = getLocation(incident)
+      const categoryLabel = categoryLabels[incident.category] ?? incident.category
+      const searchable = [
+        incident.agencyName,
+        incident.agencyPhone,
+        incident.description,
+        incident.category,
+        categoryLabel,
+        incident.province,
+        incident.district,
+        location,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLocaleLowerCase('th-TH')
+
+      const matchesSearch = !keyword || searchable.includes(keyword)
+      const matchesCategory = categoryFilter === 'all' || incident.category === categoryFilter
+      const matchesStatus = statusFilter === 'all' || callStatus === statusFilter
+
       const now = new Date()
-      const logDate = new Date(log.date)
+      const logDate = new Date(incident.createdAt)
       let matchesDate = true
       if (dateFilter === 'today') {
         matchesDate = logDate.toDateString() === now.toDateString()
@@ -132,32 +274,16 @@ export default function CallLogsPage() {
 
       return matchesSearch && matchesCategory && matchesStatus && matchesDate
     })
-  }, [baseFilteredLogs, searchQuery, categoryFilter, statusFilter, dateFilter])
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('th-TH', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })
-  }
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+  }, [baseFilteredLogs, categoryFilter, dateFilter, searchQuery, statusFilter])
 
   const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
     toast.success(`กำลังส่งออกเป็น ${format.toUpperCase()}...`)
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Agency Header for non-superadmin */}
+    <div className="space-y-6 p-4 lg:p-6">
       {!isSuperAdmin && agency && (
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+        <Card className="border-primary/20 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
           <CardContent className="p-4">
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
@@ -174,58 +300,62 @@ export default function CallLogsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>บันทึกการโทร</CardTitle>
               <CardDescription>
-                {isSuperAdmin 
-                  ? 'ดูและส่งออกประวัติการโทรฉุกเฉินทั้งหมด' 
-                  : `ประวัติการโทรของ${agency?.nameTh || 'หน่วยงาน'}`
-                }
+                {isSuperAdmin
+                  ? 'ดูและส่งออกประวัติการโทรฉุกเฉินจากฐานข้อมูล'
+                  : `ประวัติการโทรของ${agency?.nameTh || 'หน่วยงาน'}`}
               </CardDescription>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  ส่งออก
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>รูปแบบไฟล์</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleExport('csv')}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('excel')}>
-                  <FileSpreadsheet className="mr-2 h-4 w-4" />
-                  Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('pdf')}>
-                  <FileDown className="mr-2 h-4 w-4" />
-                  PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={loadCallLogs} disabled={isLoading}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                โหลดใหม่
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    <Download className="mr-2 h-4 w-4" />
+                    ส่งออก
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>รูปแบบไฟล์</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleExport('csv')}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('excel')}>
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                    <FileDown className="mr-2 h-4 w-4" />
+                    PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Filters */}
-          <div className="flex flex-col lg:flex-row gap-4 mb-6">
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="ค้นหาตามหน่วยงาน, สถานที่, หรือเบอร์โทร..."
+                placeholder="ค้นหาตามหน่วยงาน สถานที่ เบอร์โทร หรือรายละเอียด..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={event => setSearchQuery(event.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={dateFilter} onValueChange={(val) => setDateFilter(val as typeof dateFilter)}>
+            <Select value={dateFilter} onValueChange={value => setDateFilter(value as typeof dateFilter)}>
               <SelectTrigger className="w-full lg:w-36">
                 <Calendar className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="วันที่" />
+                {selectLabel(dateFilterLabels[dateFilter])}
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">ทั้งหมด</SelectItem>
@@ -234,26 +364,32 @@ export default function CallLogsPage() {
                 <SelectItem value="month">เดือนนี้</SelectItem>
               </SelectContent>
             </Select>
-            {/* Only show category filter for superadmin or if agency has multiple categories */}
             {(isSuperAdmin || availableCategories.length > 1) && (
-              <Select value={categoryFilter} onValueChange={(val) => setCategoryFilter(val as EmergencyCategory | 'all')}>
+              <Select
+                value={categoryFilter}
+                onValueChange={value => setCategoryFilter(value as EmergencyCategory | 'all')}
+              >
                 <SelectTrigger className="w-full lg:w-48">
                   <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="ประเภท" />
+                  {selectLabel(
+                    categoryFilter === 'all'
+                      ? 'ทุกประเภท'
+                      : categoryLabels[categoryFilter] ?? categoryFilter
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">ทุกประเภท</SelectItem>
-                  {availableCategories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {categoryLabels[cat.id] || cat.name}
+                  {availableCategories.map(category => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {categoryLabels[category.id] ?? category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
-            <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val as CallStatus | 'all')}>
+            <Select value={statusFilter} onValueChange={value => setStatusFilter(value as CallStatus | 'all')}>
               <SelectTrigger className="w-full lg:w-44">
-                <SelectValue placeholder="สถานะ" />
+                {selectLabel(statusFilter === 'all' ? 'ทุกสถานะ' : statusConfig[statusFilter].labelTh)}
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">ทุกสถานะ</SelectItem>
@@ -261,12 +397,12 @@ export default function CallLogsPage() {
                 <SelectItem value="busy">สายไม่ว่าง</SelectItem>
                 <SelectItem value="no-answer">ไม่รับสาย</SelectItem>
                 <SelectItem value="wrong-number">หมายเลขผิด</SelectItem>
+                <SelectItem value="cancelled">ยกเลิก</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Table */}
-          <div className="rounded-md border">
+          <div className="overflow-hidden rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -279,61 +415,74 @@ export default function CallLogsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLogs.length === 0 ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
+                      <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
+                      กำลังโหลดบันทึกการโทร...
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-28 text-center text-destructive">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : filteredLogs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                       ไม่พบบันทึกการโทร
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredLogs.map((log) => {
-                    const category = emergencyCategories.find(c => c.id === log.incidentType)
-                    const StatusIcon = statusConfig[log.status].icon
-                    
+                  filteredLogs.map(incident => {
+                    const category = categories.find(item => item.id === incident.category)
+                    const callStatus = getCallStatus(incident)
+                    const StatusIcon = statusConfig[callStatus].icon
+                    const agencyName = incident.agencyName ?? 'ยังไม่ระบุหน่วยงาน'
+                    const agencyPhone = incident.agencyPhone ?? '-'
+
                     return (
-                      <TableRow key={log.id}>
+                      <TableRow key={incident.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            {formatDate(log.date)}
+                            {formatDate(incident.createdAt)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-muted-foreground" />
-                            {formatTime(log.date)}
+                            {formatTime(incident.createdAt)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm">
                             <MapPin className="h-3 w-3 text-muted-foreground" />
-                            {log.location}
+                            {getLocation(incident)}
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={cn(category?.bgColor, category?.color)}>
-                            {categoryLabels[log.incidentType] || category?.name}
+                            {categoryLabels[incident.category] ?? category?.name ?? incident.category}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">{log.agency}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <p className="font-medium">{agencyName}</p>
+                            <p className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Phone className="h-3 w-3" />
-                              {log.phone}
+                              {agencyPhone}
                             </p>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant="secondary" 
-                            className={cn(
-                              statusConfig[log.status].bgColor,
-                              statusConfig[log.status].color
-                            )}
+                          <Badge
+                            variant="secondary"
+                            className={cn(statusConfig[callStatus].bgColor, statusConfig[callStatus].color)}
                           >
                             <StatusIcon className="mr-1 h-3 w-3" />
-                            {statusConfig[log.status].labelTh}
+                            {statusConfig[callStatus].labelTh}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -344,9 +493,10 @@ export default function CallLogsPage() {
             </Table>
           </div>
 
-          {/* Pagination Info */}
-          <div className="flex items-center justify-between mt-4 text-sm text-muted-foreground">
-            <span>แสดง {filteredLogs.length} จาก {baseFilteredLogs.length} รายการ</span>
+          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              แสดง {filteredLogs.length} จาก {baseFilteredLogs.length} รายการ
+            </span>
           </div>
         </CardContent>
       </Card>

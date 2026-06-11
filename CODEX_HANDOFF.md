@@ -34,6 +34,13 @@ Use this file as the shared memory between Codex sessions, including Codex in ch
 - `GET /api/incidents/map-points` now enriches each incident with containing area info from PostGIS (`areaId`, `areaName`, `areaColor`).
 - Dashboard incident map now uses Leaflet/react-leaflet, so it can pan, zoom, and show incident popups.
 - Dashboard stats, charts, and recent incidents now derive from `GET /api/incidents/map-points` and `GET /api/contacts` instead of the old dashboard mock object.
+- Rebuilt `/admin/dashboard` as a role-scoped operations dashboard: superadmin sees all categories, agency roles see only their allowed category before category/area filters are applied. The page now has Thai labels, KPI cards, incident map, recent incidents, category chart, area summary, and time trend.
+- `components/admin/incident-map.tsx` popup labels now show Thai category/status/area text.
+- Fixed Leaflet map layering over dialogs by isolating map containers at `z-0` and raising shared `Dialog`/`AlertDialog` overlays/content above Leaflet panes/controls.
+- Refined `/admin/dashboard` filter bar layout into one compact card with consistent select controls.
+- Replaced the frontend mock realtime hook with `EventSource` against `http://localhost:4000/api/events`. New `incident.created` events now create real dashboard notifications and high/critical alerts scoped by category/agency.
+- Added generated alert sound in `components/admin/alert-display.tsx` using the Web Audio API, so dashboard alerts can sound without bundling an audio asset.
+- Rewrote `components/admin/alert-display.tsx` to clean up Thai text corruption and keep the dialog queue stable when alerts are dismissed.
 - `/admin/contacts` was rebuilt as a real API-backed CRUD page using `GET/POST/PUT/DELETE /api/contacts`.
 - CRUD verification passed against the live backend/DB: created a temporary contact, updated it, confirmed it existed, deleted it, and confirmed it was gone.
 - Added `003_mock_reference_data.sql` to move the remaining `lib/mock-data.ts` groups into PostgreSQL: emergency categories, provinces, districts, dashboard snapshot, mock user profile, and user emergency contacts.
@@ -41,6 +48,7 @@ Use this file as the shared memory between Codex sessions, including Codex in ch
 - Added reference read APIs: `/api/reference/categories`, `/api/reference/provinces`, `/api/reference/districts`, `/api/dashboard/snapshot`, `/api/users/mock-profile`.
 - Expanded incident records/API with call-log fields from the old mock: `agencyContactId`, `agencyName`, `agencyPhone`, `province`, `district`, `accuracy`, and `callStatus`.
 - Removed call duration from the call logs scope: `/admin/call-logs` no longer shows the duration column, `incidents.duration_seconds` was dropped by `005_drop_incident_duration.sql`, and API responses no longer expose `durationSeconds`.
+- `/admin/call-logs` now reads from `GET /api/incidents` and `GET /api/reference/categories` instead of the local mock call log list. It maps `createdAt`, `category`, `agencyName`, `agencyPhone`, `province/district`, and `callStatus` into the call log table.
 - Added `004_area_boundary_metadata.sql` to make `areas.polygon` a `GEOMETRY(MULTIPOLYGON, 4326)` and add boundary metadata: `area_type`, `source`, `source_code`, province/district codes/names, and `parent_area_id`.
 - Added `pnpm db:migrate:areas` and `pnpm db:import:boundaries`.
 - Imported official Thailand province/district boundaries from `chingchai/OpenGISData-Thailand` into PostGIS. Current official boundary counts in `areas`: 77 province MultiPolygons and 928 district MultiPolygons.
@@ -82,6 +90,8 @@ pnpm build
 - Seed strategy: keep mock-derived data as dev seed SQL, not as migration data. Migration changes schema; seed inserts sample rows.
 - `pnpm db:seed` is idempotent for seed rows because it uses fixed UUIDs and `ON CONFLICT`.
 - Makefile is for shorter team commands and lower context overhead, but `pnpm` scripts remain the Windows-friendly fallback.
+- Token-cost rule for `shadcn-skills`: do not use by default. Use only for larger shadcn-specific UI work such as creating a new admin surface, redesigning a full section, or reviewing a shared UI component for consistency. Do not use it for backend, GIS logic, data flow, small spacing/text tweaks, or routine CRUD wiring.
+- If `shadcn-skills` is used in a future session, prefer the cheapest path first: review existing local `components/ui` patterns, then use discovery/review only when the local pattern library does not answer the problem clearly.
 - Leaflet is installed at the frontend workspace root (`leaflet`, `react-leaflet`, `@types/leaflet`) for interactive OpenStreetMap rendering.
 - Contacts page intentionally no longer imports `lib/mock-data.ts`; category options are local reference values and records come from PostgreSQL.
 - `lib/mock-data.ts` still exists for legacy screens, but its data now has DB-backed equivalents. Next cleanup step is replacing imports page-by-page, then deleting or shrinking the mock file.
@@ -98,11 +108,12 @@ pnpm build
 - GIS page includes a small map legend and passes PostGIS-selected contacts/incidents into the map component.
 - Verification: `pnpm build:api` passed, `pnpm build` passed, `/admin/gis` returned 200, province filter returned 77, Bangkok district filter returned 50, and Pathum Wan area contacts endpoint returned 4 contacts.
 - Latest verification after marker work: `pnpm build` passed, `/admin/gis` returned 200, and a Pathum Wan contact has lat/lng for marker rendering.
+- Latest verification after realtime alert work: `pnpm build` passed, backend health returned 200, `/admin/dashboard` returned 200, `/api/events` emitted `incident.created` after a test POST, and the temporary test incident was deleted.
 
 ## Next Steps
 
 - Continue feature work or inspect current UI flows.
-- Continue reducing remaining legacy mocks in lower-priority pages such as `/admin/call-logs`, `/admin/users`, and mobile/demo components.
+- Continue reducing remaining legacy mocks in lower-priority pages such as `/admin/users` and mobile/demo components.
 - Start replacing remaining `lib/mock-data.ts` imports with the new reference/user/dashboard APIs.
 - Dashboard now shows backend-backed Leaflet incident markers and log filters; next step is adding alert sound from `/api/events`.
 - GIS page now focuses on boundary management and reads `GET /api/areas`.

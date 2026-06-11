@@ -1,55 +1,84 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { 
-  Phone, 
-  AlertTriangle, 
-  Building2, 
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  ArrowUpRight,
-  MoreHorizontal,
-  Shield,
-  RefreshCw
-} from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
-import { 
+  Activity,
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  Filter,
+  MapPinned,
+  MapPin,
+  Phone,
+  RefreshCw,
+  Search,
+  Shield,
+  X,
+} from 'lucide-react'
+import { Bar, BarChart, Line, LineChart, XAxis, YAxis } from 'recharts'
+
+import type { IncidentMapPoint } from '@/components/admin/incident-map'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig
+  type ChartConfig,
 } from '@/components/ui/chart'
-import { Bar, BarChart, XAxis, YAxis, Line, LineChart } from 'recharts'
-import { cn } from '@/lib/utils'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
-import type { IncidentMapPoint } from '@/components/admin/incident-map'
+import type { EmergencyCategory } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 const API_BASE_URL = 'http://localhost:4000'
+const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
+const OUTSIDE_AREA_LABEL = 'นอกพื้นที่ที่จัดการ'
+
+type DashboardIncident = IncidentMapPoint & {
+  province?: string | null
+  district?: string | null
+}
+
+interface DashboardContact {
+  id: string
+  name: string
+  phone: string
+  category: string | null
+  active: boolean
+}
+
+interface AreaMasterRecord {
+  id: string
+  name: string
+  areaType: 'province' | 'district' | 'subdistrict' | 'response-zone'
+  provinceCode: string | null
+  provinceNameTh?: string | null
+  provinceNameEn?: string | null
+  districtCode?: string | null
+  districtNameTh?: string | null
+  districtNameEn?: string | null
+}
+
+interface MasterLocationOption {
+  key: string
+  areaType: 'province' | 'district'
+  label: string
+  province: string
+  district: string | null
+  searchable: string
+}
+
 const IncidentMap = dynamic(
   () => import('@/components/admin/incident-map').then(mod => mod.IncidentMap),
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[420px] items-center justify-center bg-muted text-sm text-muted-foreground">
-        Loading map...
+      <div className="flex h-[460px] items-center justify-center bg-muted text-sm text-muted-foreground">
+        กำลังโหลดแผนที่...
       </div>
     ),
   }
@@ -57,18 +86,11 @@ const IncidentMap = dynamic(
 
 const chartConfig = {
   calls: {
-    label: 'Calls',
+    label: 'จำนวนเหตุ',
     color: 'var(--chart-1)',
   },
 } satisfies ChartConfig
 
-const statusColors: Record<string, string> = {
-  active: 'bg-destructive text-destructive-foreground',
-  responding: 'bg-warning text-warning-foreground',
-  resolved: 'bg-success text-success-foreground',
-}
-
-// Category labels in Thai
 const categoryLabels: Record<string, string> = {
   police: 'ตำรวจ',
   medical: 'การแพทย์',
@@ -78,320 +100,516 @@ const categoryLabels: Record<string, string> = {
   'road-accident': 'จราจร',
 }
 
-const readableCategoryLabels: Record<string, string> = {
-  fire: 'Fire',
-  medical: 'Medical',
-  police: 'Police',
-  rescue: 'Rescue',
-  flood: 'Flood',
-  'road-accident': 'Road accident',
+const severityLabels: Record<string, string> = {
+  critical: 'วิกฤต',
+  high: 'สูง',
+  medium: 'ปานกลาง',
+  low: 'ต่ำ',
 }
 
-interface DashboardContact {
-  id: string
-  category: string
-  active: boolean
+const statusLabels: Record<string, string> = {
+  open: 'เปิดอยู่',
+  acknowledged: 'รับเรื่องแล้ว',
+  closed: 'ปิดเรื่องแล้ว',
 }
 
-function getReadableCategoryLabel(category: string) {
-  return readableCategoryLabels[category] ?? category
+const statusStyles: Record<string, string> = {
+  open: 'bg-destructive text-destructive-foreground',
+  acknowledged: 'bg-warning text-warning-foreground',
+  closed: 'bg-success text-success-foreground',
+}
+
+function selectLabel(label: string) {
+  return (
+    <span data-slot="select-value" className="flex flex-1 items-center gap-1.5 text-left">
+      {label}
+    </span>
+  )
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLocaleLowerCase('th-TH').normalize('NFC')
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function percent(part: number, total: number) {
+  if (total === 0) return 0
+  return Math.round((part / total) * 100)
+}
+
+function buildLocationOptions(
+  provinces: AreaMasterRecord[],
+  districts: AreaMasterRecord[]
+): MasterLocationOption[] {
+  const provinceOptions = provinces.map(province => {
+    const provinceName = province.provinceNameTh ?? province.provinceNameEn ?? province.name
+    return {
+      key: `province-${province.provinceCode ?? province.id}`,
+      areaType: 'province' as const,
+      label: provinceName,
+      province: provinceName,
+      district: null,
+      searchable: normalizeText(
+        [provinceName, province.provinceNameEn ?? '', province.provinceCode ?? ''].join(' ')
+      ),
+    }
+  })
+
+  const districtOptions = districts.map(district => {
+    const provinceName =
+      district.provinceNameTh ?? district.provinceNameEn ?? district.provinceCode ?? '-'
+    const districtName = district.districtNameTh ?? district.districtNameEn ?? district.name
+
+    return {
+      key: `district-${district.districtCode ?? district.id}`,
+      areaType: 'district' as const,
+      label: `${districtName} ${provinceName}`,
+      province: provinceName,
+      district: districtName,
+      searchable: normalizeText(
+        [
+          districtName,
+          provinceName,
+          district.districtNameEn ?? '',
+          district.provinceNameEn ?? '',
+          district.districtCode ?? '',
+          district.provinceCode ?? '',
+        ].join(' ')
+      ),
+    }
+  })
+
+  return [...districtOptions, ...provinceOptions]
 }
 
 export default function DashboardPage() {
   const { user, canViewAllAgencies, getFilteredCategories, getUserAgency } = useAuth()
-  const [incidentPoints, setIncidentPoints] = useState<IncidentMapPoint[]>([])
-  const [dashboardContacts, setDashboardContacts] = useState<DashboardContact[]>([])
-  const [isIncidentLoading, setIsIncidentLoading] = useState(true)
-  const [incidentError, setIncidentError] = useState<string | null>(null)
-  const [categoryFilter, setCategoryFilter] = useState('all')
-  const [areaFilter, setAreaFilter] = useState('all')
-  
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
-  const allowedCategories = getFilteredCategories()
+  const allowedCategories = useMemo(() => getFilteredCategories(), [getFilteredCategories])
 
-  async function loadIncidentPoints() {
+  const [incidents, setIncidents] = useState<DashboardIncident[]>([])
+  const [contacts, setContacts] = useState<DashboardContact[]>([])
+  const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
+  const [locationQuery, setLocationQuery] = useState('')
+  const [selectedLocation, setSelectedLocation] = useState<MasterLocationOption | null>(null)
+  const [locationOptions, setLocationOptions] = useState<MasterLocationOption[]>([])
+  const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLocationLoading, setIsLocationLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const locationBoxRef = useRef<HTMLDivElement | null>(null)
+
+  async function loadDashboardData() {
     try {
-      setIsIncidentLoading(true)
-      setIncidentError(null)
+      setIsLoading(true)
+      setError(null)
 
       const [incidentResponse, contactResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/incidents/map-points`),
         fetch(`${API_BASE_URL}/api/contacts`),
       ])
-      if (!incidentResponse.ok) {
-        throw new Error('Failed to load incident logs')
-      }
 
-      const incidentData = (await incidentResponse.json()) as IncidentMapPoint[]
-      setIncidentPoints(incidentData)
+      if (!incidentResponse.ok) throw new Error('โหลดข้อมูลเหตุการณ์ไม่สำเร็จ')
+      if (!contactResponse.ok) throw new Error('โหลดข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
 
-      if (contactResponse.ok) {
-        const contactData = (await contactResponse.json()) as DashboardContact[]
-        setDashboardContacts(contactData)
-      }
-    } catch (error) {
-      setIncidentError(error instanceof Error ? error.message : 'Failed to load incident logs')
+      setIncidents((await incidentResponse.json()) as DashboardIncident[])
+      setContacts((await contactResponse.json()) as DashboardContact[])
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ')
     } finally {
-      setIsIncidentLoading(false)
+      setIsLoading(false)
+    }
+  }
+
+  async function loadLocationMaster() {
+    try {
+      setIsLocationLoading(true)
+
+      const [provinceResponse, districtResponse] = await Promise.all([
+        fetch(
+          `${API_BASE_URL}/api/areas?areaType=province&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=false`
+        ),
+        fetch(
+          `${API_BASE_URL}/api/areas?areaType=district&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=false`
+        ),
+      ])
+
+      if (!provinceResponse.ok) throw new Error('โหลดรายการจังหวัดไม่สำเร็จ')
+      if (!districtResponse.ok) throw new Error('โหลดรายการอำเภอไม่สำเร็จ')
+
+      const provinces = (await provinceResponse.json()) as AreaMasterRecord[]
+      const districts = (await districtResponse.json()) as AreaMasterRecord[]
+      setLocationOptions(buildLocationOptions(provinces, districts))
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'โหลด master location ไม่สำเร็จ')
+    } finally {
+      setIsLocationLoading(false)
     }
   }
 
   useEffect(() => {
-    loadIncidentPoints()
+    loadDashboardData()
+    loadLocationMaster()
   }, [])
 
-  const roleFilteredIncidentPoints = useMemo(() => {
-    return incidentPoints.filter(point =>
-      isSuperAdmin || allowedCategories.includes(point.category as typeof allowedCategories[number])
-    )
-  }, [allowedCategories, incidentPoints, isSuperAdmin])
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!locationBoxRef.current?.contains(event.target as Node)) {
+        setIsLocationMenuOpen(false)
+      }
+    }
 
-  const filteredStats = useMemo(() => {
-    const callsByCategory = roleFilteredIncidentPoints.reduce<Record<string, number>>((acc, point) => {
-      acc[point.category] = (acc[point.category] ?? 0) + 1
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [])
+
+  const roleIncidents = useMemo(() => {
+    if (isSuperAdmin) return incidents
+    return incidents.filter(incident =>
+      allowedCategories.includes(incident.category as EmergencyCategory)
+    )
+  }, [allowedCategories, incidents, isSuperAdmin])
+
+  const roleContacts = useMemo(() => {
+    if (isSuperAdmin) return contacts
+    return contacts.filter(contact => {
+      if (!contact.category) return false
+      return allowedCategories.includes(contact.category as EmergencyCategory)
+    })
+  }, [allowedCategories, contacts, isSuperAdmin])
+
+  const availableCategories = useMemo(() => {
+    return Array.from(new Set(roleIncidents.map(incident => incident.category))).sort() as EmergencyCategory[]
+  }, [roleIncidents])
+
+  const agencyFilters = useMemo(() => {
+    if (isSuperAdmin) {
+      return ['all', ...availableCategories] as Array<EmergencyCategory | 'all'>
+    }
+
+    if (agency?.category) {
+      return [agency.category] as Array<EmergencyCategory | 'all'>
+    }
+
+    return availableCategories as Array<EmergencyCategory | 'all'>
+  }, [agency?.category, availableCategories, isSuperAdmin])
+
+  useEffect(() => {
+    if (!agencyFilters.includes(categoryFilter)) {
+      setCategoryFilter(agencyFilters[0] ?? 'all')
+    }
+  }, [agencyFilters, categoryFilter])
+
+  const normalizedLocationQuery = normalizeText(locationQuery)
+
+  const filteredLocationOptions = useMemo(() => {
+    const source = locationOptions
+    if (normalizedLocationQuery.length === 0) return source.slice(0, 12)
+    return source.filter(option => option.searchable.includes(normalizedLocationQuery)).slice(0, 20)
+  }, [locationOptions, normalizedLocationQuery])
+
+  const visibleIncidents = useMemo(() => {
+    return roleIncidents.filter(incident => {
+      const matchesCategory = categoryFilter === 'all' || incident.category === categoryFilter
+
+      const province = normalizeText(incident.province ?? '')
+      const district = normalizeText(incident.district ?? '')
+      const areaName = normalizeText(incident.areaName ?? '')
+      const locationHaystack = [areaName, district, province].join(' ')
+
+      let matchesLocation = true
+
+      if (selectedLocation) {
+        if (selectedLocation.areaType === 'province') {
+          matchesLocation = province.includes(normalizeText(selectedLocation.province))
+        } else {
+          matchesLocation =
+            province.includes(normalizeText(selectedLocation.province)) &&
+            [district, areaName].some(value =>
+              value.includes(normalizeText(selectedLocation.district ?? selectedLocation.label))
+            )
+        }
+      } else if (normalizedLocationQuery.length > 0) {
+        matchesLocation = locationHaystack.includes(normalizedLocationQuery)
+      }
+
+      return matchesCategory && matchesLocation
+    })
+  }, [categoryFilter, normalizedLocationQuery, roleIncidents, selectedLocation])
+
+  const openIncidents = visibleIncidents.filter(incident => incident.status !== 'closed')
+  const closedIncidents = visibleIncidents.filter(incident => incident.status === 'closed')
+  const activeContacts = roleContacts.filter(contact => contact.active)
+  const criticalIncidents = visibleIncidents.filter(incident => incident.severity === 'critical')
+  const recentIncidents = visibleIncidents.slice(0, 6)
+
+  const agencyDisplayName = agency ? categoryLabels[agency.category] ?? agency.name : 'หน่วยงานนี้'
+  const roleName = isSuperAdmin ? 'superadmin' : user?.role ?? 'agency'
+  const roleLabel = isSuperAdmin ? 'ทุกหน่วยงาน' : agencyDisplayName
+
+  const kpis = [
+    {
+      title: 'เหตุทั้งหมด',
+      value: visibleIncidents.length.toLocaleString(),
+      description: isSuperAdmin ? 'ทุกหน่วยงานตามตัวกรอง' : `เฉพาะ ${agencyDisplayName}`,
+      icon: Phone,
+      tone: 'bg-primary/10 text-primary',
+    },
+    {
+      title: 'เหตุที่ยังเปิดอยู่',
+      value: openIncidents.length.toLocaleString(),
+      description: criticalIncidents.length > 0 ? `${criticalIncidents.length} เหตุวิกฤต` : 'ไม่มีเหตุวิกฤต',
+      icon: AlertTriangle,
+      tone: 'bg-warning/10 text-warning',
+    },
+    {
+      title: 'เบอร์พร้อมใช้งาน',
+      value: activeContacts.length.toLocaleString(),
+      description: `จากทั้งหมด ${roleContacts.length.toLocaleString()} เบอร์`,
+      icon: Building2,
+      tone: 'bg-secondary/10 text-secondary',
+    },
+    {
+      title: 'อัตราปิดเรื่อง',
+      value: `${percent(closedIncidents.length, visibleIncidents.length)}%`,
+      description: `${closedIncidents.length.toLocaleString()} รายการปิดแล้ว`,
+      icon: CheckCircle2,
+      tone: 'bg-success/10 text-success',
+    },
+  ]
+
+  const categoryChartData = useMemo(() => {
+    const counts = visibleIncidents.reduce<Record<string, number>>((acc, incident) => {
+      acc[incident.category] = (acc[incident.category] ?? 0) + 1
       return acc
     }, {})
 
-    const callsByProvince = roleFilteredIncidentPoints.reduce<Record<string, number>>((acc, point) => {
-      const area = point.areaName ?? 'Outside area'
+    return Object.entries(counts)
+      .map(([category, calls]) => ({
+        category: categoryLabels[category] ?? category,
+        calls,
+      }))
+      .sort((a, b) => b.calls - a.calls)
+  }, [visibleIncidents])
+
+  const areaChartData = useMemo(() => {
+    const counts = visibleIncidents.reduce<Record<string, number>>((acc, incident) => {
+      const area = incident.areaName ?? OUTSIDE_AREA_LABEL
       acc[area] = (acc[area] ?? 0) + 1
       return acc
     }, {})
 
-    const relevantContacts = dashboardContacts.filter(contact =>
-      isSuperAdmin || allowedCategories.includes(contact.category as typeof allowedCategories[number])
-    )
-    const resolved = roleFilteredIncidentPoints.filter(point => point.status === 'closed').length
-    const successRate = roleFilteredIncidentPoints.length
-      ? Math.round((resolved / roleFilteredIncidentPoints.length) * 100)
-      : 0
-
-    return {
-      totalCallsToday: roleFilteredIncidentPoints.length,
-      activeIncidents: roleFilteredIncidentPoints.filter(point => point.status !== 'closed').length,
-      totalAgencies: relevantContacts.length,
-      avgResponseTime: roleFilteredIncidentPoints.length ? 4.2 : 0,
-      callsByCategory,
-      callsByProvince,
-      successRate,
-    }
-  }, [allowedCategories, dashboardContacts, isSuperAdmin, roleFilteredIncidentPoints])
-
-  const stats = useMemo(() => [
-    {
-      title: 'การโทรวันนี้',
-      value: filteredStats.totalCallsToday.toLocaleString(),
-      change: '+12%',
-      trend: 'up',
-      icon: Phone,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
-    },
-    {
-      title: 'เหตุการณ์ที่กำลังดำเนินการ',
-      value: filteredStats.activeIncidents.toString(),
-      change: '-5%',
-      trend: 'down',
-      icon: AlertTriangle,
-      color: 'text-warning',
-      bgColor: 'bg-warning/10',
-    },
-    {
-      title: isSuperAdmin ? 'หน่วยงานทั้งหมด' : 'หน่วยงานของคุณ',
-      value: filteredStats.totalAgencies.toLocaleString(),
-      change: isSuperAdmin ? '+3' : '-',
-      trend: 'up',
-      icon: Building2,
-      color: 'text-secondary',
-      bgColor: 'bg-secondary/10',
-    },
-    {
-      title: 'เวลาตอบสนองเฉลี่ย',
-      value: `${filteredStats.avgResponseTime} นาที`,
-      change: '-0.3 นาที',
-      trend: 'down',
-      icon: Clock,
-      color: 'text-success',
-      bgColor: 'bg-success/10',
-    },
-  ], [filteredStats, isSuperAdmin])
-
-  // Chart data filtered by allowed categories
-  const categoryChartData = useMemo(() => {
-    return Object.entries(filteredStats.callsByCategory)
-      .filter(([key]) => allowedCategories.includes(key as typeof allowedCategories[number]))
-      .map(([key, value]) => ({
-        category: categoryLabels[key] || key,
-        calls: value,
-      }))
+    return Object.entries(counts)
+      .map(([area, calls]) => ({ area, calls }))
       .sort((a, b) => b.calls - a.calls)
-  }, [filteredStats, allowedCategories])
-
-  const provinceChartData = useMemo(() => {
-    return Object.entries(filteredStats.callsByProvince)
-      .map(([province, calls]) => ({
-        province,
-        calls,
-      }))
-      .sort((a, b) => b.calls - a.calls)
-      .slice(0, 5)
-  }, [filteredStats])
+      .slice(0, 6)
+  }, [visibleIncidents])
 
   const hourlyData = useMemo(() => {
     const buckets = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00']
     const counts = Object.fromEntries(buckets.map(hour => [hour, 0])) as Record<string, number>
 
-    roleFilteredIncidentPoints.forEach(point => {
-      const hour = new Date(point.createdAt).getHours()
-      const bucketStart = Math.floor(hour / 4) * 4
-      const key = `${bucketStart.toString().padStart(2, '0')}:00`
+    visibleIncidents.forEach(incident => {
+      const hour = new Date(incident.createdAt).getHours()
+      const bucket = Math.floor(hour / 4) * 4
+      const key = `${bucket.toString().padStart(2, '0')}:00`
       counts[key] = (counts[key] ?? 0) + 1
     })
 
     return buckets.map(hour => ({ hour, calls: counts[hour] ?? 0 }))
-  }, [roleFilteredIncidentPoints])
+  }, [visibleIncidents])
 
-  const incidentCategories = useMemo(
-    () => Array.from(new Set(incidentPoints.map(point => point.category))).sort(),
-    [incidentPoints]
-  )
+  const scopeDescription = isSuperAdmin
+    ? 'แสดงเหตุการณ์และเบอร์ฉุกเฉินทุกประเภทจากฐานข้อมูล'
+    : `แสดงเฉพาะข้อมูลประเภท ${allowedCategories.map(category => categoryLabels[category] ?? category).join(', ')}`
 
-  const incidentAreas = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          incidentPoints.map(point => point.areaName ?? 'Outside managed area')
-        )
-      ).sort(),
-    [incidentPoints]
-  )
+  function handleLocationInputChange(value: string) {
+    setLocationQuery(value)
+    setIsLocationMenuOpen(true)
 
-  const filteredIncidentPoints = useMemo(() => {
-    return incidentPoints.filter(point => {
-      const matchesCategory = categoryFilter === 'all' || point.category === categoryFilter
-      const areaName = point.areaName ?? 'Outside managed area'
-      const matchesArea = areaFilter === 'all' || areaName === areaFilter
-      const matchesRole = isSuperAdmin || allowedCategories.includes(point.category as typeof allowedCategories[number])
+    if (selectedLocation && value !== selectedLocation.label) {
+      setSelectedLocation(null)
+    }
+  }
 
-      return matchesCategory && matchesArea && matchesRole
-    })
-  }, [allowedCategories, areaFilter, categoryFilter, incidentPoints, isSuperAdmin])
+  function handleLocationSelect(option: MasterLocationOption) {
+    setSelectedLocation(option)
+    setLocationQuery(option.label)
+    setIsLocationMenuOpen(false)
+  }
 
-  const incidentSummary = useMemo(() => {
-    return incidentCategories
-      .map(category => {
-        const categoryPoints = filteredIncidentPoints.filter(point => point.category === category)
-        const sample = incidentPoints.find(point => point.category === category)
-
-        return {
-          category,
-          count: categoryPoints.length,
-          color: sample?.markerColor ?? '#64748b',
-          areaName: categoryPoints[0]?.areaName ?? 'Outside managed area',
-        }
-      })
-      .filter(item => item.count > 0)
-  }, [filteredIncidentPoints, incidentCategories, incidentPoints])
-
-  const recentIncidents = useMemo(() => {
-    return roleFilteredIncidentPoints.slice(0, 5).map(point => ({
-      id: point.id,
-      typeName: getReadableCategoryLabel(point.category),
-      location: point.areaName ?? 'Outside managed area',
-      time: new Date(point.createdAt).toLocaleString(),
-      status: point.status === 'closed'
-        ? 'resolved'
-        : point.status === 'acknowledged'
-          ? 'responding'
-          : 'active',
-    }))
-  }, [roleFilteredIncidentPoints])
+  function clearLocationSelection() {
+    setSelectedLocation(null)
+    setLocationQuery('')
+    setIsLocationMenuOpen(false)
+  }
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Agency Header for non-superadmin */}
-      {!isSuperAdmin && agency && (
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
-          <CardContent className="p-4">
+    <div className="space-y-6 p-4 lg:p-6">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
                 <Shield className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">{agency.nameTh}</h2>
-                <p className="text-sm text-muted-foreground">{agency.description}</p>
-              </div>
-              <Badge variant="outline" className="ml-auto">
-                {user?.role === 'agency-admin' ? 'ผู้ดูแลหน่วยงาน' : 'เจ้าหน้าที่'}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Superadmin Header */}
-      {isSuperAdmin && (
-        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-                <Shield className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">ศูนย์บัญชาการเหตุฉุกเฉินแห่งชาติ</h2>
-                <p className="text-sm text-muted-foreground">ดูแลและจัดการทุกหน่วยงานในระบบ</p>
-              </div>
-              <Badge variant="default" className="ml-auto">
-                Superadmin
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className={cn('flex h-12 w-12 items-center justify-center rounded-lg', stat.bgColor)}>
-                  <stat.icon className={cn('h-6 w-6', stat.color)} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-semibold">
+                    {isSuperAdmin ? 'ศูนย์บัญชาการภาพรวม' : agencyDisplayName}
+                  </h1>
+                  <Badge variant={isSuperAdmin ? 'default' : 'outline'}>{roleName}</Badge>
                 </div>
-                {stat.change !== '-' && (
-                  <div className={cn(
-                    'flex items-center gap-1 text-sm font-medium',
-                    stat.trend === 'up' ? 'text-success' : 'text-primary'
-                  )}>
-                    {stat.trend === 'up' ? (
-                      <TrendingUp className="h-4 w-4" />
-                    ) : (
-                      <TrendingDown className="h-4 w-4" />
-                    )}
-                    {stat.change}
-                  </div>
-                )}
+                <p className="mt-1 text-sm text-muted-foreground">{scopeDescription}</p>
               </div>
-              <div className="mt-4">
-                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.title}</p>
+            </div>
+            <Button variant="outline" onClick={loadDashboardData} disabled={isLoading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              โหลดใหม่
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {error && (
+        <Card className="border-destructive/40">
+          <CardContent className="p-4 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {kpis.map(kpi => (
+          <Card key={kpi.title}>
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">{kpi.title}</p>
+                  <p className="mt-2 text-3xl font-semibold">{isLoading ? '-' : kpi.value}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{kpi.description}</p>
+                </div>
+                <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', kpi.tone)}>
+                  <kpi.icon className="h-5 w-5" />
+                </div>
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Incident Map and Logs */}
-      <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card className="overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPinned className="h-4 w-4" />
+              แผนที่เหตุการณ์ตามสิทธิ์
+            </CardTitle>
+            <CardDescription>
+              แสดงข้อมูลเหตุการณ์ตามหน่วยงานและพื้นที่ที่ต้องการ
+            </CardDescription>
+          </CardHeader>
           <CardContent className="p-0">
-            <div className="relative h-[420px] overflow-hidden">
-              <IncidentMap incidents={filteredIncidentPoints} />
-              <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-4 py-3 shadow-sm backdrop-blur">
-                <p className="text-sm font-semibold">Incident Map</p>
+            <div className="border-b border-border/60 px-4 pb-4 pt-2">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="inline-flex w-full flex-wrap items-center gap-1 rounded-2xl bg-muted p-1 lg:w-auto">
+                  {agencyFilters.map(filter => {
+                    const isActive = categoryFilter === filter
+                    const label = filter === 'all' ? 'ทั้งหมด' : categoryLabels[filter] ?? filter
+
+                    return (
+                      <button
+                        key={filter}
+                        type="button"
+                        onClick={() => setCategoryFilter(filter)}
+                        className={cn(
+                          'inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-medium transition',
+                          isActive
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div ref={locationBoxRef} className="relative w-full lg:max-w-[430px]">
+                  <div className="flex h-10 items-center rounded-2xl border border-border bg-background pl-3 pr-2 shadow-none transition focus-within:border-primary">
+                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <input
+                      value={locationQuery}
+                      onChange={event => handleLocationInputChange(event.target.value)}
+                      onFocus={() => setIsLocationMenuOpen(true)}
+                      placeholder="ค้นหาพื้นที่..."
+                      className="h-full w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                    {(locationQuery.length > 0 || selectedLocation) && (
+                      <button
+                        type="button"
+                        onClick={clearLocationSelection}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        aria-label="ล้างคำค้นหา"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {isLocationMenuOpen && (
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+                      <div className="max-h-[320px] overflow-y-auto py-2">
+                        {isLocationLoading ? (
+                          <div className="px-4 py-3 text-sm text-muted-foreground">
+                            กำลังโหลด master location...
+                          </div>
+                        ) : filteredLocationOptions.length > 0 ? (
+                          filteredLocationOptions.map(option => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => handleLocationSelect(option)}
+                              className={cn(
+                                'flex w-full items-start gap-3 px-4 py-3 text-left text-sm transition hover:bg-muted/70',
+                                selectedLocation?.key === option.key && 'bg-muted'
+                              )}
+                            >
+                              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0">
+                                <p className="truncate font-medium">{option.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {option.areaType === 'province' ? 'จังหวัด' : 'อำเภอ / เขต'}
+                                </p>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-3 text-sm text-muted-foreground">
+                            ไม่พบพื้นที่ที่ตรงกับคำค้นหา
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="relative h-[460px] overflow-hidden">
+              <IncidentMap incidents={visibleIncidents} />
+              <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-4 py-3 text-sm shadow-sm">
+                <p className="font-medium">เหตุที่แสดง {visibleIncidents.length.toLocaleString()} รายการ</p>
                 <p className="text-xs text-muted-foreground">
-                  {filteredIncidentPoints.length} / {incidentPoints.length} logs shown
+                  จากข้อมูลใน scope นี้ {roleIncidents.length.toLocaleString()} รายการ
                 </p>
               </div>
             </div>
@@ -399,261 +617,152 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold">เหตุการณ์</h2>
-                <p className="mt-1 text-xs text-muted-foreground">ดู log ตามประเภทและพื้นที่</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setCategoryFilter('all')
-                  setAreaFilter('all')
-                  loadIncidentPoints()
-                }}
-                disabled={isIncidentLoading}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                ล้างตัวกรอง
-              </Button>
-            </div>
-
-            <div className="mt-5 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">เหตุการณ์</Label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="ทุกเหตุการณ์" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">ทุกเหตุการณ์</SelectItem>
-                    {incidentCategories.map(category => (
-                      <SelectItem key={category} value={category}>
-                        {getReadableCategoryLabel(category)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">พื้นที่</Label>
-                <Select value={areaFilter} onValueChange={setAreaFilter}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="ทุกพื้นที่" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">ทุกพื้นที่</SelectItem>
-                    {incidentAreas.map(area => (
-                      <SelectItem key={area} value={area}>
-                        {area}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <p className="text-sm font-semibold">ทั้งหมด {filteredIncidentPoints.length} เหตุการณ์</p>
-              <div className="mt-3 space-y-3">
-                {isIncidentLoading ? (
-                  <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
-                ) : incidentError ? (
-                  <p className="text-sm text-destructive">{incidentError}</p>
-                ) : incidentSummary.length > 0 ? (
-                  incidentSummary.map(item => (
-                    <div key={item.category} className="flex items-start gap-3">
-                      <span
-                        className="mt-1 h-3 w-3 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <div>
-                        <p className="text-sm font-medium">{getReadableCategoryLabel(item.category)}</p>
-                        <p className="text-xs text-muted-foreground">พื้นที่: {item.areaName}</p>
-                        <p className="text-xs text-muted-foreground">จำนวน: {item.count} ครั้ง</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">ไม่มีข้อมูลเหตุการณ์</p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Calls by Category */}
-        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">
-              {isSuperAdmin ? 'การโทรตามประเภท' : `การโทร - ${agency?.nameTh}`}
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4" />
+              เหตุที่ต้องติดตาม
             </CardTitle>
-            <CardDescription>
-              {isSuperAdmin ? 'ประเภทเหตุฉุกเฉินยอดนิยมวันนี้' : 'สถิติการรับแจ้งเหตุของหน่วยงาน'}
-            </CardDescription>
+            <CardDescription>รายการล่าสุดใน scope ของ role นี้</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <BarChart data={categoryChartData} layout="vertical">
-                <XAxis type="number" />
-                <YAxis dataKey="category" type="category" width={80} tick={{ fontSize: 12 }} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="calls" fill="var(--chart-1)" radius={4} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* Calls by Province */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">การโทรตามจังหวัด</CardTitle>
-            <CardDescription>การกระจายตามพื้นที่</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <BarChart data={provinceChartData}>
-                <XAxis dataKey="province" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="calls" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Second Row */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Hourly Trend */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg">แนวโน้มการโทรรายชั่วโมง</CardTitle>
-            <CardDescription>ปริมาณการโทรตลอดทั้งวัน</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[250px]">
-              <LineChart data={hourlyData}>
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line 
-                  type="monotone" 
-                  dataKey="calls" 
-                  stroke="var(--chart-1)" 
-                  strokeWidth={2}
-                  dot={{ fill: 'var(--chart-1)', strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* Success Rate */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">อัตราความสำเร็จ</CardTitle>
-            <CardDescription>อัตราการเชื่อมต่อสำเร็จ</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center">
-            <div className="relative flex items-center justify-center">
-              <svg className="h-32 w-32 -rotate-90">
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  fill="none"
-                  className="text-muted"
-                />
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  stroke="currentColor"
-                  strokeWidth="12"
-                  fill="none"
-                  strokeDasharray={`${filteredStats.successRate * 3.52} 352`}
-                  className="text-success"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-3xl font-bold text-foreground">
-                  {filteredStats.successRate}%
-                </span>
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
+            ) : recentIncidents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">ไม่พบเหตุการณ์ตามตัวกรอง</p>
+            ) : (
+              <div className="space-y-3">
+                {recentIncidents.map(incident => (
+                  <div key={incident.id} className="rounded-md border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {categoryLabels[incident.category] ?? incident.category}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {incident.areaName ?? OUTSIDE_AREA_LABEL}
+                        </p>
+                      </div>
+                      <Badge className={statusStyles[incident.status] ?? 'bg-muted text-muted-foreground'}>
+                        {statusLabels[incident.status] ?? incident.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{severityLabels[incident.severity] ?? incident.severity}</span>
+                      <span>{formatDateTime(incident.createdAt)}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground text-center">
-              {Math.round(filteredStats.totalCallsToday * filteredStats.successRate / 100)} การโทรเชื่อมต่อสำเร็จ
-            </p>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Incidents */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="gap-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle className="text-lg">เหตุการณ์ล่าสุด</CardTitle>
-              <CardDescription>
-                {isSuperAdmin ? 'อัปเดตเหตุการณ์แบบเรียลไทม์' : `เหตุการณ์ของ${agency?.nameTh}`}
-              </CardDescription>
+              <CardTitle className="text-base">มุมมองเพิ่มเติม</CardTitle>
+              <CardDescription>สลับดูภาพรวมเชิงลึกโดยไม่ต้องยืดหน้าแดชบอร์ด</CardDescription>
             </div>
-            <Button variant="outline" size="sm">
-              ดูทั้งหมด
-              <ArrowUpRight className="ml-1 h-4 w-4" />
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {recentIncidents.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              ไม่มีเหตุการณ์ในขณะนี้
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {recentIncidents.map((incident) => (
-                <div 
-                  key={incident.id} 
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-4">
-                    <Badge className={statusColors[incident.status]}>
-                      {incident.status === 'active' ? 'ดำเนินการ' : 
-                       incident.status === 'responding' ? 'กำลังตอบสนอง' : 'แก้ไขแล้ว'}
-                    </Badge>
-                    <div>
-                      <p className="font-medium text-foreground">เหตุฉุกเฉิน{incident.typeName}</p>
-                      <p className="text-sm text-muted-foreground">{incident.location}</p>
-                    </div>
+          <Tabs defaultValue="overview" className="gap-4">
+            <TabsList className="w-full justify-start overflow-x-auto rounded-xl bg-muted/60 p-1">
+              <TabsTrigger value="overview" className="min-w-[108px]">
+                ภาพรวม
+              </TabsTrigger>
+              <TabsTrigger value="trend" className="min-w-[108px]">
+                แนวโน้ม
+              </TabsTrigger>
+              <TabsTrigger value="areas" className="min-w-[108px]">
+                พื้นที่
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_320px]">
+                <div className="rounded-xl border p-4">
+                  <div className="mb-3">
+                    <h3 className="text-sm font-semibold">เหตุแยกตามประเภท</h3>
+                    <p className="text-xs text-muted-foreground">นับจากข้อมูลที่ role นี้มองเห็น</p>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground">{incident.time}</span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>ดูรายละเอียด</DropdownMenuItem>
-                        <DropdownMenuItem>มอบหมายหน่วย</DropdownMenuItem>
-                        <DropdownMenuItem>ทำเครื่องหมายว่าแก้ไขแล้ว</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <ChartContainer config={chartConfig} className="h-[260px]">
+                    <BarChart data={categoryChartData} layout="vertical">
+                      <XAxis type="number" />
+                      <YAxis dataKey="category" type="category" width={90} tick={{ fontSize: 12 }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="calls" fill="var(--chart-1)" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+
+                <div className="rounded-xl border p-4">
+                  <div className="mb-3">
+                    <h3 className="text-sm font-semibold">สรุปพื้นที่เด่น</h3>
+                    <p className="text-xs text-muted-foreground">พื้นที่ที่มีเหตุสูงสุดตามตัวกรองปัจจุบัน</p>
+                  </div>
+                  <div className="space-y-3">
+                    {areaChartData.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">ไม่มีข้อมูลพื้นที่</p>
+                    ) : (
+                      areaChartData.slice(0, 4).map(item => (
+                        <div key={item.area} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                          <p className="min-w-0 truncate text-sm font-medium">{item.area}</p>
+                          <Badge variant="outline">{item.calls} เหตุ</Badge>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="trend">
+              <div className="rounded-xl border p-4">
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold">แนวโน้มตามช่วงเวลา</h3>
+                  <p className="text-xs text-muted-foreground">แบ่งข้อมูลเป็นช่วงละ 4 ชั่วโมง</p>
+                </div>
+                <ChartContainer config={chartConfig} className="h-[280px]">
+                  <LineChart data={hourlyData}>
+                    <XAxis dataKey="hour" />
+                    <YAxis allowDecimals={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line
+                      type="monotone"
+                      dataKey="calls"
+                      stroke="var(--chart-1)"
+                      strokeWidth={2}
+                      dot={{ fill: 'var(--chart-1)', strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="areas">
+              <div className="rounded-xl border p-4">
+                <div className="mb-3">
+                  <h3 className="text-sm font-semibold">พื้นที่ที่มีเหตุ</h3>
+                  <p className="text-xs text-muted-foreground">เรียงลำดับจากจำนวนเหตุสูงไปต่ำ</p>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {areaChartData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">ไม่มีข้อมูลพื้นที่</p>
+                  ) : (
+                    areaChartData.map(item => (
+                      <div key={item.area} className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                        <p className="min-w-0 truncate text-sm font-medium">{item.area}</p>
+                        <Badge variant="outline">{item.calls} เหตุ</Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

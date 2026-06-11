@@ -23,6 +23,21 @@ interface IncidentMapProps {
 
 const DEFAULT_CENTER: [number, number] = [13.7465, 100.533]
 
+const categoryLabels: Record<string, string> = {
+  police: 'ตำรวจ',
+  medical: 'การแพทย์',
+  fire: 'ดับเพลิง',
+  rescue: 'กู้ภัย',
+  flood: 'ภัยพิบัติ',
+  'road-accident': 'จราจร',
+}
+
+const statusLabels: Record<string, string> = {
+  open: 'เปิดอยู่',
+  acknowledged: 'รับเรื่องแล้ว',
+  closed: 'ปิดเรื่องแล้ว',
+}
+
 export function IncidentMap({ incidents }: IncidentMapProps) {
   const center: [number, number] = incidents[0]
     ? [incidents[0].latitude, incidents[0].longitude]
@@ -33,7 +48,7 @@ export function IncidentMap({ incidents }: IncidentMapProps) {
       center={center}
       zoom={14}
       scrollWheelZoom
-      className="h-full w-full"
+      className="isolate z-0 h-full w-full"
       style={{ minHeight: 420 }}
     >
       <TileLayer
@@ -54,9 +69,9 @@ export function IncidentMap({ incidents }: IncidentMapProps) {
         >
           <Popup>
             <div className="space-y-1">
-              <p className="font-medium capitalize">{incident.category}</p>
-              <p>Status: {incident.status}</p>
-              <p>Area: {incident.areaName ?? 'Outside managed area'}</p>
+              <p className="font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
+              <p>สถานะ: {statusLabels[incident.status] ?? incident.status}</p>
+              <p>พื้นที่: {incident.areaName ?? 'นอกพื้นที่ที่จัดการ'}</p>
             </div>
           </Popup>
         </CircleMarker>

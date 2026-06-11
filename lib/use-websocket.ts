@@ -1,7 +1,20 @@
 'use client'
 
-import { useEffect, useCallback, useRef } from 'react'
-import { Notification, WebSocketEvent, Alert } from './types'
+import { useEffect, useRef } from 'react'
+import { Alert, Notification, WebSocketEvent } from './types'
+
+const EVENTS_URL = 'http://localhost:4000/api/events'
+
+interface IncidentEventPayload {
+  id: string
+  category: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  status: string
+  areaName?: string | null
+  province?: string | null
+  district?: string | null
+  createdAt: string
+}
 
 interface UseWebSocketOptions {
   onNotification?: (notification: Notification) => void
@@ -10,143 +23,109 @@ interface UseWebSocketOptions {
   enabled?: boolean
 }
 
-export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onNotification, onAlert, onEvent, enabled = true } = options
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const isConnectingRef = useRef(false)
-
-  const connect = useCallback(() => {
-    if (isConnectingRef.current || !enabled) return
-    
-    isConnectingRef.current = true
-    
-    try {
-      // For demo: simulate WebSocket with mock events
-      // In production, replace with actual WebSocket URL
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const wsUrl = `${protocol}//${window.location.host}/api/ws`
-      
-      // For now, we'll simulate WebSocket events
-      simulateWebSocketEvents()
-    } catch (error) {
-      console.error('[v0] WebSocket connection error:', error)
-      scheduleReconnect()
-    }
-  }, [enabled])
-
-  const disconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
-    }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current)
-    }
-    isConnectingRef.current = false
-  }, [])
-
-  const scheduleReconnect = useCallback(() => {
-    reconnectTimeoutRef.current = setTimeout(() => {
-      isConnectingRef.current = false
-      connect()
-    }, 3000)
-  }, [connect])
-
-  const simulateWebSocketEvents = () => {
-    // Use counter instead of Date.now() to avoid hydration mismatch
-    let idCounter = 0
-    const baseId = Math.random().toString(36).substr(2, 9)
-
-    // Simulate receiving notifications
-    const mockNotifications: Notification[] = [
-      {
-        id: `notif-${baseId}-${++idCounter}`,
-        type: 'new-incident',
-        title: 'แจ้งเหตุฉุกเฉินใหม่',
-        message: 'มีการแจ้งเหตุฉุกเฉินประเภทการแพทย์ที่ Pathum Wan',
-        category: 'medical',
-        incidentId: `INC-${baseId}`,
-        read: false,
-        timestamp: new Date(),
-        agencyId: 'medical-1'
-      },
-      {
-        id: `notif-${baseId}-${++idCounter}`,
-        type: 'incident-update',
-        title: 'ทีมกู้ภัยกำลังเดินทาง',
-        message: 'ทีมกู้ภัยได้รับเรื่องและกำลังเดินทางไปยังจุดเกิดเหตุ ETA 5 นาที',
-        read: false,
-        timestamp: new Date(Date.now() + 60000),
-      }
-    ]
-
-    // Simulate critical alerts
-    const mockAlerts: Alert[] = [
-      {
-        id: `alert-${baseId}-${++idCounter}`,
-        severity: 'critical',
-        title: 'เหตุฉุกเฉินขนาดใหญ่',
-        message: 'มีการแจ้งเหตุฉุกเฉินขนาดใหญ่ที่ต้องมีการระดมเทพ',
-        description: 'เหตุการณ์อุบัติเหตุรถชนขนาดใหญ่ที่สี่แยก Phaya Thai - Sukhumvit จำนวนผู้บาดเจ็บเบื้องต้น 15 คน',
-        timestamp: new Date(),
-        dismissible: true,
-        actionLabel: 'ดูรายละเอียด',
-        actionUrl: '/admin/dashboard',
-        category: 'road-accident'
-      }
-    ]
-
-    // Simulate events at intervals
-    const eventIntervals: NodeJS.Timeout[] = []
-    
-    // Send alert first (for attention)
-    mockAlerts.forEach((alert, idx) => {
-      const interval = setTimeout(() => {
-        if (onAlert) {
-          onAlert(alert)
-        }
-      }, 1000 + (idx * 2000))
-      
-      eventIntervals.push(interval)
-    })
-
-    // Then send notifications
-    mockNotifications.forEach((notif, idx) => {
-      const interval = setTimeout(() => {
-        if (onNotification) {
-          onNotification(notif)
-        }
-        if (onEvent) {
-          onEvent({
-            type: notif.type,
-            data: notif,
-            timestamp: notif.timestamp,
-            agencyId: notif.agencyId
-          })
-        }
-      }, 3000 + (idx * 2000))
-      
-      eventIntervals.push(interval)
-    })
-
-    // Cleanup on disconnect
-    return () => {
-      eventIntervals.forEach(interval => clearTimeout(interval))
-    }
+function categoryLabel(category: string) {
+  const labels: Record<string, string> = {
+    police: 'ตำรวจ',
+    medical: 'การแพทย์',
+    fire: 'ดับเพลิง',
+    rescue: 'กู้ภัย',
+    flood: 'ภัยพิบัติ',
+    'road-accident': 'จราจร',
   }
 
+  return labels[category] ?? category
+}
+
+function severityLabel(severity: string) {
+  const labels: Record<string, string> = {
+    critical: 'วิกฤต',
+    high: 'สูง',
+    medium: 'ปานกลาง',
+    low: 'ต่ำ',
+  }
+
+  return labels[severity] ?? severity
+}
+
+function buildAreaText(payload: IncidentEventPayload) {
+  if (payload.areaName) return payload.areaName
+  if (payload.district && payload.province) return `${payload.district} ${payload.province}`
+  return payload.province ?? 'ไม่ระบุพื้นที่'
+}
+
+export function useWebSocket(options: UseWebSocketOptions = {}) {
+  const { onNotification, onAlert, onEvent, enabled = true } = options
+  const eventSourceRef = useRef<EventSource | null>(null)
+
   useEffect(() => {
-    if (enabled) {
-      connect()
+    if (!enabled || typeof window === 'undefined') {
+      return
     }
-    
+
+    const eventSource = new EventSource(EVENTS_URL)
+    eventSourceRef.current = eventSource
+
+    const handleIncidentCreated = (event: MessageEvent<string>) => {
+      try {
+        const payload = JSON.parse(event.data) as IncidentEventPayload
+        const timestamp = new Date(payload.createdAt)
+        const agencyId = payload.category
+        const areaText = buildAreaText(payload)
+        const categoryText = categoryLabel(payload.category)
+
+        onNotification?.({
+          id: `incident-${payload.id}`,
+          type: 'new-incident',
+          title: 'มีเหตุใหม่เข้าระบบ',
+          message: `${categoryText} - ${areaText}`,
+          agencyId,
+          category: payload.category as Notification['category'],
+          incidentId: payload.id,
+          read: false,
+          timestamp,
+          actionUrl: '/admin/dashboard',
+        })
+
+        if (payload.severity === 'high' || payload.severity === 'critical') {
+          onAlert?.({
+            id: `alert-${payload.id}`,
+            severity: payload.severity === 'critical' ? 'critical' : 'warning',
+            title: payload.severity === 'critical' ? 'เหตุวิกฤตใหม่' : 'เหตุเร่งด่วนใหม่',
+            message: `${categoryText} ในพื้นที่ ${areaText}`,
+            description: `ระดับความรุนแรง ${severityLabel(payload.severity)} สถานะ ${payload.status}`,
+            agencyId,
+            category: payload.category as Alert['category'],
+            timestamp,
+            dismissible: true,
+            actionLabel: 'ดูรายละเอียด',
+            actionUrl: '/admin/dashboard',
+          })
+        }
+
+        onEvent?.({
+          type: 'new-incident',
+          data: payload,
+          timestamp,
+          agencyId,
+        })
+      } catch (error) {
+        console.error('[smart-emergency] failed to parse incident event', error)
+      }
+    }
+
+    eventSource.addEventListener('incident.created', handleIncidentCreated as EventListener)
+    eventSource.onerror = () => {
+      console.error('[smart-emergency] event stream disconnected')
+    }
+
     return () => {
-      disconnect()
+      eventSource.removeEventListener('incident.created', handleIncidentCreated as EventListener)
+      eventSource.close()
+      eventSourceRef.current = null
     }
-  }, [enabled, connect, disconnect])
+  }, [enabled, onAlert, onEvent, onNotification])
 
   return {
-    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
+    isConnected: eventSourceRef.current?.readyState === 1,
   }
 }
