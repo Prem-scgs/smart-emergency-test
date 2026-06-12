@@ -48,9 +48,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
+import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from '@/lib/emergency-category-utils'
 import type { CallStatus, EmergencyCategory } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 const API_BASE_URL = 'http://localhost:4000'
 
@@ -80,23 +81,7 @@ interface EmergencyCategoryInfo {
   bgColor: string
 }
 
-const fallbackCategories: EmergencyCategoryInfo[] = [
-  { id: 'police', name: 'ตำรวจ', color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  { id: 'medical', name: 'การแพทย์', color: 'text-red-600', bgColor: 'bg-red-100' },
-  { id: 'fire', name: 'ดับเพลิง', color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  { id: 'rescue', name: 'กู้ภัย', color: 'text-emerald-600', bgColor: 'bg-emerald-100' },
-  { id: 'flood', name: 'ภัยพิบัติ', color: 'text-cyan-600', bgColor: 'bg-cyan-100' },
-  { id: 'road-accident', name: 'จราจร', color: 'text-amber-600', bgColor: 'bg-amber-100' },
-]
-
-const categoryLabels: Record<string, string> = {
-  police: 'ตำรวจ',
-  medical: 'การแพทย์',
-  fire: 'ดับเพลิง',
-  rescue: 'กู้ภัย',
-  flood: 'ภัยพิบัติ',
-  'road-accident': 'จราจร',
-}
+const fallbackCategories: EmergencyCategoryInfo[] = adminEmergencyCategoryStyles
 
 const dateFilterLabels: Record<'all' | 'today' | 'week' | 'month', string> = {
   all: 'ทั้งหมด',
@@ -188,6 +173,7 @@ export default function CallLogsPage() {
   const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
   const [statusFilter, setStatusFilter] = useState<CallStatus | 'all'>('all')
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all')
+  const { labelMap: categoryLabelMap } = useMemo(() => buildAdminCategoryCollections(categories as never), [categories])
 
   async function loadCallLogs() {
     try {
@@ -240,7 +226,7 @@ export default function CallLogsPage() {
     return baseFilteredLogs.filter(incident => {
       const callStatus = getCallStatus(incident)
       const location = getLocation(incident)
-      const categoryLabel = categoryLabels[incident.category] ?? incident.category
+      const categoryLabel = categoryLabelMap[incident.category] ?? incident.category
       const searchable = [
         incident.agencyName,
         incident.agencyPhone,
@@ -374,14 +360,14 @@ export default function CallLogsPage() {
                   {selectLabel(
                     categoryFilter === 'all'
                       ? 'ทุกประเภท'
-                      : categoryLabels[categoryFilter] ?? categoryFilter
+                      : categoryLabelMap[categoryFilter] ?? categoryFilter
                   )}
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">ทุกประเภท</SelectItem>
                   {availableCategories.map(category => (
                     <SelectItem key={category.id} value={category.id}>
-                      {categoryLabels[category.id] ?? category.name}
+                      {categoryLabelMap[category.id] ?? category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -464,7 +450,7 @@ export default function CallLogsPage() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={cn(category?.bgColor, category?.color)}>
-                            {categoryLabels[incident.category] ?? category?.name ?? incident.category}
+                            {categoryLabelMap[incident.category] ?? category?.name ?? incident.category}
                           </Badge>
                         </TableCell>
                         <TableCell>

@@ -13,17 +13,16 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { buildAdminCategoryCollections, getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { useReferenceCategories } from '@/lib/reference-categories'
+import {
+  getLocationCanonicalName,
+  getLocationDisplayName,
+  useReferenceLocations,
+} from '@/lib/reference-locations'
 
 const API_BASE_URL = 'http://localhost:4000'
 
-const contactCategories = [
-  { value: 'fire', label: 'Fire' },
-  { value: 'medical', label: 'Medical' },
-  { value: 'police', label: 'Police' },
-  { value: 'rescue', label: 'Rescue' },
-  { value: 'flood', label: 'Flood' },
-  { value: 'road-accident', label: 'Road accident' },
-]
 
 interface Contact {
   id: string
@@ -31,7 +30,9 @@ interface Contact {
   phone: string
   role: string | null
   category: string
+  provinceCode: string | null
   province: string | null
+  districtCode: string | null
   district: string | null
   is24Hours: boolean
   active: boolean
@@ -62,7 +63,7 @@ const emptyForm: ContactFormState = {
 }
 
 function getCategoryLabel(category: string) {
-  return contactCategories.find(item => item.value === category)?.label ?? category
+  return getEmergencyCategoryLabel(category, category)
 }
 
 function toForm(contact: Contact): ContactFormState {
@@ -79,6 +80,17 @@ function toForm(contact: Contact): ContactFormState {
 }
 
 export default function ContactsPage() {
+  const { categories: referenceCategories } = useReferenceCategories()
+  const {
+    provinces,
+    districts,
+    provinceMap,
+    selectedProvinceCode,
+    setSelectedProvinceCode,
+    isLoadingProvinces,
+    isLoadingDistricts,
+  } = useReferenceLocations({ autoSelectFirstProvince: false })
+  const contactCategories = useMemo(() => buildAdminCategoryCollections(referenceCategories).options, [referenceCategories])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -128,12 +140,17 @@ export default function ContactsPage() {
   function openCreateDialog() {
     setEditingContact(null)
     setForm(emptyForm)
+    setSelectedProvinceCode('')
     setIsDialogOpen(true)
   }
 
   function openEditDialog(contact: Contact) {
     setEditingContact(contact)
     setForm(toForm(contact))
+    const matchedProvince = provinces.find(
+      province => getLocationCanonicalName(province) === (contact.province ?? '')
+    )
+    setSelectedProvinceCode(matchedProvince?.provinceCode ?? '')
     setIsDialogOpen(true)
   }
 
@@ -150,6 +167,10 @@ export default function ContactsPage() {
         ? `${API_BASE_URL}/api/contacts/${editingContact.id}`
         : `${API_BASE_URL}/api/contacts`
 
+      const selectedDistrict = availableDistricts.find(
+        district => getLocationCanonicalName(district) === form.district
+      )
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -158,7 +179,9 @@ export default function ContactsPage() {
           phone: form.phone.trim(),
           role: form.role.trim() || null,
           category: form.category,
+          provinceCode: selectedProvinceCode || null,
           province: form.province.trim() || null,
+          districtCode: selectedDistrict?.districtCode ?? null,
           district: form.district.trim() || null,
           is24Hours: form.is24Hours,
           active: form.active,
@@ -198,6 +221,9 @@ export default function ContactsPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to delete contact')
     }
   }
+
+  const selectedProvince = provinceMap[selectedProvinceCode]
+  const availableDistricts = useMemo(() => districts, [districts])
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
@@ -391,19 +417,70 @@ export default function ContactsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="province">Province</Label>
-                <Input
-                  id="province"
-                  value={form.province}
-                  onChange={event => setForm(prev => ({ ...prev, province: event.target.value }))}
-                />
+                <Select
+                  value={selectedProvinceCode || '__none__'}
+                  onValueChange={value => {
+                    const nextCode = value === '__none__' ? '' : value
+                    setSelectedProvinceCode(nextCode)
+                    const province = provinceMap[nextCode]
+                    setForm(prev => ({
+                      ...prev,
+                      province: province ? getLocationCanonicalName(province) : '',
+                      district: '',
+                    }))
+                  }}
+                  disabled={isLoadingProvinces}
+                >
+                  <SelectTrigger id="province">
+                    <SelectValue placeholder="Select province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-</SelectItem>
+                    {provinces.map(province => (
+                      <SelectItem
+                        key={province.provinceCode ?? province.id}
+                        value={province.provinceCode ?? province.id}
+                      >
+                        {getLocationDisplayName(province)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="district">District</Label>
-                <Input
-                  id="district"
-                  value={form.district}
-                  onChange={event => setForm(prev => ({ ...prev, district: event.target.value }))}
-                />
+                <Select
+                  value={form.district || '__none__'}
+                  onValueChange={value => {
+                    const district = availableDistricts.find(
+                      item => getLocationCanonicalName(item) === value
+                    )
+                    setForm(prev => ({
+                      ...prev,
+                      district: value === '__none__' ? '' : value,
+                      province:
+                        district && selectedProvince
+                          ? getLocationCanonicalName(selectedProvince)
+                          : prev.province,
+                    }))
+                  }}
+                  disabled={!selectedProvinceCode || isLoadingDistricts}
+                >
+                  <SelectTrigger id="district">
+                    <SelectValue placeholder="Select district" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">-</SelectItem>
+                    {availableDistricts.map(district => (
+                      <SelectItem
+                        key={district.districtCode ?? district.id}
+                        value={getLocationCanonicalName(district)}
+                      >
+                        {getLocationDisplayName(district)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid gap-3 rounded-md border p-4">

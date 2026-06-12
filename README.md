@@ -1,33 +1,141 @@
-# smart-emergency
+# Smart Emergency
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+Smart Emergency is a Next.js + Fastify + PostgreSQL/PostGIS project for emergency reporting, admin operations, GIS boundary lookup, and realtime incident alerts.
 
-## Built with v0
+## Current Architecture
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+- `app/`, `components/`, `lib/`: Next.js frontend for admin and mobile-style flows
+- `services/emergency-api`: Fastify backend service
+- `docker-compose.yml`: PostgreSQL/PostGIS and DbGate
+- `areas`: official Thailand province/district boundaries plus future editable response zones
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_iUkNGBLui03xHBtlFc5QeZl2KNQs)
+Current runtime split:
 
-## Getting Started
+- Frontend: `http://localhost:3000`
+- Emergency API: `http://localhost:4000`
+- DbGate: `http://localhost:8081`
 
-First, run the development server:
+## Main Features Working Now
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+- Admin dashboard reads real incident/contact data from the backend
+- Admin contacts page supports CRUD against PostgreSQL
+- GIS page loads province/district boundaries and area-scoped contacts/incidents
+- Mobile flow can resolve current location, load local emergency contacts, and create incidents
+- Realtime incident alerts use Server-Sent Events
+- Incident detail endpoint exists at `GET /api/incidents/:id`
+
+## Quick Start
+
+1. Install dependencies
+
+```powershell
+pnpm install
+```
+
+2. Copy environment template if needed
+
+```powershell
+copy .env.example .env
+```
+
+3. Start database
+
+```powershell
+pnpm db:up
+docker compose up -d dbgate
+```
+
+4. Apply migrations and seed local data
+
+```powershell
+pnpm db:migrate:contacts
+pnpm db:migrate:mock
+pnpm db:migrate:areas
+pnpm db:migrate:call-logs
+pnpm db:migrate:reporters
+pnpm db:migrate:category-master
+pnpm db:migrate:location-codes
+pnpm db:seed
+```
+
+5. Start backend
+
+```powershell
+pnpm dev:api
+```
+
+6. Start frontend in another terminal
+
+```powershell
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Makefile Shortcuts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+If `make` is available in your shell:
 
-## Learn More
+```powershell
+make db-ui
+make db-migrate
+make db-seed
+make api
+make web
+```
 
-To learn more, take a look at the following resources:
+In Windows PowerShell without `make`, use the `pnpm` commands directly.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+## Verification Commands
+
+Backend tests:
+
+```powershell
+pnpm test:api
+```
+
+Backend build:
+
+```powershell
+pnpm build:api
+```
+
+Frontend build:
+
+```powershell
+pnpm build
+```
+
+## Important Local URLs
+
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Admin login: [http://localhost:3000/admin](http://localhost:3000/admin)
+- API health: [http://localhost:4000/health](http://localhost:4000/health)
+- DbGate: [http://localhost:8081](http://localhost:8081)
+
+## Environment Variables
+
+See [.env.example](D:\testwork_Fullstack(SCSG)\smart-emergency\.env.example)
+
+- `PORT`
+- `DATABASE_URL`
+- `CORS_ORIGIN`
+
+The backend validates these values on startup.
+
+## Important Files
+
+- Shared handoff: [CODEX_HANDOFF.md](D:\testwork_Fullstack(SCSG)\smart-emergency\CODEX_HANDOFF.md)
+- Production tracking: [PRODUCTION_CHECKLIST.md](D:\testwork_Fullstack(SCSG)\smart-emergency\PRODUCTION_CHECKLIST.md)
+- Session history: [SESSION_LOG.md](D:\testwork_Fullstack(SCSG)\smart-emergency\SESSION_LOG.md)
+- Local operations guide: [RUNBOOK.md](D:\testwork_Fullstack(SCSG)\smart-emergency\RUNBOOK.md)
+
+## Current Caveats
+
+- Admin auth is still mock-based and will be integrated with the team auth system later.
+- `admin/users` is still mock-backed.
+- Audit logging and rate limiting are still pending.
+
+## Repository Notes
+
+- Active branch for this work: `Prem(scgs)-emergencyV0`
+- Do not push directly to `main`
+- Ask Prem before changing git identity or pushing

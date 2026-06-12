@@ -1,11 +1,11 @@
 'use client'
-
-import { useState } from 'react'
 import { X, Trash2, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
 import { useNotifications } from '@/lib/notification-context'
+import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { cn } from '@/lib/utils'
 
 interface NotificationCenterProps {
@@ -15,9 +15,18 @@ interface NotificationCenterProps {
 
 export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications()
+  const { provinceByCode, districtByCode } = useLocationLookupMaps()
 
   const handleMarkAsRead = (id: string) => {
     markAsRead(id)
+  }
+
+  const getLocationLabel = (notification: (typeof notifications)[number]) => {
+    const province = notification.provinceCode ? provinceByCode[notification.provinceCode] : undefined
+    const district = notification.districtCode ? districtByCode[notification.districtCode] : undefined
+    const provinceLabel = getLocationDisplayName(province) || notification.province || ''
+    const districtLabel = getLocationDisplayName(district) || notification.district || ''
+    return [districtLabel, provinceLabel].filter(Boolean).join(', ')
   }
 
   return (
@@ -91,10 +100,15 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                       {notification.message}
                     </p>
+                    {getLocationLabel(notification) && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {getLocationLabel(notification)}
+                      </p>
+                    )}
                     {notification.category && (
                       <div className="mt-2">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {getCategoryLabel(notification.category)}
+                          {getEmergencyCategoryLabel(notification.category, notification.category)}
                         </span>
                       </div>
                     )}
@@ -133,16 +147,4 @@ function formatTime(date: Date): string {
   if (hours < 24) return `${hours}ชั่วโมงที่แล้ว`
   if (days < 7) return `${days}วันที่แล้ว`
   return new Date(date).toLocaleDateString('th-TH')
-}
-
-function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    police: 'ตำรวจ',
-    medical: 'การแพทย์',
-    fire: 'ดับเพลิง',
-    rescue: 'กู้ภัย',
-    flood: 'น้ำท่วม',
-    'road-accident': 'อุบัติเหตุ',
-  }
-  return labels[category] || category
 }

@@ -40,6 +40,13 @@ db-status:
 
 db-migrate:
 	pnpm db:migrate:contacts
+	pnpm db:migrate:mock
+	pnpm db:migrate:areas
+	pnpm db:migrate:call-logs
+	pnpm db:migrate:reporters
+	pnpm db:migrate:category-master
+	pnpm db:migrate:location-codes
+	pnpm db:migrate:audit-logs
 
 db-seed:
 	pnpm db:seed
@@ -48,6 +55,13 @@ db-reset:
 	docker compose down -v
 	docker compose up -d db dbgate
 	pnpm db:migrate:contacts
+	pnpm db:migrate:mock
+	pnpm db:migrate:areas
+	pnpm db:migrate:call-logs
+	pnpm db:migrate:reporters
+	pnpm db:migrate:category-master
+	pnpm db:migrate:location-codes
+	pnpm db:migrate:audit-logs
 	pnpm db:seed
 
 web:

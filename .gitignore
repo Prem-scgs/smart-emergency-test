@@ -19,6 +19,12 @@ yarn-error.log*
 .pnpm-debug.log*
 .codex-dev.*.log
 .codex-api.*.log
+.codex-dev.log
+.codex-api.log
+.codex-dev.err.log
+.codex-dev.out.log
+.codex-api.err.log
+.codex-api.out.log
 
 # env files
 .env*

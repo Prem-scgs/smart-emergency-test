@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -31,15 +31,24 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
+import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
+import { useReferenceCategories } from '@/lib/reference-categories'
+import {
+  getLocationDisplayName,
+  useReferenceLocations,
+  type ReferenceDistrict,
+  type ReferenceProvince,
+} from '@/lib/reference-locations'
 import type { EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const API_BASE_URL = 'http://localhost:4000'
-const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
 const OUTSIDE_AREA_LABEL = 'นอกพื้นที่ที่จัดการ'
 
 type DashboardIncident = IncidentMapPoint & {
+  provinceCode?: string | null
   province?: string | null
+  districtCode?: string | null
   district?: string | null
 }
 
@@ -51,23 +60,13 @@ interface DashboardContact {
   active: boolean
 }
 
-interface AreaMasterRecord {
-  id: string
-  name: string
-  areaType: 'province' | 'district' | 'subdistrict' | 'response-zone'
-  provinceCode: string | null
-  provinceNameTh?: string | null
-  provinceNameEn?: string | null
-  districtCode?: string | null
-  districtNameTh?: string | null
-  districtNameEn?: string | null
-}
-
 interface MasterLocationOption {
   key: string
   areaType: 'province' | 'district'
   label: string
+  provinceCode: string | null
   province: string
+  districtCode: string | null
   district: string | null
   searchable: string
 }
@@ -90,15 +89,6 @@ const chartConfig = {
     color: 'var(--chart-1)',
   },
 } satisfies ChartConfig
-
-const categoryLabels: Record<string, string> = {
-  police: 'ตำรวจ',
-  medical: 'การแพทย์',
-  fire: 'ดับเพลิง',
-  rescue: 'กู้ภัย',
-  flood: 'ภัยพิบัติ',
-  'road-accident': 'จราจร',
-}
 
 const severityLabels: Record<string, string> = {
   critical: 'วิกฤต',
@@ -146,19 +136,21 @@ function percent(part: number, total: number) {
 }
 
 function buildLocationOptions(
-  provinces: AreaMasterRecord[],
-  districts: AreaMasterRecord[]
+  provinces: ReferenceProvince[],
+  districts: ReferenceDistrict[]
 ): MasterLocationOption[] {
   const provinceOptions = provinces.map(province => {
-    const provinceName = province.provinceNameTh ?? province.provinceNameEn ?? province.name
+    const provinceName = getLocationDisplayName(province)
     return {
       key: `province-${province.provinceCode ?? province.id}`,
       areaType: 'province' as const,
       label: provinceName,
+      provinceCode: province.provinceCode ?? null,
       province: provinceName,
+      districtCode: null,
       district: null,
       searchable: normalizeText(
-        [provinceName, province.provinceNameEn ?? '', province.provinceCode ?? ''].join(' ')
+        [provinceName, province.nameEn ?? '', province.provinceCode ?? ''].join(' ')
       ),
     }
   })
@@ -166,19 +158,21 @@ function buildLocationOptions(
   const districtOptions = districts.map(district => {
     const provinceName =
       district.provinceNameTh ?? district.provinceNameEn ?? district.provinceCode ?? '-'
-    const districtName = district.districtNameTh ?? district.districtNameEn ?? district.name
+    const districtName = getLocationDisplayName(district)
 
     return {
-      key: `district-${district.districtCode ?? district.id}`,
+      key: `district-${district.districtCode ?? district.id}-${district.provinceCode ?? 'na'}`,
       areaType: 'district' as const,
       label: `${districtName} ${provinceName}`,
+      provinceCode: district.provinceCode ?? null,
       province: provinceName,
+      districtCode: district.districtCode ?? null,
       district: districtName,
       searchable: normalizeText(
         [
           districtName,
           provinceName,
-          district.districtNameEn ?? '',
+          district.nameEn ?? '',
           district.provinceNameEn ?? '',
           district.districtCode ?? '',
           district.provinceCode ?? '',
@@ -192,6 +186,9 @@ function buildLocationOptions(
 
 export default function DashboardPage() {
   const { user, canViewAllAgencies, getFilteredCategories, getUserAgency } = useAuth()
+  const { categories: referenceCategories } = useReferenceCategories()
+  const { provinces, districts, isLoadingProvinces, isLoadingDistricts } = useReferenceLocations({ autoSelectFirstProvince: false })
+  const { labelMap: categoryLabelMap } = useMemo(() => buildAdminCategoryCollections(referenceCategories), [referenceCategories])
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
   const allowedCategories = useMemo(() => getFilteredCategories(), [getFilteredCategories])
@@ -201,15 +198,13 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
   const [locationQuery, setLocationQuery] = useState('')
   const [selectedLocation, setSelectedLocation] = useState<MasterLocationOption | null>(null)
-  const [locationOptions, setLocationOptions] = useState<MasterLocationOption[]>([])
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [isLocationLoading, setIsLocationLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const locationBoxRef = useRef<HTMLDivElement | null>(null)
 
-  async function loadDashboardData() {
+  const loadDashboardData = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -229,38 +224,21 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  async function loadLocationMaster() {
-    try {
-      setIsLocationLoading(true)
-
-      const [provinceResponse, districtResponse] = await Promise.all([
-        fetch(
-          `${API_BASE_URL}/api/areas?areaType=province&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=false`
-        ),
-        fetch(
-          `${API_BASE_URL}/api/areas?areaType=district&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=false`
-        ),
-      ])
-
-      if (!provinceResponse.ok) throw new Error('โหลดรายการจังหวัดไม่สำเร็จ')
-      if (!districtResponse.ok) throw new Error('โหลดรายการอำเภอไม่สำเร็จ')
-
-      const provinces = (await provinceResponse.json()) as AreaMasterRecord[]
-      const districts = (await districtResponse.json()) as AreaMasterRecord[]
-      setLocationOptions(buildLocationOptions(provinces, districts))
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'โหลด master location ไม่สำเร็จ')
-    } finally {
-      setIsLocationLoading(false)
-    }
-  }
 
   useEffect(() => {
     loadDashboardData()
-    loadLocationMaster()
-  }, [])
+  }, [loadDashboardData])
+
+  useEffect(() => {
+    function handleIncidentCreated() {
+      loadDashboardData()
+    }
+
+    window.addEventListener('smart-emergency:incident-created', handleIncidentCreated)
+    return () => window.removeEventListener('smart-emergency:incident-created', handleIncidentCreated)
+  }, [loadDashboardData])
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -310,6 +288,9 @@ export default function DashboardPage() {
     }
   }, [agencyFilters, categoryFilter])
 
+  const locationOptions = useMemo(() => buildLocationOptions(provinces, districts), [districts, provinces])
+  const isLocationLoading = isLoadingProvinces || isLoadingDistricts
+
   const normalizedLocationQuery = normalizeText(locationQuery)
 
   const filteredLocationOptions = useMemo(() => {
@@ -322,22 +303,36 @@ export default function DashboardPage() {
     return roleIncidents.filter(incident => {
       const matchesCategory = categoryFilter === 'all' || incident.category === categoryFilter
 
+      const provinceCode = incident.provinceCode?.trim() ?? ''
       const province = normalizeText(incident.province ?? '')
+      const districtCode = incident.districtCode?.trim() ?? ''
       const district = normalizeText(incident.district ?? '')
       const areaName = normalizeText(incident.areaName ?? '')
-      const locationHaystack = [areaName, district, province].join(' ')
+      const locationHaystack = [areaName, district, province, provinceCode, districtCode]
+        .join(' ')
+        .trim()
 
       let matchesLocation = true
 
       if (selectedLocation) {
         if (selectedLocation.areaType === 'province') {
-          matchesLocation = province.includes(normalizeText(selectedLocation.province))
+          matchesLocation =
+            (selectedLocation.provinceCode != null &&
+              selectedLocation.provinceCode.length > 0 &&
+              provinceCode === selectedLocation.provinceCode) ||
+            province.includes(normalizeText(selectedLocation.province))
         } else {
           matchesLocation =
-            province.includes(normalizeText(selectedLocation.province)) &&
-            [district, areaName].some(value =>
-              value.includes(normalizeText(selectedLocation.district ?? selectedLocation.label))
-            )
+            (((selectedLocation.provinceCode != null &&
+              selectedLocation.provinceCode.length > 0 &&
+              provinceCode === selectedLocation.provinceCode) ||
+              province.includes(normalizeText(selectedLocation.province))) &&
+              ((selectedLocation.districtCode != null &&
+                selectedLocation.districtCode.length > 0 &&
+                districtCode === selectedLocation.districtCode) ||
+                [district, areaName].some(value =>
+                  value.includes(normalizeText(selectedLocation.district ?? selectedLocation.label))
+                )))
         }
       } else if (normalizedLocationQuery.length > 0) {
         matchesLocation = locationHaystack.includes(normalizedLocationQuery)
@@ -353,7 +348,7 @@ export default function DashboardPage() {
   const criticalIncidents = visibleIncidents.filter(incident => incident.severity === 'critical')
   const recentIncidents = visibleIncidents.slice(0, 6)
 
-  const agencyDisplayName = agency ? categoryLabels[agency.category] ?? agency.name : 'หน่วยงานนี้'
+  const agencyDisplayName = agency ? categoryLabelMap[agency.category] ?? agency.name : 'หน่วยงานนี้'
   const roleName = isSuperAdmin ? 'superadmin' : user?.role ?? 'agency'
   const roleLabel = isSuperAdmin ? 'ทุกหน่วยงาน' : agencyDisplayName
 
@@ -396,7 +391,7 @@ export default function DashboardPage() {
 
     return Object.entries(counts)
       .map(([category, calls]) => ({
-        category: categoryLabels[category] ?? category,
+        category: categoryLabelMap[category] ?? category,
         calls,
       }))
       .sort((a, b) => b.calls - a.calls)
@@ -431,7 +426,7 @@ export default function DashboardPage() {
 
   const scopeDescription = isSuperAdmin
     ? 'แสดงเหตุการณ์และเบอร์ฉุกเฉินทุกประเภทจากฐานข้อมูล'
-    : `แสดงเฉพาะข้อมูลประเภท ${allowedCategories.map(category => categoryLabels[category] ?? category).join(', ')}`
+    : `แสดงเฉพาะข้อมูลประเภท ${allowedCategories.map(category => categoryLabelMap[category] ?? category).join(', ')}`
 
   function handleLocationInputChange(value: string) {
     setLocationQuery(value)
@@ -523,7 +518,7 @@ export default function DashboardPage() {
                 <div className="inline-flex w-full flex-wrap items-center gap-1 rounded-2xl bg-muted p-1 lg:w-auto">
                   {agencyFilters.map(filter => {
                     const isActive = categoryFilter === filter
-                    const label = filter === 'all' ? 'ทั้งหมด' : categoryLabels[filter] ?? filter
+                    const label = filter === 'all' ? 'ทั้งหมด' : categoryLabelMap[filter] ?? filter
 
                     return (
                       <button
@@ -636,7 +631,7 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-sm font-medium">
-                          {categoryLabels[incident.category] ?? incident.category}
+                          {categoryLabelMap[incident.category] ?? incident.category}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {incident.areaName ?? OUTSIDE_AREA_LABEL}

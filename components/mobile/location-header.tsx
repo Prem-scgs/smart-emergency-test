@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { getLocationDisplayName, useReferenceLocations } from '@/lib/reference-locations'
 import { cn } from '@/lib/utils'
 
 interface LocationData {
   latitude: number
   longitude: number
+  provinceCode?: string
   province: string
+  districtCode?: string
   district: string
   accuracy: number
   lastUpdated: Date
@@ -17,44 +20,24 @@ interface LocationData {
 
 interface LocationHeaderProps {
   className?: string
+  location: LocationData
+  isRefreshing?: boolean
+  onRefresh?: () => void
 }
 
-export function LocationHeader({ className }: LocationHeaderProps) {
-  const [location, setLocation] = useState<LocationData>({
-    latitude: 13.7563,
-    longitude: 100.5018,
-    province: 'Bangkok',
-    district: 'Pathum Wan',
-    accuracy: 15,
-    lastUpdated: new Date(),
-  })
-  const [isOnline, setIsOnline] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+export function LocationHeader({ className, location, isRefreshing = false, onRefresh }: LocationHeaderProps) {
+  const {
+    provinces,
+    districts,
+    setSelectedProvinceCode,
+  } = useReferenceLocations({ autoSelectFirstProvince: false })
+  const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
-
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
+    if (location.provinceCode) {
+      setSelectedProvinceCode(location.provinceCode)
     }
-  }, [])
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    // Simulate GPS refresh
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setLocation(prev => ({
-      ...prev,
-      accuracy: Math.max(5, prev.accuracy - Math.random() * 5),
-      lastUpdated: new Date(),
-    }))
-    setIsRefreshing(false)
-  }
+  }, [location.provinceCode, setSelectedProvinceCode])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -63,6 +46,11 @@ export function LocationHeader({ className }: LocationHeaderProps) {
       hour12: false 
     })
   }
+
+  const province = provinces.find(item => item.provinceCode === location.provinceCode)
+  const district = districts.find(item => item.districtCode === location.districtCode)
+  const provinceLabel = getLocationDisplayName(province) || location.province
+  const districtLabel = getLocationDisplayName(district) || location.district
 
   return (
     <div className={cn('rounded-xl bg-card p-4 shadow-sm border', className)}>
@@ -74,7 +62,7 @@ export function LocationHeader({ className }: LocationHeaderProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-foreground truncate">
-                {location.district}
+                {districtLabel}
               </h2>
               {isOnline ? (
                 <Wifi className="h-4 w-4 text-success shrink-0" />
@@ -83,7 +71,7 @@ export function LocationHeader({ className }: LocationHeaderProps) {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {location.province}
+              {provinceLabel}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="text-xs">
@@ -98,7 +86,7 @@ export function LocationHeader({ className }: LocationHeaderProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleRefresh}
+          onClick={onRefresh}
           disabled={isRefreshing}
           className="shrink-0"
           aria-label="Refresh location"

@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { buildApiErrorPayload } from "../../api-error.js";
+import { writeAuditLog } from "../../audit-log.js";
 import { pool } from "../../db.js";
 
 const areaBody = z.object({
@@ -33,6 +35,11 @@ const areaQuery = z.object({
   districtCode: z.string().min(1).optional(),
   source: z.string().min(1).optional(),
   includeGeometry: z.enum(["true", "false"]).default("true"),
+});
+
+const resolvePointQuery = z.object({
+  latitude: z.coerce.number().min(-90).max(90),
+  longitude: z.coerce.number().min(-180).max(180),
 });
 
 const paramsWithId = z.object({
@@ -139,6 +146,85 @@ export async function registerAreaRoutes(app: FastifyInstance) {
     return result.rows.map(rowToArea);
   });
 
+  app.get("/api/areas/resolve-point", async (request) => {
+    const query = resolvePointQuery.parse(request.query);
+    const result = await pool.query(
+      `
+        WITH district_match AS (
+          SELECT
+            id,
+            name,
+            province_code,
+            province_name_th,
+            province_name_en,
+            district_code,
+            district_name_th,
+            district_name_en
+          FROM areas
+          WHERE area_type = 'district'
+            AND ST_Contains(
+              polygon,
+              ST_SetSRID(ST_MakePoint($2, $1), 4326)
+            )
+          ORDER BY created_at DESC
+          LIMIT 1
+        ),
+        province_match AS (
+          SELECT
+            id,
+            name,
+            province_code,
+            province_name_th,
+            province_name_en
+          FROM areas
+          WHERE area_type = 'province'
+            AND ST_Contains(
+              polygon,
+              ST_SetSRID(ST_MakePoint($2, $1), 4326)
+            )
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
+        SELECT
+          d.id AS district_area_id,
+          d.name AS district_area_name,
+          d.province_code,
+          COALESCE(d.province_name_th, p.province_name_th) AS province_name_th,
+          COALESCE(d.province_name_en, p.province_name_en) AS province_name_en,
+          d.district_code,
+          d.district_name_th,
+          d.district_name_en,
+          p.id AS province_area_id,
+          p.name AS province_area_name
+        FROM district_match d
+        FULL JOIN province_match p ON true
+      `,
+      [query.latitude, query.longitude]
+    );
+
+    const row = result.rows[0];
+    const matched = Boolean(
+      row?.province_code ||
+      row?.district_code ||
+      row?.province_area_id ||
+      row?.district_area_id
+    );
+
+    return {
+      matched,
+      provinceCode: row?.province_code ?? null,
+      provinceNameTh: row?.province_name_th ?? null,
+      provinceNameEn: row?.province_name_en ?? null,
+      districtCode: row?.district_code ?? null,
+      districtNameTh: row?.district_name_th ?? null,
+      districtNameEn: row?.district_name_en ?? null,
+      provinceAreaId: row?.province_area_id ?? null,
+      provinceAreaName: row?.province_area_name ?? null,
+      districtAreaId: row?.district_area_id ?? null,
+      districtAreaName: row?.district_area_name ?? null,
+    };
+  });
+
   app.post("/api/areas", async (request, reply) => {
     const body = areaBody.parse(request.body);
     const result = await pool.query(
@@ -154,7 +240,17 @@ export async function registerAreaRoutes(app: FastifyInstance) {
     );
 
     reply.code(201);
-    return rowToArea(result.rows[0]);
+    const area = rowToArea(result.rows[0]);
+    await writeAuditLog(request, {
+      action: "areas.create",
+      resourceType: "area",
+      resourceId: String(area.id),
+      details: {
+        name: area.name,
+        areaType: area.areaType,
+      },
+    });
+    return area;
   });
 
   app.put("/api/areas/:id", async (request, reply) => {
@@ -180,10 +276,20 @@ export async function registerAreaRoutes(app: FastifyInstance) {
 
     if (result.rowCount === 0) {
       reply.code(404);
-      return { error: "Area not found" };
+      return buildApiErrorPayload(404, "AREA_NOT_FOUND", "Area not found");
     }
 
-    return rowToArea(result.rows[0]);
+    const area = rowToArea(result.rows[0]);
+    await writeAuditLog(request, {
+      action: "areas.update",
+      resourceType: "area",
+      resourceId: String(area.id),
+      details: {
+        name: area.name,
+        areaType: area.areaType,
+      },
+    });
+    return area;
   });
 
   app.delete("/api/areas/:id", async (request, reply) => {
@@ -192,8 +298,15 @@ export async function registerAreaRoutes(app: FastifyInstance) {
 
     if (result.rowCount === 0) {
       reply.code(404);
-      return { error: "Area not found" };
+      return buildApiErrorPayload(404, "AREA_NOT_FOUND", "Area not found");
     }
+
+    await writeAuditLog(request, {
+      action: "areas.delete",
+      resourceType: "area",
+      resourceId: id,
+      details: {},
+    });
 
     return { ok: true };
   });
@@ -216,7 +329,7 @@ export async function registerAreaRoutes(app: FastifyInstance) {
       const area = await pool.query("SELECT id FROM areas WHERE id = $1", [id]);
       if (area.rowCount === 0) {
         reply.code(404);
-        return { error: "Area not found" };
+        return buildApiErrorPayload(404, "AREA_NOT_FOUND", "Area not found");
       }
     }
 
@@ -240,7 +353,7 @@ export async function registerAreaRoutes(app: FastifyInstance) {
       const area = await pool.query("SELECT id FROM areas WHERE id = $1", [id]);
       if (area.rowCount === 0) {
         reply.code(404);
-        return { error: "Area not found" };
+        return buildApiErrorPayload(404, "AREA_NOT_FOUND", "Area not found");
       }
     }
 
@@ -264,7 +377,7 @@ export async function registerAreaRoutes(app: FastifyInstance) {
 
     if (result.rowCount === 0) {
       reply.code(404);
-      return { error: "Area not found" };
+      return buildApiErrorPayload(404, "AREA_NOT_FOUND", "Area not found");
     }
 
     return { contains: result.rows[0].contains };

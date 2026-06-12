@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { GisBoundary } from '@/components/admin/gis-boundary-map'
+import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
 
 const API_BASE_URL = 'http://localhost:4000'
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
@@ -92,15 +93,7 @@ function areaTypeLabel(areaType: string) {
 }
 
 function categoryLabel(category: string | null) {
-  const labels: Record<string, string> = {
-    police: 'ตำรวจ',
-    medical: 'การแพทย์',
-    fire: 'ดับเพลิง',
-    rescue: 'กู้ภัย',
-    flood: 'น้ำท่วม',
-    'road-accident': 'อุบัติเหตุทางถนน',
-  }
-  return category ? labels[category] ?? category : 'ทั่วไป'
+  return getEmergencyCategoryLabel(category)
 }
 
 function statusLabel(status: string) {

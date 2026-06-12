@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { buildApiErrorPayload } from "../../api-error.js";
+import { writeAuditLog } from "../../audit-log.js";
 import { emergencyEvents, emitEmergencyEvent } from "../../events.js";
 import { pool } from "../../db.js";
+import { createInMemoryRateLimiter } from "../../rate-limit.js";
 
 const incidentBody = z.object({
   category: z.string().min(1),
@@ -10,6 +13,14 @@ const incidentBody = z.object({
   description: z.string().nullable().optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  provinceCode: z.string().nullable().optional(),
+  province: z.string().nullable().optional(),
+  districtCode: z.string().nullable().optional(),
+  district: z.string().nullable().optional(),
+  accuracy: z.number().nullable().optional(),
+  callStatus: z.enum(["connected", "busy", "no-answer", "wrong-number", "cancelled"]).nullable().optional(),
+  reporterPhone: z.string().trim().min(8).max(32).nullable().optional(),
+  sessionId: z.string().trim().min(8).max(128).nullable().optional(),
 });
 
 function rowToIncident(row: Record<string, unknown>) {
@@ -22,10 +33,14 @@ function rowToIncident(row: Record<string, unknown>) {
     agencyContactId: row.agency_contact_id,
     agencyName: row.agency_name,
     agencyPhone: row.agency_phone,
+    provinceCode: row.province_code,
     province: row.province,
+    districtCode: row.district_code,
     district: row.district,
     accuracy: row.accuracy,
     callStatus: row.call_status,
+    reporterPhone: row.reporter_phone,
+    sessionId: row.session_id,
     latitude: row.latitude,
     longitude: row.longitude,
     markerColor: row.marker_color,
@@ -48,6 +63,11 @@ function markerColorSql() {
   `;
 }
 
+const incidentCreateRateLimiter = createInMemoryRateLimiter({
+  maxRequests: 10,
+  windowMs: 60_000,
+});
+
 export async function registerIncidentRoutes(app: FastifyInstance) {
   app.get("/api/incidents", async () => {
     const result = await pool.query(
@@ -61,10 +81,14 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           i.agency_contact_id,
           c.name AS agency_name,
           c.phone AS agency_phone,
+          i.province_code,
           i.province,
+          i.district_code,
           i.district,
           i.accuracy,
           i.call_status,
+          i.reporter_phone,
+          i.session_id,
           i.latitude,
           i.longitude,
           i.created_at,
@@ -83,6 +107,63 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return result.rows.map(rowToIncident);
   });
 
+  app.get("/api/incidents/:id", async (request, reply) => {
+    const params = z
+      .object({
+        id: z.string().min(1),
+      })
+      .safeParse(request.params);
+
+    if (!params.success) {
+      reply.code(400);
+      return buildApiErrorPayload(400, "INCIDENT_ID_REQUIRED", "Incident id is required");
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          i.id,
+          i.category,
+          i.severity,
+          i.status,
+          i.description,
+          i.agency_contact_id,
+          c.name AS agency_name,
+          c.phone AS agency_phone,
+          i.province_code,
+          i.province,
+          i.district_code,
+          i.district,
+          i.accuracy,
+          i.call_status,
+          i.reporter_phone,
+          i.session_id,
+          i.latitude,
+          i.longitude,
+          i.created_at,
+          i.updated_at,
+          CASE i.severity
+            WHEN 'critical' THEN '#dc2626'
+            WHEN 'high' THEN '#f97316'
+            WHEN 'medium' THEN '#eab308'
+            ELSE '#22c55e'
+          END AS marker_color
+        FROM incidents i
+        LEFT JOIN contacts c ON c.id = i.agency_contact_id
+        WHERE i.id = $1
+        LIMIT 1
+      `,
+      [params.data.id]
+    );
+
+    if (result.rows.length === 0) {
+      reply.code(404);
+      return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
+    }
+
+    return rowToIncident(result.rows[0]);
+  });
+
   app.get("/api/incidents/map-points", async () => {
     const result = await pool.query(
       `
@@ -95,7 +176,9 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           i.agency_contact_id,
           c.name AS agency_name,
           c.phone AS agency_phone,
+          i.province_code,
           i.province,
+          i.district_code,
           i.district,
           i.accuracy,
           i.call_status,
@@ -126,15 +209,123 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return result.rows.map(rowToIncident);
   });
 
+  app.get("/api/incidents/history", async (request, reply) => {
+    const query = z.object({
+      sessionId: z.string().trim().min(8),
+    }).safeParse(request.query);
+
+    if (!query.success) {
+      reply.code(400);
+      return buildApiErrorPayload(400, "SESSION_ID_REQUIRED", "sessionId is required");
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          i.id,
+          i.category,
+          i.severity,
+          i.status,
+          i.description,
+          i.agency_contact_id,
+          c.name AS agency_name,
+          c.phone AS agency_phone,
+          i.province_code,
+          i.province,
+          i.district_code,
+          i.district,
+          i.accuracy,
+          i.call_status,
+          i.reporter_phone,
+          i.session_id,
+          i.latitude,
+          i.longitude,
+          i.created_at,
+          i.updated_at,
+          CASE i.severity
+            WHEN 'critical' THEN '#dc2626'
+            WHEN 'high' THEN '#f97316'
+            WHEN 'medium' THEN '#eab308'
+            ELSE '#22c55e'
+          END AS marker_color
+        FROM incidents i
+        LEFT JOIN contacts c ON c.id = i.agency_contact_id
+        WHERE i.session_id = $1
+        ORDER BY i.created_at DESC
+      `,
+      [query.data.sessionId]
+    );
+
+    return result.rows.map(rowToIncident);
+  });
+
   app.post("/api/incidents", async (request, reply) => {
+    const rateLimit = incidentCreateRateLimiter.check(request.ip);
+    if (!rateLimit.allowed) {
+      reply.code(429);
+      reply.header("Retry-After", Math.ceil(rateLimit.retryAfterMs / 1000));
+      return buildApiErrorPayload(
+        429,
+        "INCIDENT_RATE_LIMITED",
+        "Too many incident reports from this client"
+      );
+    }
+
     const body = incidentBody.parse(request.body);
+
+    const categoryResult = await pool.query(
+      "SELECT 1 FROM emergency_categories WHERE id = $1 AND active = true LIMIT 1",
+      [body.category]
+    );
+
+    if (categoryResult.rowCount === 0) {
+      reply.code(400);
+      return buildApiErrorPayload(400, "UNKNOWN_EMERGENCY_CATEGORY", "Unknown emergency category");
+    }
+
+    const areaResult = await pool.query(
+      `
+        SELECT
+          province_code,
+          province_name_th,
+          province_name_en,
+          district_code,
+          district_name_th,
+          district_name_en
+        FROM areas
+        WHERE area_type IN ('district', 'province')
+          AND ST_Contains(
+            polygon,
+            ST_SetSRID(ST_MakePoint($2, $1), 4326)
+          )
+        ORDER BY CASE WHEN area_type = 'district' THEN 0 ELSE 1 END, created_at DESC
+        LIMIT 1
+      `,
+      [body.latitude, body.longitude]
+    );
+
+    const matchedArea = areaResult.rows[0];
+    const resolvedProvinceCode = matchedArea?.province_code ?? body.provinceCode ?? null;
+    const resolvedDistrictCode = matchedArea?.district_code ?? body.districtCode ?? null;
+    const resolvedProvince =
+      matchedArea?.province_name_en ??
+      matchedArea?.province_name_th ??
+      body.province ??
+      null;
+    const resolvedDistrict =
+      matchedArea?.district_name_en ??
+      matchedArea?.district_name_th ??
+      body.district ??
+      null;
+
     const result = await pool.query(
       `
         INSERT INTO incidents
-          (category, severity, status, description, latitude, longitude, location)
+          (category, severity, status, description, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, location)
         VALUES
-          ($1, $2, $3, $4, $5, $6, ST_SetSRID(ST_MakePoint($6, $5), 4326))
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, ST_SetSRID(ST_MakePoint($6, $5), 4326))
         RETURNING *, ${markerColorSql()}
+      
       `,
       [
         body.category,
@@ -143,10 +334,30 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         body.description ?? null,
         body.latitude,
         body.longitude,
+        resolvedProvinceCode,
+        resolvedProvince,
+        resolvedDistrictCode,
+        resolvedDistrict,
+        body.accuracy ?? null,
+        body.callStatus ?? null,
+        body.reporterPhone ?? null,
+        body.sessionId ?? null,
       ]
     );
 
     const incident = rowToIncident(result.rows[0]);
+    await writeAuditLog(request, {
+      action: "incidents.create",
+      resourceType: "incident",
+      resourceId: String(incident.id),
+      details: {
+        category: incident.category,
+        severity: incident.severity,
+        status: incident.status,
+        provinceCode: incident.provinceCode,
+        districtCode: incident.districtCode,
+      },
+    });
     emitEmergencyEvent({
       type: "incident.created",
       payload: incident,

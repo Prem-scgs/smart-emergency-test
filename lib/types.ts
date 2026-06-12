@@ -25,7 +25,9 @@ export interface EmergencyCategoryInfo {
 export interface Location {
   latitude: number
   longitude: number
+  provinceCode?: string
   province: string
+  districtCode?: string
   district: string
   subdistrict?: string
   accuracy: number
@@ -38,7 +40,9 @@ export interface EmergencyContact {
   agencyName: string
   phoneNumber: string
   category: EmergencyCategory
+  provinceCode?: string
   province: string
+  districtCode?: string
   district: string
   distance?: number
   status: 'active' | 'inactive'
@@ -214,6 +218,10 @@ export interface Notification {
   agencyId?: string
   category?: EmergencyCategory
   incidentId?: string
+  provinceCode?: string
+  districtCode?: string
+  province?: string
+  district?: string
   read: boolean
   timestamp: Date
   actionUrl?: string

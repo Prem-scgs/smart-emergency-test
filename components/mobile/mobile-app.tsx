@@ -1,15 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
-import { Moon, Sun, Menu } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu'
 import { SplashScreen } from './splash-screen'
 import { LocationHeader } from './location-header'
 import { EmergencyCategoriesGrid } from './emergency-categories-grid'
@@ -22,10 +16,10 @@ import { IncidentTrackingScreen } from './incident-tracking-screen'
 import { MobileNav, NavItem } from './mobile-nav'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmergencyCategory, EmergencyContact, CallStatus } from '@/lib/types'
-import { mockEmergencyContacts } from '@/lib/mock-data'
 import { toast } from 'sonner'
+import { getOrCreateReporterSessionId, getStoredReporterPhone, setStoredReporterPhone } from '@/lib/reporter-session'
 
-type Screen = 
+type Screen =
   | 'splash'
   | 'home'
   | 'incident'
@@ -34,17 +28,214 @@ type Screen =
   | 'history'
   | 'tracking'
 
+const API_BASE_URL = 'http://localhost:4000'
+
+interface MobileLocation {
+  latitude: number
+  longitude: number
+  provinceCode?: string
+  province: string
+  districtCode?: string
+  district: string
+  accuracy: number
+  lastUpdated: Date
+}
+
+const FALLBACK_LOCATION: MobileLocation = {
+  latitude: 13.7478,
+  longitude: 100.5351,
+  provinceCode: '10',
+  province: 'Bangkok',
+  districtCode: '1007',
+  district: 'Pathum Wan',
+  accuracy: 15,
+  lastUpdated: new Date(),
+}
+
+const CATEGORY_SEVERITY: Record<string, 'low' | 'medium' | 'high' | 'critical'> = {
+  police: 'medium',
+  medical: 'high',
+  fire: 'high',
+  rescue: 'high',
+  flood: 'high',
+  'road-accident': 'high',
+}
+
 export function MobileApp() {
   const [screen, setScreen] = useState<Screen>('splash')
   const [activeNav, setActiveNav] = useState<NavItem>('home')
   const [selectedCategory, setSelectedCategory] = useState<EmergencyCategory | null>(null)
   const [selectedContact, setSelectedContact] = useState<EmergencyContact | null>(null)
   const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(null)
+  const [reporterPhone, setReporterPhone] = useState('')
+  const [contacts, setContacts] = useState<EmergencyContact[]>([])
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false)
+  const [currentLocation, setCurrentLocation] = useState<MobileLocation>(FALLBACK_LOCATION)
   const { theme, setTheme } = useTheme()
 
   const handleSplashComplete = useCallback(() => {
     setScreen('home')
   }, [])
+
+  useEffect(() => {
+    setReporterPhone(getStoredReporterPhone())
+    getOrCreateReporterSessionId()
+  }, [])
+
+  async function resolveLocation(latitude: number, longitude: number) {
+    const search = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+    })
+    const response = await fetch(API_BASE_URL + '/api/areas/resolve-point?' + search.toString())
+    if (!response.ok) {
+      throw new Error('Failed to resolve location from point')
+    }
+
+    return await response.json() as {
+      matched: boolean
+      provinceCode: string | null
+      provinceNameTh: string | null
+      provinceNameEn: string | null
+      districtCode: string | null
+      districtNameTh: string | null
+      districtNameEn: string | null
+    }
+  }
+
+  async function loadContacts(location: MobileLocation) {
+    try {
+      setIsLoadingContacts(true)
+      const fetchContacts = async (query: URLSearchParams) => {
+        const response = await fetch(API_BASE_URL + '/api/contacts?' + query.toString())
+        if (!response.ok) {
+          throw new Error('Failed to load contacts')
+        }
+
+        return await response.json() as Array<{
+          id: string
+          name: string
+          phone: string
+          category: EmergencyCategory
+          provinceCode?: string | null
+          province: string | null
+          districtCode?: string | null
+          district: string | null
+          active: boolean
+          is24Hours: boolean
+          latitude?: number | null
+          longitude?: number | null
+        }>
+      }
+
+      const exactSearch = new URLSearchParams({ active: 'true' })
+      if (location.provinceCode) exactSearch.set('provinceCode', location.provinceCode)
+      if (location.districtCode) exactSearch.set('districtCode', location.districtCode)
+      if (location.province) exactSearch.set('province', location.province)
+      if (location.district) exactSearch.set('district', location.district)
+
+      const provinceFallbackSearch = new URLSearchParams({ active: 'true' })
+      if (location.provinceCode) provinceFallbackSearch.set('provinceCode', location.provinceCode)
+      if (location.province) provinceFallbackSearch.set('province', location.province)
+
+      let apiContacts = await fetchContacts(exactSearch)
+      if (apiContacts.length === 0 && location.provinceCode) {
+        apiContacts = await fetchContacts(provinceFallbackSearch)
+      }
+
+      const mappedContacts = apiContacts
+        .filter(
+          (
+            contact
+          ): contact is typeof contact & {
+            category: EmergencyCategory
+          } => Boolean(contact.category)
+        )
+        .map(contact => ({
+          id: contact.id,
+          agencyName: contact.name,
+          phoneNumber: contact.phone,
+          category: contact.category,
+          provinceCode: contact.provinceCode ?? location.provinceCode,
+          province: contact.province ?? location.province,
+          districtCode: contact.districtCode ?? location.districtCode,
+          district: contact.district ?? location.district,
+          status: contact.active ? 'active' : 'inactive',
+          is24Hours: contact.is24Hours,
+          coordinates:
+            contact.latitude != null && contact.longitude != null
+              ? {
+                  latitude: contact.latitude,
+                  longitude: contact.longitude,
+                }
+              : undefined,
+        }))
+
+      setContacts(mappedContacts)
+    } catch {
+      setContacts([])
+    } finally {
+      setIsLoadingContacts(false)
+    }
+  }
+
+  async function syncLocation(nextLocation: Pick<MobileLocation, 'latitude' | 'longitude' | 'accuracy'>) {
+    try {
+      const resolved = await resolveLocation(nextLocation.latitude, nextLocation.longitude)
+      const location: MobileLocation = {
+        latitude: nextLocation.latitude,
+        longitude: nextLocation.longitude,
+        accuracy: nextLocation.accuracy,
+        provinceCode: resolved.provinceCode ?? FALLBACK_LOCATION.provinceCode,
+        province: resolved.provinceNameEn ?? FALLBACK_LOCATION.province,
+        districtCode: resolved.districtCode ?? FALLBACK_LOCATION.districtCode,
+        district: resolved.districtNameEn ?? FALLBACK_LOCATION.district,
+        lastUpdated: new Date(),
+      }
+
+      setCurrentLocation(location)
+      await loadContacts(location)
+    } catch {
+      const fallbackLocation: MobileLocation = {
+        ...FALLBACK_LOCATION,
+        latitude: nextLocation.latitude,
+        longitude: nextLocation.longitude,
+        accuracy: nextLocation.accuracy,
+        lastUpdated: new Date(),
+      }
+      setCurrentLocation(fallbackLocation)
+      await loadContacts(fallbackLocation)
+    }
+  }
+
+  const refreshLocation = useCallback(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+      void syncLocation(FALLBACK_LOCATION)
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        void syncLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        })
+      },
+      () => {
+        void syncLocation(FALLBACK_LOCATION)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 60000,
+      }
+    )
+  }, [])
+
+  useEffect(() => {
+    refreshLocation()
+  }, [refreshLocation])
 
   const handleSelectCategory = (category: EmergencyCategory) => {
     setSelectedCategory(category)
@@ -52,8 +243,12 @@ export function MobileApp() {
   }
 
   const handleSOSPress = () => {
-    // Default to medical emergency for SOS
-    const medicalContact = mockEmergencyContacts.find(c => c.category === 'medical') || mockEmergencyContacts[0]
+    const medicalContact = contacts.find(c => c.category === 'medical')
+    if (!medicalContact) {
+      toast.error('ยังไม่พบเบอร์ติดต่อหมวดแพทย์จากฐานข้อมูล')
+      return
+    }
+    setSelectedCategory('medical')
     setSelectedContact(medicalContact)
     setScreen('call')
   }
@@ -63,12 +258,51 @@ export function MobileApp() {
     setScreen('call')
   }
 
-  const handleCallComplete = (status: CallStatus) => {
-    toast.success(`Call logged: ${status}`)
-    // Generate incident ID and go to tracking
-    const newIncidentId = `INC-${Date.now().toString(36).toUpperCase()}`
-    setTrackingIncidentId(newIncidentId)
-    setScreen('tracking')
+  const handleCallComplete = async (status: CallStatus) => {
+    const incidentCategory = selectedCategory ?? selectedContact?.category
+
+    if (!incidentCategory || !selectedContact) {
+      toast.error('Unable to create incident from this call')
+      return
+    }
+
+    try {
+      const response = await fetch(API_BASE_URL + '/api/incidents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: incidentCategory,
+          severity: CATEGORY_SEVERITY[incidentCategory] ?? 'medium',
+          status: 'open',
+          description: 'Reported via mobile app to ' + selectedContact.agencyName + ' (' + status + ')',
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+          provinceCode: currentLocation.provinceCode,
+          province: currentLocation.province,
+          districtCode: currentLocation.districtCode,
+          district: currentLocation.district,
+          accuracy: currentLocation.accuracy,
+          callStatus: status,
+          reporterPhone,
+          sessionId: getOrCreateReporterSessionId(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to submit incident')
+      }
+
+      const incident = (await response.json()) as { id: string }
+      setStoredReporterPhone(reporterPhone)
+      toast.success('Incident sent to admin dashboard')
+      setSelectedCategory(incidentCategory)
+      setTrackingIncidentId(incident.id)
+      setScreen('tracking')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to submit incident')
+    }
   }
 
   const handleViewTracking = (incidentId: string, category: EmergencyCategory) => {
@@ -100,27 +334,28 @@ export function MobileApp() {
     setTrackingIncidentId(null)
   }
 
-  // Render splash screen
   if (screen === 'splash') {
     return <SplashScreen onComplete={handleSplashComplete} />
   }
 
-  // Render call screen (full screen overlay)
   if (screen === 'call' && selectedContact) {
     return (
       <EmergencyCallScreen
         contact={selectedContact}
+        reporterPhone={reporterPhone}
+        onReporterPhoneChange={setReporterPhone}
         onCancel={handleBack}
         onComplete={handleCallComplete}
       />
     )
   }
 
-  // Render incident selection screen
   if (screen === 'incident' && selectedCategory) {
     return (
       <IncidentSelectionScreen
         categoryId={selectedCategory}
+        contacts={contacts}
+        isLoadingContacts={isLoadingContacts}
         onBack={handleBack}
         onCall={handleCall}
         onViewMap={() => toast.info('Map view coming soon')}
@@ -129,22 +364,19 @@ export function MobileApp() {
     )
   }
 
-  // Render location sharing screen
   if (screen === 'location-share') {
     return <LocationSharingScreen onBack={handleBack} />
   }
 
-  // Render history screen
   if (screen === 'history') {
     return (
-      <IncidentHistoryScreen 
-        onBack={handleBack} 
+      <IncidentHistoryScreen
+        onBack={handleBack}
         onViewTracking={handleViewTracking}
       />
     )
   }
 
-  // Render tracking screen
   if (screen === 'tracking' && trackingIncidentId && selectedCategory) {
     return (
       <IncidentTrackingScreen
@@ -152,7 +384,11 @@ export function MobileApp() {
         categoryId={selectedCategory}
         onBack={handleBack}
         onCall={() => {
-          const contact = mockEmergencyContacts.find(c => c.category === selectedCategory) || mockEmergencyContacts[0]
+          const contact = contacts.find(c => c.category === selectedCategory)
+          if (!contact) {
+            toast.error('ยังไม่พบเบอร์ติดต่อของหมวดเหตุนี้จากฐานข้อมูล')
+            return
+          }
           setSelectedContact(contact)
           setScreen('call')
         }}
@@ -160,10 +396,8 @@ export function MobileApp() {
     )
   }
 
-  // Render home screen
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
         <div className="flex items-center justify-between p-4">
           <div>
@@ -182,17 +416,13 @@ export function MobileApp() {
             </Button>
           </div>
         </div>
-        {/* Top Tab Navigation */}
         <MobileNav active={activeNav} onNavigate={handleNavigate} />
       </header>
 
-      {/* Main Content */}
       <ScrollArea className="flex-1">
         <div className="p-4 pb-40 space-y-6">
-          {/* Location Card */}
-          <LocationHeader />
+          <LocationHeader location={currentLocation} onRefresh={refreshLocation} />
 
-          {/* Emergency Categories */}
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3">
               Emergency Categories
@@ -202,7 +432,6 @@ export function MobileApp() {
         </div>
       </ScrollArea>
 
-      {/* SOS Button */}
       <SOSButton onPress={handleSOSPress} />
     </div>
   )

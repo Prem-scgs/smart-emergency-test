@@ -2,6 +2,7 @@
 
 import 'leaflet/dist/leaflet.css'
 
+import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
 import { CircleMarker, MapContainer, Popup, TileLayer } from 'react-leaflet'
 
 export interface IncidentMapPoint {
@@ -22,15 +23,6 @@ interface IncidentMapProps {
 }
 
 const DEFAULT_CENTER: [number, number] = [13.7465, 100.533]
-
-const categoryLabels: Record<string, string> = {
-  police: 'ตำรวจ',
-  medical: 'การแพทย์',
-  fire: 'ดับเพลิง',
-  rescue: 'กู้ภัย',
-  flood: 'ภัยพิบัติ',
-  'road-accident': 'จราจร',
-}
 
 const statusLabels: Record<string, string> = {
   open: 'เปิดอยู่',
@@ -69,7 +61,7 @@ export function IncidentMap({ incidents }: IncidentMapProps) {
         >
           <Popup>
             <div className="space-y-1">
-              <p className="font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
+              <p className="font-medium">{getEmergencyCategoryLabel(incident.category, incident.category)}</p>
               <p>สถานะ: {statusLabels[incident.status] ?? incident.status}</p>
               <p>พื้นที่: {incident.areaName ?? 'นอกพื้นที่ที่จัดการ'}</p>
             </div>

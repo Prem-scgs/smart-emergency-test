@@ -9,6 +9,19 @@ Use this file as the shared memory between Codex sessions, including Codex in ch
 - Branch: `Prem(scgs)-emergencyV0`
 - Preferred style: use `$token-lean-workflow`, read only relevant files, summarize briefly.
 
+## Session Memory Files
+
+- Main handoff: `CODEX_HANDOFF.md`
+- Production roadmap: `PRODUCTION_CHECKLIST.md`
+- Session-by-session notes: `SESSION_LOG.md`
+
+Recommended resume order:
+
+1. Read `CODEX_HANDOFF.md`
+2. Read `PRODUCTION_CHECKLIST.md`
+3. Read `SESSION_LOG.md`
+4. Continue from `Current phase`, `Current task`, and `Next action`
+
 ## Current Status
 
 - Project cloned from GitHub branch `Prem(scgs)-emergencyV0`.
@@ -21,6 +34,18 @@ Use this file as the shared memory between Codex sessions, including Codex in ch
 - Added Docker Compose PostgreSQL/PostGIS DB at `localhost:5432`.
 - Replaced Adminer with DbGate for database UI at `http://localhost:8081`.
 - Emergency API tested successfully at `http://localhost:4000`.
+- Added regression tests for `GET /api/incidents/:id` and verified them with `pnpm test:api`.
+- Added shared module-level cache loaders for reference categories and locations to reduce duplicate fetches across admin/mobile screens.
+- Added `lib/user-profile.ts` so mobile profile now loads from `/api/users/mock-profile` with fallback caching instead of importing `mockUserProfile` directly.
+- Added `services/emergency-api/src/modules/contacts/routes.test.ts` and fixed `PUT /api/contacts/:id` so missing contacts now return HTTP 404 instead of a 200 error payload.
+- Added `services/emergency-api/src/config.test.ts`, refactored `services/emergency-api/src/config.ts` to validate env values with zod, and added root `.env.example`.
+- Added `services/emergency-api/src/observability.ts` and `services/emergency-api/src/observability.test.ts`, then wired structured request/response/error logging into `services/emergency-api/src/server.ts`.
+- Rewrote root `README.md` and added `RUNBOOK.md` so the repo now documents current setup, migration, seed, verify, and troubleshooting flow.
+- Added `services/emergency-api/src/api-error.ts` and started standardizing API errors to include `error`, `code`, and `statusCode`.
+- Expanded the new error payload helper into `areas` and `reference` not-found responses, with regression tests for both modules.
+- Added `services/emergency-api/src/rate-limit.ts` and applied a first in-memory per-IP limiter to `POST /api/incidents`.
+- Added `services/emergency-api/db/migrations/009_audit_logs.sql`, `services/emergency-api/src/audit-log.ts`, and wired first-slice audit logging into contact and incident write flows.
+- Expanded audit coverage into `areas.create`, `areas.update`, and `areas.delete`, with route-level regression coverage for area creation.
 - Implemented first backend modules: contacts CRUD, areas polygon, point-in-polygon, incidents logs/map points, and SSE alert events.
 - Added contacts schema fields for frontend mock data: `category`, `province`, `district`, `is_24_hours`.
 - Added dev seed data at `services/emergency-api/db/seeds/dev_seed.sql`.
@@ -49,6 +74,9 @@ Use this file as the shared memory between Codex sessions, including Codex in ch
 - Expanded incident records/API with call-log fields from the old mock: `agencyContactId`, `agencyName`, `agencyPhone`, `province`, `district`, `accuracy`, and `callStatus`.
 - Removed call duration from the call logs scope: `/admin/call-logs` no longer shows the duration column, `incidents.duration_seconds` was dropped by `005_drop_incident_duration.sql`, and API responses no longer expose `durationSeconds`.
 - `/admin/call-logs` now reads from `GET /api/incidents` and `GET /api/reference/categories` instead of the local mock call log list. It maps `createdAt`, `category`, `agencyName`, `agencyPhone`, `province/district`, and `callStatus` into the call log table.
+- Added `GET /api/incidents/:id` and switched mobile incident tracking to load one incident directly instead of fetching the full incident list.
+- Added `lib/reference-cache.test.ts` to verify category/location cache reuse with `tsx --test`.
+- Added `lib/user-profile.test.ts` to verify cached user profile loading and fallback behavior.
 - Added `004_area_boundary_metadata.sql` to make `areas.polygon` a `GEOMETRY(MULTIPOLYGON, 4326)` and add boundary metadata: `area_type`, `source`, `source_code`, province/district codes/names, and `parent_area_id`.
 - Added `pnpm db:migrate:areas` and `pnpm db:import:boundaries`.
 - Imported official Thailand province/district boundaries from `chingchai/OpenGISData-Thailand` into PostGIS. Current official boundary counts in `areas`: 77 province MultiPolygons and 928 district MultiPolygons.
@@ -109,11 +137,33 @@ pnpm build
 - Verification: `pnpm build:api` passed, `pnpm build` passed, `/admin/gis` returned 200, province filter returned 77, Bangkok district filter returned 50, and Pathum Wan area contacts endpoint returned 4 contacts.
 - Latest verification after marker work: `pnpm build` passed, `/admin/gis` returned 200, and a Pathum Wan contact has lat/lng for marker rendering.
 - Latest verification after realtime alert work: `pnpm build` passed, backend health returned 200, `/admin/dashboard` returned 200, `/api/events` emitted `incident.created` after a test POST, and the temporary test incident was deleted.
+- Latest verification after incident detail work: `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after reference-cache work: shared cache regression test passed, `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after mobile profile work: user profile loader regression test passed, `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after contacts status fix: contact route regression test passed, `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after config hardening: config regression tests passed, `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after observability work: observability regression tests passed, `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest documentation verification: `git status --short README.md RUNBOOK.md` showed the expected changes and both files were re-read from disk after editing.
+- Latest verification after API error-shape work: `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after areas/reference error-shape rollout: `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after rate-limiting work: `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
+- Latest verification after audit-logging work: `pnpm test:api` passed, `pnpm build:api` passed, `pnpm build` passed, and `pnpm db:migrate:audit-logs` applied successfully.
+- Latest verification after extending audit coverage to areas: `pnpm test:api` passed, `pnpm build:api` passed, and `pnpm build` passed.
 
 ## Next Steps
 
 - Continue feature work or inspect current UI flows.
 - Continue reducing remaining legacy mocks in lower-priority pages such as `/admin/users` and mobile/demo components.
+- Inspect `admin/users` to decide whether it should be converted to API-backed data next or left out of the main production path for now.
+- Review remaining API routes for inconsistent not-found and validation status handling before returning to lower-priority mock cleanup.
+- Add intentional request/error logging in `emergency-api`, then refresh README / runbook docs for current env and startup flow.
+- Refresh README / runbook docs for the current env, startup, migration, seed, and debug flow.
+- Pick the next backend hardening task: audit logging, rate limiting, or standardizing API error response shapes.
+- Decide whether to complete the remaining API error-shape rollout now, or switch focus to audit logging / rate limiting.
+- Choose the next hardening slice: finish remaining error-shape rollout, add audit logging, or add rate limiting.
+- Choose the next hardening slice: add audit logging, or finish the remaining error-shape rollout.
+- Choose the next hardening slice: extend audit coverage, finish remaining error-shape rollout, or broaden rate limiting.
+- Choose the next hardening slice: keep extending audit coverage, finish remaining error-shape rollout, or broaden rate limiting.
 - Start replacing remaining `lib/mock-data.ts` imports with the new reference/user/dashboard APIs.
 - Dashboard now shows backend-backed Leaflet incident markers and log filters; next step is adding alert sound from `/api/events`.
 - GIS page now focuses on boundary management and reads `GET /api/areas`.
@@ -125,5 +175,5 @@ pnpm build
 ## Handoff Prompt
 
 ```text
-Read CODEX_HANDOFF.md first. Continue from the latest status. Use $token-lean-workflow: inspect only relevant files, keep updates concise, and update this handoff before finishing.
+Read CODEX_HANDOFF.md first, then PRODUCTION_CHECKLIST.md, then SESSION_LOG.md. Continue from the latest status. Use $token-lean-workflow: inspect only relevant files, keep updates concise, and update these tracking files before finishing.
 ```

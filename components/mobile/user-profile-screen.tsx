@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { 
   User, 
   Phone, 
@@ -32,8 +32,8 @@ import {
   DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog'
-import { mockUserProfile } from '@/lib/mock-data'
-import { PersonalEmergencyContact } from '@/lib/types'
+import { loadMockUserProfile } from '@/lib/user-profile'
+import { PersonalEmergencyContact, UserProfile } from '@/lib/types'
 import { toast } from 'sonner'
 
 interface UserProfileScreenProps {
@@ -41,10 +41,27 @@ interface UserProfileScreenProps {
 }
 
 export function UserProfileScreen({ onBack }: UserProfileScreenProps) {
-  const [profile, setProfile] = useState(mockUserProfile)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [editingContact, setEditingContact] = useState<PersonalEmergencyContact | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newContact, setNewContact] = useState<Partial<PersonalEmergencyContact>>({})
+
+  useEffect(() => {
+    async function loadProfile() {
+      const data = await loadMockUserProfile()
+      setProfile(data)
+    }
+
+    void loadProfile()
+  }, [])
+
+  if (!profile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4 text-sm text-muted-foreground">
+        กำลังโหลดข้อมูลโปรไฟล์...
+      </div>
+    )
+  }
 
   const handleToggleSetting = (key: keyof typeof profile.settings) => {
     setProfile(prev => ({

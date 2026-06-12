@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { buildApiErrorPayload } from "../../api-error.js";
+import { writeAuditLog } from "../../audit-log.js";
 import { pool } from "../../db.js";
 
 const contactBody = z.object({
@@ -7,7 +9,9 @@ const contactBody = z.object({
   phone: z.string().min(1),
   role: z.string().min(1).default("responder"),
   category: z.string().min(1).nullable().optional(),
+  provinceCode: z.string().min(1).nullable().optional(),
   province: z.string().min(1).nullable().optional(),
+  districtCode: z.string().min(1).nullable().optional(),
   district: z.string().min(1).nullable().optional(),
   is24Hours: z.boolean().default(true),
   areaId: z.string().uuid().nullable().optional(),
@@ -20,6 +24,15 @@ const paramsWithId = z.object({
   id: z.string().uuid(),
 });
 
+const contactQuery = z.object({
+  category: z.string().min(1).optional(),
+  provinceCode: z.string().min(1).optional(),
+  province: z.string().min(1).optional(),
+  districtCode: z.string().min(1).optional(),
+  district: z.string().min(1).optional(),
+  active: z.coerce.boolean().optional(),
+});
+
 function rowToContact(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -27,7 +40,9 @@ function rowToContact(row: Record<string, unknown>) {
     phone: row.phone,
     role: row.role,
     category: row.category,
+    provinceCode: row.province_code,
     province: row.province,
+    districtCode: row.district_code,
     district: row.district,
     is24Hours: row.is_24_hours,
     areaId: row.area_id,
@@ -40,10 +55,47 @@ function rowToContact(row: Record<string, unknown>) {
 }
 
 export async function registerContactRoutes(app: FastifyInstance) {
-  app.get("/api/contacts", async () => {
+  app.get("/api/contacts", async (request) => {
+    const query = contactQuery.parse(request.query);
+    const filters: string[] = [];
+    const values: Array<string | boolean> = [];
+
+    if (query.category) {
+      values.push(query.category);
+      filters.push(`category = $${values.length}`);
+    }
+
+    if (query.province) {
+      values.push(query.province);
+      filters.push(`province = $${values.length}`);
+    }
+
+    if (query.provinceCode) {
+      values.push(query.provinceCode);
+      filters.push(`province_code = $${values.length}`);
+    }
+
+    if (query.district) {
+      values.push(query.district);
+      filters.push(`district = $${values.length}`);
+    }
+
+    if (query.districtCode) {
+      values.push(query.districtCode);
+      filters.push(`district_code = $${values.length}`);
+    }
+
+    if (query.active !== undefined) {
+      values.push(query.active);
+      filters.push(`active = $${values.length}`);
+    }
+
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
     const result = await pool.query(
-      `SELECT * FROM contacts ORDER BY created_at DESC`
+      `SELECT * FROM contacts ${whereClause} ORDER BY created_at DESC`,
+      values
     );
+
     return result.rows.map(rowToContact);
   });
 
@@ -53,11 +105,11 @@ export async function registerContactRoutes(app: FastifyInstance) {
     const result = await pool.query(
       `
         INSERT INTO contacts
-          (name, phone, role, category, province, district, is_24_hours, area_id, latitude, longitude, location, active)
+          (name, phone, role, category, province_code, province, district_code, district, is_24_hours, area_id, latitude, longitude, location, active)
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-           CASE WHEN $11 THEN ST_SetSRID(ST_MakePoint($10, $9), 4326) ELSE NULL END,
-           $12)
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+           CASE WHEN $13 THEN ST_SetSRID(ST_MakePoint($12, $11), 4326) ELSE NULL END,
+           $14)
         RETURNING *
       `,
       [
@@ -65,7 +117,9 @@ export async function registerContactRoutes(app: FastifyInstance) {
         body.phone,
         body.role,
         body.category ?? null,
+        body.provinceCode ?? null,
         body.province ?? null,
+        body.districtCode ?? null,
         body.district ?? null,
         body.is24Hours,
         body.areaId ?? null,
@@ -77,10 +131,21 @@ export async function registerContactRoutes(app: FastifyInstance) {
     );
 
     reply.code(201);
-    return rowToContact(result.rows[0]);
+    const contact = rowToContact(result.rows[0]);
+    await writeAuditLog(request, {
+      action: "contacts.create",
+      resourceType: "contact",
+      resourceId: String(contact.id),
+      details: {
+        name: contact.name,
+        role: contact.role,
+        category: contact.category,
+      },
+    });
+    return contact;
   });
 
-  app.put("/api/contacts/:id", async (request) => {
+  app.put("/api/contacts/:id", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
     const body = contactBody.parse(request.body);
     const hasPoint = body.latitude != null && body.longitude != null;
@@ -92,16 +157,18 @@ export async function registerContactRoutes(app: FastifyInstance) {
           phone = $2,
           role = $3,
           category = $4,
-          province = $5,
-          district = $6,
-          is_24_hours = $7,
-          area_id = $8,
-          latitude = $9,
-          longitude = $10,
-          location = CASE WHEN $11 THEN ST_SetSRID(ST_MakePoint($10, $9), 4326) ELSE NULL END,
-          active = $12,
+          province_code = $5,
+          province = $6,
+          district_code = $7,
+          district = $8,
+          is_24_hours = $9,
+          area_id = $10,
+          latitude = $11,
+          longitude = $12,
+          location = CASE WHEN $13 THEN ST_SetSRID(ST_MakePoint($12, $11), 4326) ELSE NULL END,
+          active = $14,
           updated_at = now()
-        WHERE id = $13
+        WHERE id = $15
         RETURNING *
       `,
       [
@@ -109,7 +176,9 @@ export async function registerContactRoutes(app: FastifyInstance) {
         body.phone,
         body.role,
         body.category ?? null,
+        body.provinceCode ?? null,
         body.province ?? null,
+        body.districtCode ?? null,
         body.district ?? null,
         body.is24Hours,
         body.areaId ?? null,
@@ -122,10 +191,23 @@ export async function registerContactRoutes(app: FastifyInstance) {
     );
 
     if (result.rowCount === 0) {
-      return { error: "Contact not found" };
+      reply.code(404);
+      return buildApiErrorPayload(404, "CONTACT_NOT_FOUND", "Contact not found");
     }
 
-    return rowToContact(result.rows[0]);
+    const contact = rowToContact(result.rows[0]);
+    await writeAuditLog(request, {
+      action: "contacts.update",
+      resourceType: "contact",
+      resourceId: String(contact.id),
+      details: {
+        name: contact.name,
+        role: contact.role,
+        category: contact.category,
+        active: contact.active,
+      },
+    });
+    return contact;
   });
 
   app.delete("/api/contacts/:id", async (request, reply) => {
@@ -134,8 +216,15 @@ export async function registerContactRoutes(app: FastifyInstance) {
 
     if (result.rowCount === 0) {
       reply.code(404);
-      return { error: "Contact not found" };
+      return buildApiErrorPayload(404, "CONTACT_NOT_FOUND", "Contact not found");
     }
+
+    await writeAuditLog(request, {
+      action: "contacts.delete",
+      resourceType: "contact",
+      resourceId: id,
+      details: {},
+    });
 
     return { ok: true };
   });

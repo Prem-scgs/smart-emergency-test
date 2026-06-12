@@ -11,6 +11,8 @@ out
 
 *.log
 .codex-*.log
+.codex-*.err.log
+.codex-*.out.log
 .env
 .env.*
 !.env.example

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { 
   ArrowLeft,
   Phone,
@@ -19,9 +19,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { cn } from '@/lib/utils'
 import { EmergencyCategory } from '@/lib/types'
-import { emergencyCategories } from '@/lib/mock-data'
 
 // Tracking status types
 type TrackingStatus = 
@@ -49,6 +50,16 @@ interface IncidentTrackingScreenProps {
   onCall: () => void
 }
 
+interface TrackingIncidentDetail {
+  id: string
+  provinceCode?: string | null
+  province?: string | null
+  districtCode?: string | null
+  district?: string | null
+}
+
+const API_BASE_URL = 'http://localhost:4000'
+
 export function IncidentTrackingScreen({ 
   incidentId, 
   categoryId, 
@@ -60,8 +71,28 @@ export function IncidentTrackingScreen({
   const [responderDistance, setResponderDistance] = useState(2.3) // km
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [incidentDetail, setIncidentDetail] = useState<TrackingIncidentDetail | null>(null)
 
-  const category = emergencyCategories.find(c => c.id === categoryId)
+  const { categories } = useReferenceCategories()
+  const { provinceByCode, districtByCode } = useLocationLookupMaps()
+  const category = categories.find(c => c.id === categoryId)
+
+  const loadIncidentDetail = useCallback(async () => {
+    const response = await fetch(API_BASE_URL + '/api/incidents/' + encodeURIComponent(incidentId))
+    if (response.status === 404) {
+      setIncidentDetail(null)
+      return
+    }
+
+    if (!response.ok) return
+
+    const detail = (await response.json()) as TrackingIncidentDetail
+    setIncidentDetail(detail)
+  }, [incidentId])
+
+  useEffect(() => {
+    void loadIncidentDetail()
+  }, [loadIncidentDetail])
 
   // Simulate status progression
   useEffect(() => {
@@ -147,7 +178,9 @@ export function IncidentTrackingScreen({
   const handleRefresh = () => {
     setIsRefreshing(true)
     setLastUpdated(new Date())
-    setTimeout(() => setIsRefreshing(false), 1000)
+    void loadIncidentDetail().finally(() => {
+      setTimeout(() => setIsRefreshing(false), 1000)
+    })
   }
 
   const formatTime = (date: Date) => {
@@ -156,6 +189,15 @@ export function IncidentTrackingScreen({
       minute: '2-digit',
     })
   }
+
+  const province = incidentDetail?.provinceCode ? provinceByCode[incidentDetail.provinceCode] : undefined
+  const district = incidentDetail?.districtCode ? districtByCode[incidentDetail.districtCode] : undefined
+  const locationLabel = [
+    getLocationDisplayName(district) || incidentDetail?.district || '',
+    getLocationDisplayName(province) || incidentDetail?.province || '',
+  ]
+    .filter(Boolean)
+    .join(', ')
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -196,7 +238,7 @@ export function IncidentTrackingScreen({
             <div className="flex items-start justify-between mb-4">
               <div>
                 <Badge className={cn("mb-2", category?.bgColor, category?.color)}>
-                  {category?.name}
+                  {getCategoryDisplayLabel(category, false)}
                 </Badge>
                 <h2 className="text-lg font-semibold text-foreground">
                   {trackingSteps.find(s => s.isActive)?.labelTh}

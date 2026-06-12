@@ -11,7 +11,9 @@ interface IncidentEventPayload {
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: string
   areaName?: string | null
+  provinceCode?: string | null
   province?: string | null
+  districtCode?: string | null
   district?: string | null
   createdAt: string
 }
@@ -81,6 +83,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           agencyId,
           category: payload.category as Notification['category'],
           incidentId: payload.id,
+          provinceCode: payload.provinceCode ?? undefined,
+          districtCode: payload.districtCode ?? undefined,
+          province: payload.province ?? undefined,
+          district: payload.district ?? undefined,
           read: false,
           timestamp,
           actionUrl: '/admin/dashboard',
@@ -108,6 +114,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           timestamp,
           agencyId,
         })
+
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('smart-emergency:incident-created', {
+              detail: payload,
+            })
+          )
+        }
       } catch (error) {
         console.error('[smart-emergency] failed to parse incident event', error)
       }
