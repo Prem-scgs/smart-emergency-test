@@ -47,6 +47,8 @@ db-migrate:
 	pnpm db:migrate:category-master
 	pnpm db:migrate:location-codes
 	pnpm db:migrate:audit-logs
+	pnpm db:migrate:contact-coverage
+	pnpm db:migrate:db-readiness
 
 db-seed:
 	pnpm db:seed
@@ -62,6 +64,8 @@ db-reset:
 	pnpm db:migrate:category-master
 	pnpm db:migrate:location-codes
 	pnpm db:migrate:audit-logs
+	pnpm db:migrate:contact-coverage
+	pnpm db:migrate:db-readiness
 	pnpm db:seed
 
 web:

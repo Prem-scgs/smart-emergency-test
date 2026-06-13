@@ -4,9 +4,9 @@ Use this file to track production-readiness work without touching the auth imple
 
 ## Current Focus
 
-- Current phase: `Phase 1 - Data flow and API completeness`
-- Current task: `Choose the next backend hardening target`
-- Next action: `Pick between extending audit coverage to more writes, finishing error-shape leftovers, or broadening rate limiting`
+- Current phase: `Phase 3 - Database Readiness`
+- Current task: `Harden schema with foreign keys, DB-level checks, and list-query indexes`
+- Next action: `Decide whether to verify from a clean reset next or write backup/restore notes first`
 
 ## Status Guide
 
@@ -27,17 +27,17 @@ Use this file to track production-readiness work without touching the auth imple
 
 ## Phase 2 - Validation and Stable API Contracts
 
-- [-] Standardize API error response shape
-- [ ] Validate critical inputs on all write endpoints
-- [ ] Validate `latitude` / `longitude` / phone / status / category / area codes
+- [x] Standardize API error response shape
+- [-] Validate critical inputs on all write endpoints
+- [-] Validate `latitude` / `longitude` / phone / status / category / area codes
 - [ ] Review endpoint response fields for consistency
 - [ ] Document current API contract in repo docs
 
 ## Phase 3 - Database Readiness
 
-- [ ] Review schema against current scope
-- [ ] Add or confirm needed foreign keys
-- [ ] Add or confirm needed indexes
+- [x] Review schema against current scope
+- [x] Add or confirm needed foreign keys
+- [x] Add or confirm needed indexes
 - [ ] Verify migrations from a clean database
 - [ ] Keep seed data clearly separated from schema changes
 - [ ] Write simple backup / restore notes
@@ -65,7 +65,7 @@ Use this file to track production-readiness work without touching the auth imple
 
 - [x] Add request logging
 - [x] Add error logging
-- [-] Add audit logging for important write actions
+- [x] Add audit logging for important write actions
 - [ ] Configure CORS intentionally
 - [-] Add rate limiting where needed
 - [x] Add environment validation
@@ -84,9 +84,11 @@ Use this file to track production-readiness work without touching the auth imple
 ## Verification Log
 
 - Latest known verified items:
+  - `pnpm db:migrate:db-readiness` passed
+  - DB query confirmed new foreign keys, check constraints, and indexes exist
   - `pnpm test:api` passed
-  - `pnpm build` passed
   - `pnpm build:api` passed
+  - `pnpm build` passed
   - dashboard and GIS pages loaded
   - realtime incident event flow emitted successfully
 

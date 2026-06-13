@@ -273,3 +273,172 @@ Copy this block for each new work session:
   - some remaining routes may still not use the standardized error helper everywhere.
 - Next action:
   - choose whether to keep extending audit coverage or pivot back to error-shape/rate-limiting cleanup
+
+## 2026-06-13 23:58
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Verify and lock audit logging coverage across all emergency-api write endpoints`
+- What changed:
+  - Reviewed all write endpoints in `incidents`, `contacts`, and `areas` to confirm audit logging is already wired everywhere.
+  - Added regression tests for `contacts.create`, `contacts.update`, and `contacts.delete` audit behavior.
+  - Added a regression test for `incidents.create` audit behavior and aligned it with the real category-check -> area-resolve -> insert -> audit flow.
+  - Updated `PRODUCTION_CHECKLIST.md` to mark audit logging coverage as complete for current backend write endpoints.
+- Verified:
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/contacts/routes.test.ts`
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/incidents/routes.test.ts`
+  - `pnpm test:api`
+- Open issues:
+  - rate limiting still only covers incident creation.
+  - some remaining routes may still not use the standardized error helper everywhere.
+  - write-endpoint validation can still be hardened further for fields like phone/category/area codes.
+- Next action:
+  - choose whether to finish error-shape rollout, broaden rate limiting, or tighten write validation next
+
+## 2026-06-14 00:20
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Tighten write validation for contacts and incidents`
+- What changed:
+  - Added shared input validation helpers in `services/emergency-api/src/input-validation.ts` for standardized Zod payloads, phone checks, active category checks, and province/district code validation.
+  - Updated `contacts` write routes to reject invalid phone numbers, unknown emergency categories, and mismatched province/district codes before writing to DB.
+  - Updated `incidents.create` to reject invalid reporter phone numbers and unknown location codes before insert.
+  - Added regression coverage for the new validation paths in `contacts/routes.test.ts` and `incidents/routes.test.ts`.
+- Verified:
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/contacts/routes.test.ts`
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/incidents/routes.test.ts`
+  - `pnpm test:api`
+  - `pnpm build:api`
+- Open issues:
+  - rate limiting still only covers incident creation.
+  - some remaining routes may still not use the standardized error helper everywhere.
+  - `areas` write validation can still be deepened if we later allow more editable boundary metadata inputs.
+- Next action:
+  - choose whether to finish error-shape rollout, broaden rate limiting, or continue deeper write validation
+
+## 2026-06-14 00:35
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Broaden rate limiting to contact write endpoints`
+- What changed:
+  - Added in-memory rate limiting to `POST /api/contacts`, `PUT /api/contacts/:id`, and `DELETE /api/contacts/:id`.
+  - Added dedicated error codes and messages for contact create/update/delete throttling.
+  - Extended contact route regression coverage to verify 429 behavior and `Retry-After` headers.
+- Verified:
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/contacts/routes.test.ts`
+  - `pnpm test:api`
+  - `pnpm build:api`
+- Open issues:
+  - rate limiting still does not cover `areas` write endpoints.
+  - some remaining routes may still not use the standardized error helper everywhere.
+  - current rate limiting is in-memory only and would need a shared store for multi-instance production deployment.
+- Next action:
+  - choose whether to finish error-shape rollout, extend rate limiting to more endpoints, or move to a shared/store-backed rate limit strategy later
+
+## 2026-06-14 00:50
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Standardize more handler-level validation error responses`
+- What changed:
+  - Updated `areas` routes to use `safeParse()` plus standardized validation payloads instead of letting handler-level `ZodError` bubble out directly.
+  - Updated `reference` district lookup route to return the same standardized validation payload shape on invalid query input.
+  - Added regression tests for invalid `areas.resolve-point`, invalid `areas.contains-point`, and invalid `reference.districts` requests.
+- Verified:
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/areas/routes.test.ts`
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/reference/routes.test.ts`
+  - `pnpm test:api`
+  - `pnpm build:api`
+- Open issues:
+  - some routes still rely on the global error handler for validation responses instead of returning a route-local standardized payload.
+  - rate limiting still does not cover `areas` write endpoints.
+  - current rate limiting is in-memory only and would need a shared store for multi-instance production deployment.
+- Next action:
+  - choose whether to finish the last error-shape leftovers, extend rate limiting to more endpoints, or continue deeper validation hardening
+
+## 2026-06-14 01:10
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Make central emergency phone numbers visible in every area while keeping local numbers area-scoped`
+- What changed:
+  - Added `coverageType` support to contact writes and reads, backed by `contacts.coverage_type`.
+  - Updated `/api/contacts` to include `global` contacts together with matching `local` contacts when filtering by area.
+  - Relaxed contact phone validation to allow real emergency short codes like `191`, `1669`, and `199` while keeping reporter phone validation strict.
+  - Added migration `010_contact_coverage_type.sql`, wired it into package scripts and `Makefile`, and applied it to the local DB.
+  - Updated dev seed so central emergency numbers are stored as `global`.
+  - Updated mobile incident contact UI to separate `ส่วนกลาง` from `หน่วยงานในพื้นที่`.
+  - Updated admin contacts UI to manage `coverageType` directly.
+- Verified:
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/contacts/routes.test.ts`
+  - `pnpm test:api`
+  - `pnpm build:api`
+  - `pnpm build`
+  - DB query confirmed seeded core contacts now have `coverage_type = global`
+- Open issues:
+  - local DB currently still contains leftover test contacts like `Support Team` from earlier manual/test flows and may need cleanup.
+  - rate limiting still does not cover `areas` write endpoints.
+  - current rate limiting is in-memory only and would need a shared store for multi-instance production deployment.
+- Next action:
+  - confirm whether to clean leftover test contacts from local DB, then continue with the next production-hardening slice
+
+## 2026-06-14 01:18
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Clean leftover local test contacts from local DB`
+- What changed:
+  - Deleted clearly test-only local contacts such as `Support Team`, `test`, and invalid placeholder phone rows from the local `contacts` table.
+  - Rechecked DB state after cleanup.
+- Verified:
+  - DB query shows only 6 `global` contacts remain.
+  - `total_contacts = 6`, `global_contacts = 6`, `local_contacts = 0`
+- Open issues:
+  - there are currently no real `local` contacts left in the local DB, so UI will only show central contacts until local agency numbers are added back.
+  - rate limiting still does not cover `areas` write endpoints.
+  - current rate limiting is in-memory only and would need a shared store for multi-instance production deployment.
+- Next action:
+  - decide whether to seed/add realistic local agency contacts for Bangkok/other areas so the new `global + local` behavior is visible end-to-end
+
+## 2026-06-14 01:30
+
+- Current phase: `Phase 1 - Data flow and API completeness`
+- Current task: `Close remaining API error-shape cleanup`
+- What changed:
+  - Updated `contacts` routes so invalid query params and invalid path params return standardized `VALIDATION_ERROR` payloads with `issues`.
+  - Updated `incidents` routes so invalid `:id` params and invalid `history` query input return the same standardized validation payload shape.
+  - Confirmed route modules no longer use direct `.parse()` calls that bypass route-local standardized validation handling.
+- Verified:
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/contacts/routes.test.ts`
+  - `pnpm --filter emergency-api exec node --import tsx --test src/modules/incidents/routes.test.ts`
+  - `pnpm test:api`
+  - `pnpm build:api`
+  - `rg -n "\\.parse\\(" services/emergency-api/src/modules` returned no matches
+- Open issues:
+  - there are currently no real `local` contacts left in the local DB, so UI will only show central contacts until local agency numbers are added back.
+  - rate limiting still does not cover `areas` write endpoints.
+  - current rate limiting is in-memory only and would need a shared store for multi-instance production deployment.
+- Next action:
+  - choose between extending rate limiting, adding realistic local contacts back into DB, or starting database readiness review
+
+## 2026-06-14 22:25
+
+- Current phase: `Phase 3 - Database Readiness`
+- Current task: `Add DB-level foreign keys, constraints, and read-path indexes`
+- What changed:
+  - Reviewed current schema, live constraints, live indexes, and real query patterns before changing the database.
+  - Added migration `011_database_readiness.sql`.
+  - Added `contacts.category -> emergency_categories(id)` foreign key with `ON DELETE SET NULL`.
+  - Added `incidents.category -> emergency_categories(id)` foreign key with `ON DELETE RESTRICT`.
+  - Added DB-level checks for `incidents.severity`, `incidents.status`, and nullable `incidents.call_status`.
+  - Added `contacts_created_at_idx`, `contacts_coverage_type_created_at_idx`, and `incidents_created_at_idx` for the main newest-first list flows.
+  - Wired the new migration into `package.json` and `Makefile`.
+  - Applied the migration successfully to the local DB.
+- Verified:
+  - `pnpm db:migrate:db-readiness`
+  - DB query confirmed `contacts_category_fk`, `incidents_category_fk`, `incidents_severity_check`, `incidents_status_check`, and `incidents_call_status_check`
+  - DB query confirmed `contacts_created_at_idx`, `contacts_coverage_type_created_at_idx`, and `incidents_created_at_idx`
+  - `pnpm test:api`
+  - `pnpm build:api`
+- Open issues:
+  - `Verify migrations from a clean database` is still pending because a destructive local reset was not run in this pass.
+  - seed data is still partly mock-derived and should stay clearly separated from production-like reference data decisions.
+  - there are currently no real `local` contacts left in the local DB, so UI will only show central contacts until local agency numbers are added back.
+- Next action:
+  - choose between running a clean DB reset verification or writing backup/restore notes to keep Phase 3 moving
