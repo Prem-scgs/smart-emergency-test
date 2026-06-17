@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
+  Info,
   Filter,
   MapPinned,
   MapPin,
@@ -29,6 +30,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { buildAdminApiHeaders } from '@/lib/admin-api'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
@@ -58,6 +60,22 @@ interface DashboardContact {
   phone: string
   category: string | null
   active: boolean
+}
+
+interface DashboardRealtimeIncident {
+  id: string
+  category: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  status: string
+  province?: string | null
+  district?: string | null
+  areaName?: string | null
+}
+
+interface DashboardSseDebugDetail {
+  status?: 'connecting' | 'connected' | 'disconnected'
+  eventType?: string
+  timestamp?: string
 }
 
 interface MasterLocationOption {
@@ -201,6 +219,10 @@ export default function DashboardPage() {
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [realtimeIncident, setRealtimeIncident] = useState<DashboardRealtimeIncident | null>(null)
+  const [sseStatus, setSseStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+  const [sseEventCount, setSseEventCount] = useState(0)
+  const [lastSseAt, setLastSseAt] = useState<string | null>(null)
 
   const locationBoxRef = useRef<HTMLDivElement | null>(null)
 
@@ -209,9 +231,10 @@ export default function DashboardPage() {
       setIsLoading(true)
       setError(null)
 
+      const headers = buildAdminApiHeaders(user)
       const [incidentResponse, contactResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/incidents/map-points`),
-        fetch(`${API_BASE_URL}/api/contacts`),
+        fetch(`${API_BASE_URL}/api/incidents/map-points`, { headers }),
+        fetch(`${API_BASE_URL}/api/contacts`, { headers }),
       ])
 
       if (!incidentResponse.ok) throw new Error('โหลดข้อมูลเหตุการณ์ไม่สำเร็จ')
@@ -224,7 +247,7 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [user])
 
 
   useEffect(() => {
@@ -232,13 +255,56 @@ export default function DashboardPage() {
   }, [loadDashboardData])
 
   useEffect(() => {
-    function handleIncidentCreated() {
+    function handleIncidentCreated(event: Event) {
+      const detail = (event as CustomEvent<DashboardRealtimeIncident>).detail
+      if (detail) {
+        setRealtimeIncident(detail)
+      }
+
       loadDashboardData()
     }
 
     window.addEventListener('smart-emergency:incident-created', handleIncidentCreated)
     return () => window.removeEventListener('smart-emergency:incident-created', handleIncidentCreated)
   }, [loadDashboardData])
+
+  useEffect(() => {
+    if (!realtimeIncident) return
+
+    const timer = window.setTimeout(() => {
+      setRealtimeIncident(null)
+    }, 12000)
+
+    return () => window.clearTimeout(timer)
+  }, [realtimeIncident])
+
+  useEffect(() => {
+    function handleSseStatus(event: Event) {
+      const detail = (event as CustomEvent<DashboardSseDebugDetail>).detail
+      if (!detail?.status) return
+
+      setSseStatus(detail.status)
+      if (detail.timestamp) {
+        setLastSseAt(detail.timestamp)
+      }
+    }
+
+    function handleSseEvent(event: Event) {
+      const detail = (event as CustomEvent<DashboardSseDebugDetail>).detail
+      setSseEventCount(count => count + 1)
+      if (detail?.timestamp) {
+        setLastSseAt(detail.timestamp)
+      }
+    }
+
+    window.addEventListener('smart-emergency:sse-status', handleSseStatus)
+    window.addEventListener('smart-emergency:sse-event', handleSseEvent)
+
+    return () => {
+      window.removeEventListener('smart-emergency:sse-status', handleSseStatus)
+      window.removeEventListener('smart-emergency:sse-event', handleSseEvent)
+    }
+  }, [])
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -349,8 +415,38 @@ export default function DashboardPage() {
   const recentIncidents = visibleIncidents.slice(0, 6)
 
   const agencyDisplayName = agency ? categoryLabelMap[agency.category] ?? agency.name : 'หน่วยงานนี้'
-  const roleName = isSuperAdmin ? 'superadmin' : user?.role ?? 'agency'
+  const roleName = isSuperAdmin ? 'super_admin' : user?.role ?? 'agency'
   const roleLabel = isSuperAdmin ? 'ทุกหน่วยงาน' : agencyDisplayName
+
+  const realtimeCategoryLabel = realtimeIncident
+    ? categoryLabelMap[realtimeIncident.category as EmergencyCategory] ?? realtimeIncident.category
+    : ''
+  const realtimeLocationLabel = realtimeIncident
+    ? realtimeIncident.areaName ||
+      [realtimeIncident.district, realtimeIncident.province].filter(Boolean).join(' ') ||
+      OUTSIDE_AREA_LABEL
+    : ''
+  const realtimeSeverityLabel = realtimeIncident
+    ? severityLabels[realtimeIncident.severity] ?? realtimeIncident.severity
+    : ''
+  const realtimeBannerClassName =
+    realtimeIncident?.severity === 'critical'
+      ? 'border-red-500/30 bg-red-950/95 text-red-50'
+      : realtimeIncident?.severity === 'high'
+        ? 'border-amber-500/30 bg-zinc-950/95 text-zinc-50'
+        : 'border-sky-500/30 bg-zinc-950/95 text-zinc-50'
+  const sseStatusLabel =
+    sseStatus === 'connected'
+      ? 'connected'
+      : sseStatus === 'disconnected'
+        ? 'disconnected'
+        : 'connecting'
+  const sseStatusTone =
+    sseStatus === 'connected'
+      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+      : sseStatus === 'disconnected'
+        ? 'bg-red-500/10 text-red-300 border-red-500/30'
+        : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
 
   const kpis = [
     {
@@ -451,6 +547,96 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
+      {realtimeIncident && (
+        <div className="pointer-events-none fixed top-20 right-4 z-[1250] w-[min(28rem,calc(100vw-2rem))]">
+          <div
+            className={cn(
+              'pointer-events-auto rounded-2xl border shadow-2xl backdrop-blur',
+              realtimeBannerClassName
+            )}
+          >
+            <div className="flex items-start gap-3 px-4 py-4">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
+                {realtimeIncident.severity === 'critical' || realtimeIncident.severity === 'high' ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : (
+                  <Info className="h-5 w-5" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">มีเหตุแจ้งเข้าใหม่</p>
+                      <Badge variant="outline" className="border-white/15 bg-white/10 text-current">
+                        {realtimeCategoryLabel}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-sm opacity-90">{realtimeLocationLabel}</p>
+                    <p className="mt-2 text-xs opacity-75">
+                      ระดับความรุนแรง {realtimeSeverityLabel} • สถานะ {statusLabels[realtimeIncident.status] ?? realtimeIncident.status}
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-current hover:bg-white/10 hover:text-current"
+                    onClick={() => setRealtimeIncident(null)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-white text-black hover:bg-zinc-100"
+                    onClick={() => {
+                      window.location.href = '/admin/call-logs'
+                      setRealtimeIncident(null)
+                    }}
+                  >
+                    ดูบันทึกการโทร
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-white/15 bg-transparent text-current hover:bg-white/10 hover:text-current"
+                    onClick={() => setRealtimeIncident(null)}
+                  >
+                    ปิด
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Card className="border-dashed border-primary/30 bg-background/80">
+        <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-medium">Realtime Debug</p>
+            <p className="text-xs text-muted-foreground">
+              ใช้ดูว่า SSE เชื่อมต่อและรับ event เข้าหน้า dashboard หรือยัง
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <Badge variant="outline" className={cn('font-mono', sseStatusTone)}>
+              SSE: {sseStatusLabel}
+            </Badge>
+            <Badge variant="outline" className="font-mono">
+              events: {sseEventCount}
+            </Badge>
+            <Badge variant="outline" className="font-mono">
+              last: {lastSseAt ? formatDateTime(lastSseAt) : '-'}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

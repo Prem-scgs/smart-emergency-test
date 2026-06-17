@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   Settings,
   Bell,
@@ -41,42 +41,74 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import {
+  DEFAULT_ADMIN_ALERT_PREFERENCES,
+  getStoredAdminAlertPreferences,
+  saveAdminAlertPreferences,
+  type AlertTonePreset,
+} from "@/lib/admin-alert-preferences"
 
 export default function SettingsPage() {
+  const [alertPreferences, setAlertPreferences] = useState(
+    DEFAULT_ADMIN_ALERT_PREFERENCES
+  )
   const [settings, setSettings] = useState({
-    // General
     systemName: "Smart Emergency Platform",
     organizationName: "ศูนย์บัญชาการเหตุฉุกเฉิน",
     timezone: "Asia/Bangkok",
     language: "th",
-    // Notifications
     emailNotifications: true,
     smsNotifications: true,
     pushNotifications: true,
-    criticalAlertSound: true,
-    // Security
+    criticalAlertSound: DEFAULT_ADMIN_ALERT_PREFERENCES.enabled,
     twoFactorAuth: false,
     sessionTimeout: "30",
     ipWhitelist: false,
     auditLogging: true,
-    // Emergency
     autoDispatch: true,
     escalationTime: "5",
     maxConcurrentCalls: "50",
     recordingEnabled: true,
   })
 
+  useEffect(() => {
+    const stored = getStoredAdminAlertPreferences()
+    setAlertPreferences(stored)
+    setSettings((prev) => ({
+      ...prev,
+      criticalAlertSound: stored.enabled,
+    }))
+  }, [])
+
+  const handleAlertPreferencesChange = (
+    next: Partial<typeof alertPreferences>
+  ) => {
+    const updated = { ...alertPreferences, ...next }
+    setAlertPreferences(updated)
+    saveAdminAlertPreferences(updated)
+    setSettings((prev) => ({
+      ...prev,
+      criticalAlertSound: updated.enabled,
+    }))
+  }
+
   const handleSave = () => {
+    saveAdminAlertPreferences(alertPreferences)
     toast.success("บันทึกการตั้งค่าสำเร็จ")
   }
 
   const handleReset = () => {
+    setAlertPreferences(DEFAULT_ADMIN_ALERT_PREFERENCES)
+    saveAdminAlertPreferences(DEFAULT_ADMIN_ALERT_PREFERENCES)
+    setSettings((prev) => ({
+      ...prev,
+      criticalAlertSound: DEFAULT_ADMIN_ALERT_PREFERENCES.enabled,
+    }))
     toast.info("รีเซ็ตการตั้งค่าเป็นค่าเริ่มต้น")
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">ตั้งค่าระบบ</h1>
@@ -96,7 +128,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* System Status */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -148,7 +179,6 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      {/* Settings Tabs */}
       <Tabs defaultValue="general" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="general" className="gap-2">
@@ -169,7 +199,6 @@ export default function SettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* General Settings */}
         <TabsContent value="general" className="space-y-4">
           <Card>
             <CardHeader>
@@ -280,7 +309,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Notification Settings */}
         <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
@@ -340,17 +368,42 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>เสียงเตือนวิกฤต</Label>
+                  <Label>เปิดเสียงแจ้งเตือน</Label>
                   <p className="text-sm text-muted-foreground">
-                    เปิดเสียงเตือนสำหรับเหตุการณ์วิกฤต
+                    ให้ popup แจ้งเหตุบนแดชบอร์ดเล่นเสียงอัตโนมัติ
                   </p>
                 </div>
                 <Switch
-                  checked={settings.criticalAlertSound}
+                  checked={alertPreferences.enabled}
                   onCheckedChange={(v) =>
-                    setSettings({ ...settings, criticalAlertSound: v })
+                    handleAlertPreferencesChange({ enabled: v })
                   }
                 />
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Label>รูปแบบเสียงแจ้งเตือน</Label>
+                <Select
+                  value={alertPreferences.tone}
+                  onValueChange={(value) =>
+                    handleAlertPreferencesChange({
+                      tone: value as AlertTonePreset,
+                    })
+                  }
+                  disabled={!alertPreferences.enabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="soft-chime">Soft chime</SelectItem>
+                    <SelectItem value="alert-beep">Alert beep</SelectItem>
+                    <SelectItem value="siren-pulse">Siren pulse</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  เลือกโทนเสียงสำหรับ popup แจ้งเหตุบนหน้าแดชบอร์ด
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -384,7 +437,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Security Settings */}
         <TabsContent value="security" className="space-y-4">
           <Card>
             <CardHeader>
@@ -477,7 +529,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Emergency Settings */}
         <TabsContent value="emergency" className="space-y-4">
           <Card>
             <CardHeader>

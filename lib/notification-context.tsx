@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Notification, Alert } from '@/lib/types'
+import { canUserSeeAlert, canUserSeeNotification } from './notification-visibility'
 import { useWebSocket } from '@/lib/use-websocket'
 import { useAuth } from '@/lib/auth-context'
 
@@ -25,35 +26,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
 
-  // Filter notifications based on user role and agency
-  const filteredNotifications = notifications.filter(notif => {
-    if (!user) return false
-    
-    // Superadmin sees all
-    if (user.role === 'superadmin') return true
-    
-    // Agency admin/operator/viewer only see their agency's notifications
-    if (notif.agencyId && user.agencyId) {
-      return notif.agencyId === user.agencyId
-    }
-    
-    return false
-  })
+  const filteredNotifications = notifications.filter(notif => canUserSeeNotification(user, notif))
 
-  // Filter alerts based on user role and agency
-  const filteredAlerts = alerts.filter(alert => {
-    if (!user) return false
-    
-    // Superadmin sees all
-    if (user.role === 'superadmin') return true
-    
-    // Agency admin/operator/viewer only see their agency's alerts
-    if (alert.agencyId && user.agencyId) {
-      return alert.agencyId === user.agencyId
-    }
-    
-    return false
-  })
+  const filteredAlerts = alerts.filter(alert => canUserSeeAlert(user, alert))
 
   const unreadCount = filteredNotifications.filter(n => !n.read).length
 
@@ -92,7 +67,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useWebSocket({
     onNotification: addNotification,
     onAlert: addAlert,
-    enabled: !!user && user.isAuthenticated !== false,
+    enabled: !!user,
+    user,
   })
 
   const value: NotificationContextType = {

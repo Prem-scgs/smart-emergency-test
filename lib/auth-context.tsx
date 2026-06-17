@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const user: AdminUser = {
       id: `user-${Date.now()}`,
       email,
-      name: role === 'superadmin' ? 'ผู้ดูแลระบบสูงสุด' : `ผู้ดูแล${agency?.nameTh || ''}`,
+      name: role === 'super_admin' ? 'ผู้ดูแลระบบสูงสุด' : `ผู้ดูแล${agency?.nameTh || ''}`,
       role,
       agencyId,
       agency,

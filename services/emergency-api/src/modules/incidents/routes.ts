@@ -1,9 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getMockAdminScopeFromRequest } from "../../admin-scope.js";
 import { buildApiErrorPayload } from "../../api-error.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { emergencyEvents, emitEmergencyEvent } from "../../events.js";
+import { config } from "../../config.js";
 import { pool } from "../../db.js";
+import {
+  buildZodValidationErrorPayload,
+  isPlausiblePhoneNumber,
+  validateActiveEmergencyCategory,
+  validateLocationCodes,
+} from "../../input-validation.js";
 import { createInMemoryRateLimiter } from "../../rate-limit.js";
 
 const incidentBody = z.object({
@@ -11,6 +19,7 @@ const incidentBody = z.object({
   severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
   status: z.enum(["open", "acknowledged", "closed"]).default("open"),
   description: z.string().nullable().optional(),
+  agencyContactId: z.string().uuid().nullable().optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   provinceCode: z.string().nullable().optional(),
@@ -19,8 +28,14 @@ const incidentBody = z.object({
   district: z.string().nullable().optional(),
   accuracy: z.number().nullable().optional(),
   callStatus: z.enum(["connected", "busy", "no-answer", "wrong-number", "cancelled"]).nullable().optional(),
-  reporterPhone: z.string().trim().min(8).max(32).nullable().optional(),
+  reporterPhone: z.string().trim().min(1).max(32).nullable().optional(),
   sessionId: z.string().trim().min(8).max(128).nullable().optional(),
+});
+
+const incidentCallUpdateBody = z.object({
+  callStatus: z.enum(["connected", "busy", "no-answer", "wrong-number", "cancelled"]),
+  reporterPhone: z.string().trim().min(1).max(32).nullable().optional(),
+  description: z.string().nullable().optional(),
 });
 
 function rowToIncident(row: Record<string, unknown>) {
@@ -69,7 +84,20 @@ const incidentCreateRateLimiter = createInMemoryRateLimiter({
 });
 
 export async function registerIncidentRoutes(app: FastifyInstance) {
-  app.get("/api/incidents", async () => {
+  app.get("/api/incidents", async (request) => {
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+    const values: string[] = [];
+    const filters: string[] = [];
+
+    if (adminScope?.role === "agency_admin") {
+      values.push(adminScope.category);
+      filters.push(`i.category = $${values.length}`);
+    }
+
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
     const result = await pool.query(
       `
         SELECT
@@ -101,22 +129,36 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           END AS marker_color
         FROM incidents i
         LEFT JOIN contacts c ON c.id = i.agency_contact_id
+        ${whereClause}
         ORDER BY i.created_at DESC
-      `
+      `,
+      values
     );
     return result.rows.map(rowToIncident);
   });
 
   app.get("/api/incidents/:id", async (request, reply) => {
-    const params = z
+    const paramsResult = z
       .object({
         id: z.string().min(1),
       })
       .safeParse(request.params);
 
-    if (!params.success) {
+    if (!paramsResult.success) {
       reply.code(400);
-      return buildApiErrorPayload(400, "INCIDENT_ID_REQUIRED", "Incident id is required");
+      return buildZodValidationErrorPayload(paramsResult.error);
+    }
+
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+    const values: string[] = [paramsResult.data.id];
+    const filters = ["i.id = $1"];
+
+    if (adminScope?.role === "agency_admin") {
+      values.push(adminScope.category);
+      filters.push(`i.category = $${values.length}`);
     }
 
     const result = await pool.query(
@@ -150,10 +192,10 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           END AS marker_color
         FROM incidents i
         LEFT JOIN contacts c ON c.id = i.agency_contact_id
-        WHERE i.id = $1
+        WHERE ${filters.join(" AND ")}
         LIMIT 1
       `,
-      [params.data.id]
+      values
     );
 
     if (result.rows.length === 0) {
@@ -164,7 +206,20 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return rowToIncident(result.rows[0]);
   });
 
-  app.get("/api/incidents/map-points", async () => {
+  app.get("/api/incidents/map-points", async (request) => {
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+    const values: string[] = [];
+    const filters: string[] = [];
+
+    if (adminScope?.role === "agency_admin") {
+      values.push(adminScope.category);
+      filters.push(`i.category = $${values.length}`);
+    }
+
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
     const result = await pool.query(
       `
         SELECT
@@ -203,20 +258,22 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           ORDER BY created_at DESC
           LIMIT 1
         ) a ON true
+        ${whereClause}
         ORDER BY i.created_at DESC
-      `
+      `,
+      values
     );
     return result.rows.map(rowToIncident);
   });
 
   app.get("/api/incidents/history", async (request, reply) => {
-    const query = z.object({
+    const queryResult = z.object({
       sessionId: z.string().trim().min(8),
     }).safeParse(request.query);
 
-    if (!query.success) {
+    if (!queryResult.success) {
       reply.code(400);
-      return buildApiErrorPayload(400, "SESSION_ID_REQUIRED", "sessionId is required");
+      return buildZodValidationErrorPayload(queryResult.error);
     }
 
     const result = await pool.query(
@@ -253,7 +310,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         WHERE i.session_id = $1
         ORDER BY i.created_at DESC
       `,
-      [query.data.sessionId]
+      [queryResult.data.sessionId]
     );
 
     return result.rows.map(rowToIncident);
@@ -271,16 +328,32 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       );
     }
 
-    const body = incidentBody.parse(request.body);
-
-    const categoryResult = await pool.query(
-      "SELECT 1 FROM emergency_categories WHERE id = $1 AND active = true LIMIT 1",
-      [body.category]
-    );
-
-    if (categoryResult.rowCount === 0) {
+    const bodyResult = incidentBody.safeParse(request.body);
+    if (!bodyResult.success) {
       reply.code(400);
-      return buildApiErrorPayload(400, "UNKNOWN_EMERGENCY_CATEGORY", "Unknown emergency category");
+      return buildZodValidationErrorPayload(bodyResult.error);
+    }
+
+    const body = bodyResult.data;
+
+    if (body.reporterPhone && !isPlausiblePhoneNumber(body.reporterPhone)) {
+      reply.code(400);
+      return buildApiErrorPayload(400, "INVALID_PHONE_NUMBER", "Reporter phone number is invalid");
+    }
+
+    const categoryError = await validateActiveEmergencyCategory(body.category);
+    if (categoryError) {
+      reply.code(400);
+      return categoryError;
+    }
+
+    const locationError = await validateLocationCodes({
+      provinceCode: body.provinceCode,
+      districtCode: body.districtCode,
+    });
+    if (locationError) {
+      reply.code(400);
+      return locationError;
     }
 
     const areaResult = await pool.query(
@@ -321,9 +394,9 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const result = await pool.query(
       `
         INSERT INTO incidents
-          (category, severity, status, description, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, location)
+          (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, location)
         VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, ST_SetSRID(ST_MakePoint($6, $5), 4326))
+          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ST_SetSRID(ST_MakePoint($7, $6), 4326))
         RETURNING *, ${markerColorSql()}
       
       `,
@@ -332,6 +405,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         body.severity,
         body.status,
         body.description ?? null,
+        body.agencyContactId ?? null,
         body.latitude,
         body.longitude,
         resolvedProvinceCode,
@@ -367,22 +441,172 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return incident;
   });
 
-  app.get("/api/events", async (_request, reply) => {
+  app.put("/api/incidents/:id/call", async (request, reply) => {
+    const paramsResult = z
+      .object({
+        id: z.string().min(1),
+      })
+      .safeParse(request.params);
+
+    if (!paramsResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(paramsResult.error);
+    }
+
+    const bodyResult = incidentCallUpdateBody.safeParse(request.body);
+    if (!bodyResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(bodyResult.error);
+    }
+
+    const body = bodyResult.data;
+
+    if (body.reporterPhone && !isPlausiblePhoneNumber(body.reporterPhone)) {
+      reply.code(400);
+      return buildApiErrorPayload(400, "INVALID_PHONE_NUMBER", "Reporter phone number is invalid");
+    }
+
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+    const values: Array<string | null> = [
+      paramsResult.data.id,
+      body.callStatus,
+      body.reporterPhone ?? null,
+      body.description ?? null,
+    ];
+
+    const updateScopeCondition =
+      adminScope?.role === "agency_admin"
+        ? ` AND category = $${values.push(adminScope.category)}`
+        : "";
+
+    const result = await pool.query(
+      `
+        WITH updated_incident AS (
+          UPDATE incidents
+          SET
+            call_status = $2,
+            reporter_phone = COALESCE($3, reporter_phone),
+            description = COALESCE($4, description),
+            updated_at = now()
+          WHERE id = $1
+          ${updateScopeCondition}
+          RETURNING *
+        )
+        SELECT
+          i.id,
+          i.category,
+          i.severity,
+          i.status,
+          i.description,
+          i.agency_contact_id,
+          c.name AS agency_name,
+          c.phone AS agency_phone,
+          i.province_code,
+          i.province,
+          i.district_code,
+          i.district,
+          i.accuracy,
+          i.call_status,
+          i.reporter_phone,
+          i.session_id,
+          i.latitude,
+          i.longitude,
+          i.created_at,
+          i.updated_at,
+          ${markerColorSql()}
+        FROM updated_incident i
+        LEFT JOIN contacts c ON c.id = i.agency_contact_id
+      `,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      reply.code(404);
+      return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
+    }
+
+    const incident = rowToIncident(result.rows[0]);
+    await writeAuditLog(request, {
+      action: "incidents.update-call",
+      resourceType: "incident",
+      resourceId: String(incident.id),
+      details: {
+        callStatus: incident.callStatus,
+        reporterPhone: incident.reporterPhone,
+      },
+    });
+
+    return incident;
+  });
+
+  app.get("/api/events", async (request, reply) => {
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+
     reply.hijack();
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": config.corsOrigin,
+      Vary: "Origin",
     });
+    reply.raw.flushHeaders?.();
 
-    const sendIncident = (payload: unknown) => {
-      reply.raw.write(`event: incident.created\n`);
-      reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+    let closed = false;
+
+    const cleanup = () => {
+      if (closed) {
+        return;
+      }
+
+      closed = true;
+      clearInterval(heartbeatInterval);
+      emergencyEvents.off("incident.created", sendIncident);
     };
 
+    const sendIncident = (payload: unknown) => {
+      if (closed) {
+        return;
+      }
+
+      if (
+        adminScope?.role === "agency_admin" &&
+        (!payload || typeof payload !== "object" || (payload as { category?: unknown }).category !== adminScope.category)
+      ) {
+        return;
+      }
+
+      try {
+        reply.raw.write(`event: incident.created\n`);
+        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        cleanup();
+      }
+    };
+
+    reply.raw.write("retry: 2000\n");
+    reply.raw.write(": connected\n\n");
+
+    const heartbeatInterval = setInterval(() => {
+      if (closed) {
+        return;
+      }
+
+      try {
+        reply.raw.write(": keepalive\n\n");
+      } catch {
+        cleanup();
+      }
+    }, 15000);
+
     emergencyEvents.on("incident.created", sendIncident);
-    reply.raw.on("close", () => {
-      emergencyEvents.off("incident.created", sendIncident);
-    });
+    reply.raw.on("close", cleanup);
   });
 }

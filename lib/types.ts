@@ -133,7 +133,7 @@ export interface SystemSettings {
 }
 
 // Admin User Roles
-export type AdminRole = 'superadmin' | 'agency-admin' | 'operator' | 'viewer'
+export type AdminRole = 'super_admin' | 'agency_admin' | 'operator' | 'viewer'
 
 // Agency (based on Emergency Category)
 export interface Agency {
@@ -152,7 +152,7 @@ export interface AdminUser {
   email: string
   name: string
   role: AdminRole
-  agencyId?: string // Required for agency-admin, operator, viewer
+  agencyId?: string // Required for agency_admin, operator, viewer
   agency?: Agency
   permissions: string[]
   lastLogin: Date
@@ -167,7 +167,7 @@ export interface AuthState {
 
 // Permission definitions per role
 export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
-  superadmin: [
+  super_admin: [
     'dashboard.view',
     'dashboard.all-agencies',
     'contacts.view',
@@ -187,7 +187,7 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'settings.view',
     'settings.edit',
   ],
-  'agency-admin': [
+  agency_admin: [
     'dashboard.view',
     'contacts.view',
     'call-logs.view',

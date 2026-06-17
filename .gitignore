@@ -29,6 +29,9 @@ yarn-error.log*
 # env files
 .env*
 
+# local AI working notes
+.ai/
+
 # vercel
 .vercel
 
