@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { EmergencyContact, CallStatus } from '@/lib/types'
@@ -20,8 +19,6 @@ import { cn } from '@/lib/utils'
 
 interface EmergencyCallScreenProps {
   contact: EmergencyContact
-  reporterPhone: string
-  onReporterPhoneChange: (value: string) => void
   onCancel: () => void
   onComplete: (status: CallStatus) => void
 }
@@ -30,15 +27,12 @@ type CallPhase = 'dialing' | 'connected' | 'feedback'
 
 export function EmergencyCallScreen({
   contact,
-  reporterPhone,
-  onReporterPhoneChange,
   onCancel,
   onComplete,
 }: EmergencyCallScreenProps) {
   const [phase, setPhase] = useState<CallPhase>('dialing')
   const [selectedStatus, setSelectedStatus] = useState<CallStatus>('connected')
   const [callDuration, setCallDuration] = useState(0)
-  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   useEffect(() => {
     const dialTimeout = setTimeout(() => {
@@ -69,14 +63,6 @@ export function EmergencyCallScreen({
   }
 
   const handleSubmitFeedback = () => {
-    const normalizedPhone = reporterPhone.replace(/[^0-9]/g, '')
-    if (normalizedPhone.length < 9) {
-      setPhoneError('Please enter a valid phone number')
-      return
-    }
-
-    setPhoneError(null)
-    onReporterPhoneChange(normalizedPhone)
     onComplete(selectedStatus)
   }
 
@@ -86,65 +72,6 @@ export function EmergencyCallScreen({
     { value: 'no-answer', label: 'No Answer', icon: PhoneMissed },
     { value: 'wrong-number', label: 'Wrong Number', icon: PhoneOff },
   ]
-
-  if (phase === 'feedback') {
-    return (
-      <div className="fixed inset-0 flex flex-col bg-background safe-area-inset">
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-2">
-            Call Feedback
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6 text-center">
-            Confirm the call result and reporter phone number before sending the incident.
-          </p>
-
-          <Card className="w-full max-w-sm">
-            <CardContent className="p-4 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="reporter-phone">Reporter phone</Label>
-                <Input
-                  id="reporter-phone"
-                  inputMode="tel"
-                  placeholder="0812345678"
-                  value={reporterPhone}
-                  onChange={event => onReporterPhoneChange(event.target.value)}
-                />
-                {phoneError ? <p className="text-xs text-destructive">{phoneError}</p> : null}
-              </div>
-
-              <RadioGroup
-                value={selectedStatus}
-                onValueChange={val => setSelectedStatus(val as CallStatus)}
-                className="space-y-3"
-              >
-                {feedbackOptions.map(option => (
-                  <div key={option.value} className="flex items-center space-x-3">
-                    <RadioGroupItem value={option.value} id={option.value} />
-                    <Label
-                      htmlFor={option.value}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <option.icon
-                        className={cn(
-                          'h-4 w-4',
-                          option.value === 'connected' ? 'text-success' : 'text-muted-foreground'
-                        )}
-                      />
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </CardContent>
-          </Card>
-
-          <Button onClick={handleSubmitFeedback} className="mt-6 w-full max-w-sm">
-            Send Incident
-          </Button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="fixed inset-0 flex flex-col bg-foreground safe-area-inset">
@@ -205,6 +132,52 @@ export function EmergencyCallScreen({
           )}
         </div>
       </div>
+
+      {phase === 'feedback' ? (
+        <div className="absolute inset-x-0 bottom-0 z-20 rounded-t-3xl border border-border/40 bg-background px-5 pb-8 pt-5 shadow-2xl">
+          <div className="mx-auto mb-4 h-1.5 w-14 rounded-full bg-muted" />
+          <div className="mx-auto max-w-md space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-foreground">ยืนยันผลการโทร</h2>
+              <p className="text-sm text-muted-foreground">
+                เลือกผลการโทรก่อนส่งต่อไปยังหน้าติดตามสถานะ
+              </p>
+            </div>
+
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <RadioGroup
+                  value={selectedStatus}
+                  onValueChange={val => setSelectedStatus(val as CallStatus)}
+                  className="space-y-3"
+                >
+                  {feedbackOptions.map(option => (
+                    <div key={option.value} className="flex items-center space-x-3">
+                      <RadioGroupItem value={option.value} id={option.value} />
+                      <Label
+                        htmlFor={option.value}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <option.icon
+                          className={cn(
+                            'h-4 w-4',
+                            option.value === 'connected' ? 'text-success' : 'text-muted-foreground'
+                          )}
+                        />
+                        {option.label}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </CardContent>
+            </Card>
+
+            <Button onClick={handleSubmitFeedback} className="w-full">
+              บันทึกผลการโทร
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

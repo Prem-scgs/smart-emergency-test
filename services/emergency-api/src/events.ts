@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 
 export type EmergencyEvent = {
-  type: "incident.created";
+  type: "incident.created" | "incident.status_updated";
   payload: unknown;
 };
 

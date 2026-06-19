@@ -442,3 +442,92 @@ Copy this block for each new work session:
   - there are currently no real `local` contacts left in the local DB, so UI will only show central contacts until local agency numbers are added back.
 - Next action:
   - choose between running a clean DB reset verification or writing backup/restore notes to keep Phase 3 moving
+## 2026-06-18 - Incident status tracking design
+
+- Current phase: `Feature - Admin-controlled incident status tracking`
+- Current task: `Design approved; implementation not started`
+- Approved decisions:
+  - Admin updates each case through an ordered status workflow.
+  - Backend timestamps every change; `agency_admin` moves forward in its category, `super_admin` may move backward with a reason.
+  - Closing requires a resolution summary; concurrent updates use optimistic version checks.
+  - Mobile tracks real status/history, can revisit cases, and updates GPS only on explicit user action.
+  - Keep the simulated call screen temporarily, but remove result choices/reporter phone and never persist simulated timer/connection state.
+  - Store `dialed_phone` at Call initiation; keep SSE and consolidate to one client.
+- Design: `docs/superpowers/specs/2026-06-18-incident-status-tracking-design.md`
+- Plan: `docs/superpowers/plans/2026-06-18-incident-status-tracking.md`
+- Next action: start Task 1 by creating `016_incident_tracking.sql`; no implementation work has started yet.
+- Git: documentation changes are uncommitted; ask Prem before commit or push.
+## 2026-06-18 - Incident status tracking Task 1 complete
+
+- Current phase: `Feature - Admin-controlled incident status tracking`
+- Completed: `Task 1 - Tracking database migration`
+- Added `016_incident_tracking.sql` with incident request/version fields, status history, location history, constraints, and indexes.
+- Added `pnpm db:migrate:incident-tracking` and wired it into Makefile migration/reset flows.
+- Applied migration successfully and reran it successfully to verify idempotency.
+- Read-only DB verification confirmed all expected columns, FKs, checks, timeline indexes, partial unique request index, and PostGIS GIST index.
+- Compatibility decision: keep legacy `open` in the status constraint temporarily until incident creation switches to `reported` in Task 3.
+- Next action: Task 2 status transition domain rules using TDD.
+- Git: changes remain uncommitted; ask Prem before commit or push.
+
+## 2026-06-19 - Incident status tracking Task 2 complete
+
+- Completed: `Task 2 - Status transition domain rules`.
+- Added `status-workflow.ts` with the approved six-status order and a pure transition validator.
+- `agency_admin` may move only to the next status; `super_admin` may move backward.
+- Backward changes require a reason; closing requires a resolution summary; notes are trimmed.
+- TDD evidence: tests failed before each behavior was implemented, then passed after minimal implementation.
+- Verified: 9 focused tests passed, all 40 API tests passed, API TypeScript build passed, and diff check passed.
+- Next action: Task 3 idempotent incident creation and `dialed_phone` persistence.
+- Git: changes remain uncommitted; ask Prem before commit or push.
+## 2026-06-19 - Incident status tracking Task 3 complete
+
+- Completed: `Task 3 - Idempotent incident creation and dialed phone`.
+- Mobile payload now sends a retained `clientRequestId`, `dialedPhone`, and initial status `reported`.
+- Incident create uses one atomic PostgreSQL statement to insert the incident plus initial status/location histories.
+- Duplicate `clientRequestId` returns the original incident with HTTP 200 and does not duplicate audit or SSE; new creates return 201.
+- Live verification: first POST returned 201, retry returned 200 with the same incident ID, and DB contained exactly one status-history and one location-history row.
+- Removed the temporary incident, cascading histories, and its standalone audit log after verification.
+- Verified: Mobile helper tests 4/4, incident route tests 15/15, API tests 42/42, API build passed, and Next production build passed.
+- Root standalone TypeScript checking still reports unrelated pre-existing GIS/profile/mock typing issues; Next config currently skips type validation.
+- Next action: Task 4 tracking/status/location APIs and SSE events.
+- Git: changes remain uncommitted; ask Prem before commit or push.
+## 2026-06-19 - Incident status read/update and Admin Dashboard flow
+
+- Completed Task 4 read/status slice: `GET /api/incidents/:id/tracking` and `PATCH /api/incidents/:id/status`.
+- Status updates use `SELECT ... FOR UPDATE`, optimistic `expectedVersion`, append-only history, and SSE only after commit.
+- Added Admin queue, map/queue synchronized selection, tracking Sheet, next-status control, notes, timeline, and 409 refetch behavior.
+- Added `incident.status_updated` to the SSE server/client flow without replacing the selected case.
+- Fixed nested Admin trigger buttons and localStorage auth hydration mismatch found during browser QA.
+- Verified: 50 API tests, 6 focused frontend tests, API/Next builds, live 409 against PostgreSQL, and mobile/desktop Browser QA.
+- Remaining: explicit location update API, queue grouping/unread indicator, super-admin backward controls, and Call Logs detail reuse.
+- Git: changes remain uncommitted; ask Prem before commit or push.
+
+## 2026-06-19 - Status CORS and Mobile feedback fix
+
+- Root cause: Fastify CORS allowed only `GET`, `HEAD`, and `POST`, so browser preflight blocked Admin `PATCH /status` and Mobile `PUT /call` with `Failed to fetch`.
+- Added a tested explicit CORS method list including `PUT`, `PATCH`, `DELETE`, and `OPTIONS`.
+- Kept simulated call-result choices but removed reporter-phone props, input, validation, and storage writes.
+- Mobile feedback now sends `reporterPhone: null`; `dialed_phone` remains captured when Call starts.
+- Browser verification: Admin advanced a real case from `reported` to `acknowledged`; Mobile submitted Connected without a phone field and opened tracking.
+- Verified: API tests 51/51, Mobile helper tests 4/4, API build, and Next production build.
+- Git: changes remain uncommitted; ask Prem before commit or push.
+
+## 2026-06-19 - Mobile authoritative realtime status
+
+- Root cause: Mobile rendered a local `reported` snapshot and its Refresh action fetched only the basic incident record; it neither read `/tracking` nor subscribed to status SSE.
+- Added reporter-owned `GET /api/incidents/:id/events?sessionId=...`, validating ownership before opening SSE and filtering updates by incident ID.
+- Mobile tracking now loads authoritative status/history from `/tracking` on mount, Refresh, SSE open, and `incident.status_updated`.
+- Live verification: case `7522d791-1636-4d55-9e8a-7f0b3b4bef25` loaded as `on_scene`, then changed to `closed` on Mobile without manual refresh after an Admin-scoped PATCH.
+- A mismatched reporter session returned 403.
+- Verified: API tests 54/54, focused frontend tests 13/13, API build, and Next production build.
+- Git: changes remain uncommitted; ask Prem before commit or push.
+
+## 2026-06-20 - Optional close summary and Superadmin rollback
+
+- Closing an incident now accepts an empty resolution summary at the API workflow layer.
+- Admin warns and asks for explicit confirmation before closing without a summary.
+- `super_admin` can select any other workflow status; backward changes require a reason before submission.
+- `agency_admin` remains limited to the next workflow status.
+- Browser QA verified Thai status labels, the blank-summary warning, and disabled rollback until a reason is entered without mutating the selected test case.
+- Verified: API tests 54/54, focused frontend tests 16/16, API build passed, and Next production build passed.
+- Git: changes remain uncommitted; ask Prem before commit or push.

@@ -20,25 +20,25 @@ import { useAuth, AGENCIES } from '@/lib/auth-context'
 import { AdminRole } from '@/lib/types'
 
 const ROLE_OPTIONS: { value: AdminRole; label: string; description: string }[] = [
-  { 
-    value: 'superadmin', 
-    label: 'ผู้ดูแลระบบสูงสุด (Superadmin)', 
-    description: 'เข้าถึงข้อมูลทุกหน่วยงาน' 
+  {
+    value: 'super_admin',
+    label: 'ผู้ดูแลระบบสูงสุด (Superadmin)',
+    description: 'เข้าถึงข้อมูลทุกหน่วยงาน'
   },
-  { 
-    value: 'agency-admin', 
-    label: 'ผู้ดูแลหน่วยงาน (Agency Admin)', 
-    description: 'จัดการข้อมูลเฉพาะหน่วยงาน' 
+  {
+    value: 'agency_admin',
+    label: 'ผู้ดูแลหน่วยงาน (Agency Admin)',
+    description: 'จัดการข้อมูลเฉพาะหน่วยงาน'
   },
-  { 
-    value: 'operator', 
-    label: 'เจ้าหน้าที่ปฏิบัติการ (Operator)', 
-    description: 'ดูข้อมูลและรับแจ้งเหตุ' 
+  {
+    value: 'operator',
+    label: 'เจ้าหน้าที่ปฏิบัติการ (Operator)',
+    description: 'ดูข้อมูลและรับแจ้งเหตุ'
   },
-  { 
-    value: 'viewer', 
-    label: 'ผู้ดู (Viewer)', 
-    description: 'ดูข้อมูลอย่างเดียว' 
+  {
+    value: 'viewer',
+    label: 'ผู้ดู (Viewer)',
+    description: 'ดูข้อมูลอย่างเดียว'
   },
 ]
 
@@ -53,11 +53,11 @@ export default function AdminLoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const needsAgency = selectedRole && selectedRole !== 'superadmin'
+  const needsAgency = selectedRole && selectedRole !== 'super_admin'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!email || !password) {
       toast.error('กรุณากรอกอีเมลและรหัสผ่าน')
       return
@@ -74,20 +74,20 @@ export default function AdminLoginPage() {
     }
 
     setIsLoading(true)
-    
+
     try {
       const success = await login(
-        email, 
-        password, 
-        selectedRole as AdminRole, 
+        email,
+        password,
+        selectedRole as AdminRole,
         needsAgency ? selectedAgency : undefined
       )
-      
+
       if (success) {
         const agency = AGENCIES.find(a => a.id === selectedAgency)
         toast.success(
-          selectedRole === 'superadmin' 
-            ? 'เข้าสู่ระบบศูนย์บัญชาการสำเร็จ' 
+          selectedRole === 'super_admin'
+            ? 'เข้าสู่ระบบศูนย์บัญชาการสำเร็จ'
             : `เข้าสู่ระบบ${agency?.nameTh || ''}สำเร็จ`
         )
         router.push('/admin/dashboard')
@@ -129,8 +129,8 @@ export default function AdminLoginPage() {
                   <Select
                     value={selectedRole}
                     onValueChange={(value) => {
-                      setSelectedRole(value as AdminRole)
-                      if (value === 'superadmin') {
+                      setSelectedRole((value ?? '') as AdminRole | '')
+                      if (value === 'super_admin') {
                         setSelectedAgency('')
                       }
                     }}
@@ -164,7 +164,7 @@ export default function AdminLoginPage() {
                     <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
                     <Select
                       value={selectedAgency}
-                      onValueChange={setSelectedAgency}
+                      onValueChange={(value) => setSelectedAgency(value ?? '')}
                       disabled={isLoading}
                     >
                       <SelectTrigger className="pl-10">
@@ -235,8 +235,8 @@ export default function AdminLoginPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="remember" 
+                  <Checkbox
+                    id="remember"
                     checked={rememberMe}
                     onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                   />
@@ -264,7 +264,7 @@ export default function AdminLoginPage() {
         </Card>
 
         {/* Info Box */}
-        {selectedRole === 'superadmin' && (
+        {selectedRole === 'super_admin' && (
           <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
             <p className="text-sm text-primary font-medium">ศูนย์บัญชาการใหญ่</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -273,7 +273,7 @@ export default function AdminLoginPage() {
           </div>
         )}
 
-        {selectedRole && selectedRole !== 'superadmin' && selectedAgency && (
+        {selectedRole && selectedRole !== 'super_admin' && selectedAgency && (
           <div className="mt-4 p-4 bg-muted rounded-lg border">
             <p className="text-sm font-medium">
               {AGENCIES.find(a => a.id === selectedAgency)?.nameTh}

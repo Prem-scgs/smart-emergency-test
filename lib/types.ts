@@ -247,3 +247,5 @@ export interface WebSocketEvent {
   timestamp: Date
   agencyId?: string
 }
+
+export type SseEvent = WebSocketEvent

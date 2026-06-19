@@ -152,24 +152,30 @@ pnpm build
 
 ## Next Steps
 
-- Continue feature work or inspect current UI flows.
-- Continue reducing remaining legacy mocks in lower-priority pages such as `/admin/users` and mobile/demo components.
-- Inspect `admin/users` to decide whether it should be converted to API-backed data next or left out of the main production path for now.
-- Review remaining API routes for inconsistent not-found and validation status handling before returning to lower-priority mock cleanup.
-- Add intentional request/error logging in `emergency-api`, then refresh README / runbook docs for current env and startup flow.
-- Refresh README / runbook docs for the current env, startup, migration, seed, and debug flow.
-- Pick the next backend hardening task: audit logging, rate limiting, or standardizing API error response shapes.
-- Decide whether to complete the remaining API error-shape rollout now, or switch focus to audit logging / rate limiting.
-- Choose the next hardening slice: finish remaining error-shape rollout, add audit logging, or add rate limiting.
-- Choose the next hardening slice: add audit logging, or finish the remaining error-shape rollout.
-- Choose the next hardening slice: extend audit coverage, finish remaining error-shape rollout, or broaden rate limiting.
-- Choose the next hardening slice: keep extending audit coverage, finish remaining error-shape rollout, or broaden rate limiting.
-- Start replacing remaining `lib/mock-data.ts` imports with the new reference/user/dashboard APIs.
-- Dashboard now shows backend-backed Leaflet incident markers and log filters; next step is adding alert sound from `/api/events`.
-- GIS page now focuses on boundary management and reads `GET /api/areas`.
-- Add alert sound in dashboard when `/api/events` receives `incident.created`.
-- Add full polygon drawing/editing UI for `/admin/gis`; backend endpoints already exist for areas.
-- Next GIS step: add toggles for showing/hiding contacts/incidents, then add response-zone CRUD/drawing controls. Official province/district boundaries should be read-only; user-created response zones can be editable.
+- Current priority: implement real case status tracking controlled by Admin.
+- Approved design: `docs/superpowers/specs/2026-06-18-incident-status-tracking-design.md`.
+- Execution checklist: `docs/superpowers/plans/2026-06-18-incident-status-tracking.md`.
+- Task 1 complete: migration `016_incident_tracking.sql` is applied and verified idempotent.
+- Task 2 complete: status transition rules are implemented with 9 focused tests.
+- Task 3 complete: incident creation is idempotent, persists `dialed_phone`, and atomically creates initial status/location history.
+- Task 4 tracking read complete: `GET /api/incidents/:id/tracking` returns the incident, status history, latest location, and location history with reporter-session ownership or Admin scope validation.
+- Task 4 status update complete: `PATCH /api/incidents/:id/status` uses a locked transaction, validates role/transition rules, returns `409 INCIDENT_STATUS_CONFLICT` for stale versions, appends status history, and emits `incident.status_updated` only after commit.
+- Admin Dashboard now has a real incident queue synchronized with map selection plus a Sheet detail panel that reads `/tracking`, updates status, handles 409 by refetching, and renders the status timeline.
+- Status controls now let `super_admin` select any other workflow status. Moving backward requires a reason; `agency_admin` still moves forward one step only.
+- Closing an incident no longer requires a resolution summary. If the summary is blank, the Admin UI shows an explicit confirmation dialog before submitting.
+- Admin SSE client now receives `incident.status_updated`; Dashboard and an open matching detail panel refetch authoritative data without replacing the selected case.
+- Mobile tracking now loads authoritative `/tracking` data and uses reporter-owned `GET /api/incidents/:id/events`; status events trigger a refetch and never expose the shared Admin stream.
+- Mobile Refresh now reloads status/history from `/tracking` instead of fetching only the basic incident record.
+- Browser QA passed at mobile and desktop widths. The nested trigger and localStorage auth hydration errors in Admin layout were fixed; a fresh reload produced no new console errors.
+- Next action: finish Task 4 with `POST /api/incidents/:id/locations`, then complete queue grouping/unread indicators.
+- Continue in order: DB -> workflow rules -> incident APIs/SSE -> one SSE client -> Mobile -> Admin queue/detail -> E2E verification.
+- Keep the simulated Mobile call screen and call-result choices temporarily, but remove the reporter-phone form; never persist its timer/Connected label as authoritative call data.
+- Browser CORS now explicitly allows `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS` so Admin status and Mobile call-result updates work.
+- Mobile call feedback sends `reporterPhone: null`; `dialed_phone` remains the number captured when Call is tapped.
+- Store `dialed_phone` when Call is tapped; it means attempted dial, not confirmed connection.
+- Final JWT implementation remains owned by Prem's team; backend authorization boundaries must stay replaceable.
+- Known blocker to fix in this feature: two active SSE implementations (`use-sse` and `use-websocket`) currently create duplicate connections.
+- Known audit issues outside this immediate plan: contacts CRUD lacks backend role enforcement; migration scripts/reference routes still need cleanup after mock-table removal.
 - Before finishing future sessions, update this file and check `git status`.
 
 ## Handoff Prompt

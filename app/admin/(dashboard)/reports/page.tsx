@@ -162,7 +162,7 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Select value={dateRange} onValueChange={setDateRange}>
+          <Select value={dateRange} onValueChange={value => setDateRange(value ?? 'month')}>
             <SelectTrigger className="w-[150px]">
               <Calendar className="mr-2 h-4 w-4" />
               <SelectValue />

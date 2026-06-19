@@ -20,17 +20,27 @@ export interface IncidentMapPoint {
 
 interface IncidentMapProps {
   incidents: IncidentMapPoint[]
+  selectedIncidentId?: string | null
+  onSelectIncident?: (incidentId: string) => void
 }
 
 const DEFAULT_CENTER: [number, number] = [13.7465, 100.533]
 
 const statusLabels: Record<string, string> = {
   open: 'เปิดอยู่',
+  reported: 'แจ้งเหตุแล้ว',
   acknowledged: 'รับเรื่องแล้ว',
-  closed: 'ปิดเรื่องแล้ว',
+  coordinating: 'กำลังประสานงาน',
+  dispatched: 'ส่งเจ้าหน้าที่แล้ว',
+  on_scene: 'ถึงที่เกิดเหตุ',
+  closed: 'ปิดเหตุ',
 }
 
-export function IncidentMap({ incidents }: IncidentMapProps) {
+export function IncidentMap({
+  incidents,
+  selectedIncidentId = null,
+  onSelectIncident,
+}: IncidentMapProps) {
   const center: [number, number] = incidents[0]
     ? [incidents[0].latitude, incidents[0].longitude]
     : DEFAULT_CENTER
@@ -51,12 +61,15 @@ export function IncidentMap({ incidents }: IncidentMapProps) {
         <CircleMarker
           key={incident.id}
           center={[incident.latitude, incident.longitude]}
-          radius={9}
+          radius={selectedIncidentId === incident.id ? 12 : 9}
           pathOptions={{
             color: incident.markerColor,
             fillColor: incident.markerColor,
             fillOpacity: 0.9,
-            weight: 2,
+            weight: selectedIncidentId === incident.id ? 4 : 2,
+          }}
+          eventHandlers={{
+            click: () => onSelectIncident?.(incident.id),
           }}
         >
           <Popup>

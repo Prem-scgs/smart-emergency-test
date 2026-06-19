@@ -3,6 +3,7 @@ import Fastify from "fastify";
 import { ZodError } from "zod";
 import { buildApiErrorPayload } from "./api-error.js";
 import { config } from "./config.js";
+import { corsMethods } from "./cors-options.js";
 import { closeDb, pool } from "./db.js";
 import { registerAreaRoutes } from "./modules/areas/routes.js";
 import { registerContactRoutes } from "./modules/contacts/routes.js";
@@ -20,6 +21,7 @@ const app = Fastify({
 
 await app.register(cors, {
   origin: config.corsOrigin,
+  methods: corsMethods,
 });
 
 await registerObservability(app);

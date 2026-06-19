@@ -119,10 +119,13 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                     <Button
                       variant="outline"
                       size="sm"
-                      asChild
                       className="flex-shrink-0"
+                      type="button"
+                      onClick={() => {
+                        window.location.href = notification.actionUrl as string
+                      }}
                     >
-                      <a href={notification.actionUrl}>ดู</a>
+                      ดู
                     </Button>
                   )}
                 </div>

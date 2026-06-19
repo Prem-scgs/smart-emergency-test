@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 
 import { registerIncidentRoutes } from "./routes.js";
 import { pool } from "../../db.js";
+import { emergencyEvents } from "../../events.js";
 
 type Handler = (request?: any, reply?: any) => Promise<unknown> | unknown;
 
@@ -10,6 +12,7 @@ function createFakeApp() {
   const getHandlers = new Map<string, Handler>();
   const postHandlers = new Map<string, Handler>();
   const putHandlers = new Map<string, Handler>();
+  const patchHandlers = new Map<string, Handler>();
 
   return {
     get(path: string, handler: Handler) {
@@ -21,9 +24,13 @@ function createFakeApp() {
     put(path: string, handler: Handler) {
       putHandlers.set(path, handler);
     },
+    patch(path: string, handler: Handler) {
+      patchHandlers.set(path, handler);
+    },
     getHandlers,
     postHandlers,
     putHandlers,
+    patchHandlers,
   };
 }
 
@@ -51,6 +58,325 @@ test("registerIncidentRoutes registers PUT /api/incidents/:id/call", async () =>
   await registerIncidentRoutes(app as any);
 
   assert.equal(typeof app.putHandlers.get("/api/incidents/:id/call"), "function");
+});
+
+test("registerIncidentRoutes registers PATCH /api/incidents/:id/status", async () => {
+  const app = createFakeApp();
+
+  await registerIncidentRoutes(app as any);
+
+  assert.equal(typeof app.patchHandlers.get("/api/incidents/:id/status"), "function");
+});
+
+test("registerIncidentRoutes registers GET /api/incidents/:id/events", async () => {
+  const app = createFakeApp();
+
+  await registerIncidentRoutes(app as any);
+
+  assert.equal(typeof app.getHandlers.get("/api/incidents/:id/events"), "function");
+});
+
+test("GET /api/incidents/:id/events rejects a reporter session that does not own the incident", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  (pool.query as unknown as typeof originalQuery) = async () => ({ rows: [] } as any);
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.getHandlers.get("/api/incidents/:id/events");
+    assert.ok(handler);
+
+    const reply = createReplyDouble();
+    const result = await handler({
+      params: { id: "incident-mobile-1" },
+      query: { sessionId: "session-wrong-123" },
+    }, reply);
+
+    assert.equal(reply.statusCode, 403);
+    assert.equal((result as any).code, "INCIDENT_TRACKING_ACCESS_DENIED");
+  } finally {
+    (pool.query as unknown as typeof originalQuery) = originalQuery;
+  }
+});
+
+test("GET /api/incidents/:id/events streams status updates for only the owned incident", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  (pool.query as unknown as typeof originalQuery) = async (sql: any, values?: any) => {
+    assert.match(String(sql), /session_id = \$2/);
+    assert.deepEqual(values, ["incident-mobile-1", "session-mobile-123"]);
+    return { rows: [{ id: "incident-mobile-1" }] } as any;
+  };
+
+  class RawReplyDouble extends EventEmitter {
+    chunks: string[] = [];
+
+    writeHead() {}
+    flushHeaders() {}
+    write(chunk: string) {
+      this.chunks.push(chunk);
+      return true;
+    }
+  }
+
+  const raw = new RawReplyDouble();
+  const reply = {
+    hijack() {},
+    raw,
+  };
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.getHandlers.get("/api/incidents/:id/events");
+    assert.ok(handler);
+
+    await handler({
+      params: { id: "incident-mobile-1" },
+      query: { sessionId: "session-mobile-123" },
+    }, reply);
+
+    emergencyEvents.emit("incident.status_updated", {
+      id: "incident-mobile-1",
+      category: "medical",
+      status: "acknowledged",
+      statusVersion: 1,
+    });
+    emergencyEvents.emit("incident.status_updated", {
+      id: "incident-other",
+      category: "medical",
+      status: "acknowledged",
+      statusVersion: 1,
+    });
+    raw.emit("close");
+
+    const output = raw.chunks.join("");
+    assert.match(output, /event: incident\.status_updated/);
+    assert.match(output, /incident-mobile-1/);
+    assert.doesNotMatch(output, /incident-other/);
+  } finally {
+    raw.emit("close");
+    (pool.query as unknown as typeof originalQuery) = originalQuery;
+  }
+});
+
+test("PATCH /api/incidents/:id/status commits status history before emitting SSE", async () => {
+  const app = createFakeApp();
+  const originalConnect = pool.connect.bind(pool);
+  const operations: string[] = [];
+  const updatedAt = new Date("2026-06-19T05:00:00.000Z");
+  const client = {
+    async query(sql: string, values?: unknown[]) {
+      const normalizedSql = sql.trim();
+      operations.push(normalizedSql.split(/\s+/).slice(0, 3).join(" "));
+
+      if (normalizedSql === "BEGIN" || normalizedSql === "COMMIT" || normalizedSql === "ROLLBACK") {
+        return { rows: [] };
+      }
+
+      if (normalizedSql.includes("FOR UPDATE")) {
+        return {
+          rows: [{
+            id: "incident-status-1",
+            category: "medical",
+            status: "reported",
+            status_version: 0,
+          }],
+        };
+      }
+
+      if (normalizedSql.startsWith("UPDATE incidents")) {
+        assert.deepEqual(values, ["acknowledged", "incident-status-1", 0]);
+        return {
+          rows: [{
+            id: "incident-status-1",
+            category: "medical",
+            status: "acknowledged",
+            status_version: 1,
+            updated_at: updatedAt,
+          }],
+        };
+      }
+
+      if (normalizedSql.startsWith("INSERT INTO incident_status_history")) {
+        assert.deepEqual(values, [
+          "incident-status-1",
+          "reported",
+          "acknowledged",
+          null,
+          "agency_admin",
+          1,
+        ]);
+        return { rows: [] };
+      }
+
+      throw new Error(`Unexpected SQL: ${normalizedSql}`);
+    },
+    release() {
+      operations.push("RELEASE");
+    },
+  };
+  (pool.connect as unknown as () => Promise<typeof client>) = async () => client;
+
+  let emittedPayload: unknown;
+  const onStatusUpdated = (payload: unknown) => {
+    operations.push("EVENT");
+    emittedPayload = payload;
+  };
+  emergencyEvents.on("incident.status_updated", onStatusUpdated);
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.patchHandlers.get("/api/incidents/:id/status");
+    assert.ok(handler);
+
+    const result = await handler({
+      params: { id: "incident-status-1" },
+      headers: {
+        "x-admin-role": "agency_admin",
+        "x-admin-category": "medical",
+      },
+      query: {},
+      body: {
+        fromStatus: "reported",
+        toStatus: "acknowledged",
+        expectedVersion: 0,
+      },
+    }, createReplyDouble());
+
+    assert.ok(operations.indexOf("COMMIT") < operations.indexOf("EVENT"));
+    assert.deepEqual(result, {
+      id: "incident-status-1",
+      category: "medical",
+      fromStatus: "reported",
+      status: "acknowledged",
+      statusVersion: 1,
+      note: null,
+      updatedAt,
+    });
+    assert.deepEqual(emittedPayload, result);
+  } finally {
+    emergencyEvents.off("incident.status_updated", onStatusUpdated);
+    (pool.connect as unknown as typeof originalConnect) = originalConnect;
+  }
+});
+
+test("PATCH /api/incidents/:id/status returns 409 for a stale expectedVersion", async () => {
+  const app = createFakeApp();
+  const originalConnect = pool.connect.bind(pool);
+  const operations: string[] = [];
+  const client = {
+    async query(sql: string) {
+      const normalizedSql = sql.trim();
+      operations.push(normalizedSql);
+
+      if (normalizedSql === "BEGIN" || normalizedSql === "ROLLBACK") {
+        return { rows: [] };
+      }
+
+      if (normalizedSql.includes("FOR UPDATE")) {
+        return {
+          rows: [{
+            id: "incident-status-1",
+            category: "medical",
+            status: "acknowledged",
+            status_version: 1,
+          }],
+        };
+      }
+
+      throw new Error(`Unexpected SQL: ${normalizedSql}`);
+    },
+    release() {},
+  };
+  (pool.connect as unknown as () => Promise<typeof client>) = async () => client;
+
+  let eventCount = 0;
+  const onStatusUpdated = () => {
+    eventCount += 1;
+  };
+  emergencyEvents.on("incident.status_updated", onStatusUpdated);
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.patchHandlers.get("/api/incidents/:id/status");
+    assert.ok(handler);
+
+    const reply = createReplyDouble();
+    const result = await handler({
+      params: { id: "incident-status-1" },
+      headers: { "x-admin-role": "super_admin" },
+      query: {},
+      body: {
+        fromStatus: "reported",
+        toStatus: "acknowledged",
+        expectedVersion: 0,
+      },
+    }, reply);
+
+    assert.equal(reply.statusCode, 409);
+    assert.equal((result as any).code, "INCIDENT_STATUS_CONFLICT");
+    assert.deepEqual((result as any).currentState, {
+      status: "acknowledged",
+      statusVersion: 1,
+    });
+    assert.ok(operations.includes("ROLLBACK"));
+    assert.equal(eventCount, 0);
+  } finally {
+    emergencyEvents.off("incident.status_updated", onStatusUpdated);
+    (pool.connect as unknown as typeof originalConnect) = originalConnect;
+  }
+});
+
+test("GET /api/events streams status updates allowed by agency scope", async () => {
+  const app = createFakeApp();
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.getHandlers.get("/api/events");
+  assert.ok(handler);
+
+  class RawReplyDouble extends EventEmitter {
+    chunks: string[] = [];
+
+    writeHead() {}
+    flushHeaders() {}
+    write(chunk: string) {
+      this.chunks.push(chunk);
+      return true;
+    }
+  }
+
+  const raw = new RawReplyDouble();
+  const reply = {
+    hijack() {},
+    raw,
+  };
+
+  await handler({
+    headers: {
+      "x-admin-role": "agency_admin",
+      "x-admin-category": "medical",
+    },
+    query: {},
+  }, reply);
+
+  emergencyEvents.emit("incident.status_updated", {
+    id: "incident-medical",
+    category: "medical",
+    status: "acknowledged",
+    statusVersion: 1,
+  });
+  emergencyEvents.emit("incident.status_updated", {
+    id: "incident-fire",
+    category: "fire",
+    status: "acknowledged",
+    statusVersion: 1,
+  });
+  raw.emit("close");
+
+  const output = raw.chunks.join("");
+  assert.match(output, /event: incident\.status_updated/);
+  assert.match(output, /incident-medical/);
+  assert.doesNotMatch(output, /incident-fire/);
 });
 
 test("GET /api/incidents scopes agency admin to their own category on the server side", async () => {
@@ -237,6 +563,8 @@ test("POST /api/incidents writes an audit log after create", async () => {
         rows: [
           {
             id: "incident-1",
+            client_request_id: "33333333-3333-4333-8333-333333333333",
+            dialed_phone: "199",
             category: "fire",
             severity: "high",
             status: "open",
@@ -254,6 +582,7 @@ test("POST /api/incidents writes an audit log after create", async () => {
             marker_color: "#f97316",
             created_at: new Date("2026-06-13T00:00:00.000Z"),
             updated_at: new Date("2026-06-13T00:00:00.000Z"),
+            was_created: true,
           },
         ],
       };
@@ -274,6 +603,8 @@ test("POST /api/incidents writes an audit log after create", async () => {
         ip: "127.0.0.1",
         log: { error() {} },
         body: {
+          clientRequestId: "33333333-3333-4333-8333-333333333333",
+          dialedPhone: "199",
           category: "fire",
           severity: "high",
           status: "open",
@@ -298,6 +629,298 @@ test("POST /api/incidents writes an audit log after create", async () => {
   }
 });
 
+test("registerIncidentRoutes registers GET /api/incidents/:id/tracking", async () => {
+  const app = createFakeApp();
+
+  await registerIncidentRoutes(app as any);
+
+  assert.equal(typeof app.getHandlers.get("/api/incidents/:id/tracking"), "function");
+});
+
+test("GET /api/incidents/:id/tracking returns tracking data for the owning reporter session", async () => {
+  const app = createFakeApp();
+  const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
+  const originalQuery = queryMock.bind(pool);
+
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.getHandlers.get("/api/incidents/:id/tracking");
+  assert.ok(handler);
+
+  const calls: unknown[][] = [];
+  (pool.query as unknown as typeof queryMock) = (async (...args: unknown[]) => {
+    calls.push(args);
+    return {
+      rows: [{
+        id: "incident-1",
+        client_request_id: "11111111-1111-4111-8111-111111111111",
+        dialed_phone: "1669",
+        category: "medical",
+        severity: "high",
+        status: "acknowledged",
+        status_version: 1,
+        description: null,
+        agency_contact_id: "contact-1",
+        agency_name: "Emergency Medical Services",
+        agency_phone: "1669",
+        province_code: "65",
+        province: "Phitsanulok",
+        district_code: "6501",
+        district: "Mueang Phitsanulok",
+        accuracy: 12,
+        call_status: null,
+        reporter_phone: null,
+        session_id: "session-owner-1234",
+        latitude: 16.8211,
+        longitude: 100.2659,
+        marker_color: "#f97316",
+        created_at: new Date("2026-06-18T10:00:00.000Z"),
+        updated_at: new Date("2026-06-18T10:05:00.000Z"),
+        status_history: [{
+          id: "status-1",
+          fromStatus: "reported",
+          toStatus: "acknowledged",
+          note: null,
+          changedByAdminId: "admin-1",
+          changedByRole: "agency_admin",
+          statusVersion: 1,
+          createdAt: "2026-06-18T10:05:00.000Z",
+        }],
+        latest_location: {
+          id: "location-1",
+          latitude: 16.8211,
+          longitude: 100.2659,
+          accuracy: 12,
+          source: "initial",
+          createdAt: "2026-06-18T10:00:00.000Z",
+        },
+        location_history: [{
+          id: "location-1",
+          latitude: 16.8211,
+          longitude: 100.2659,
+          accuracy: 12,
+          source: "initial",
+          createdAt: "2026-06-18T10:00:00.000Z",
+        }],
+      }],
+    };
+  }) as typeof queryMock;
+
+  try {
+    const result = await handler?.({
+      params: { id: "incident-1" },
+      query: { sessionId: "session-owner-1234" },
+      headers: {},
+    }, createReplyDouble());
+
+    assert.equal(calls.length, 1);
+    assert.match(String(calls[0]?.[0]), /i\.session_id = \$2/);
+    assert.deepEqual(calls[0]?.[1], ["incident-1", "session-owner-1234"]);
+    assert.equal((result as any).incident.status, "acknowledged");
+    assert.equal((result as any).incident.statusVersion, 1);
+    assert.equal((result as any).statusHistory[0].toStatus, "acknowledged");
+    assert.equal((result as any).latestLocation.source, "initial");
+    assert.equal((result as any).locationHistory.length, 1);
+  } finally {
+    (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
+  }
+});
+
+test("GET /api/incidents/:id/tracking scopes agency admin to their category", async () => {
+  const app = createFakeApp();
+  const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
+  const originalQuery = queryMock.bind(pool);
+
+  await registerIncidentRoutes(app as any);
+  const handler = app.getHandlers.get("/api/incidents/:id/tracking");
+  assert.ok(handler);
+
+  const calls: unknown[][] = [];
+  (pool.query as unknown as typeof queryMock) = (async (...args: unknown[]) => {
+    calls.push(args);
+    return { rows: [] };
+  }) as typeof queryMock;
+
+  try {
+    const reply = createReplyDouble();
+    const result = await handler?.({
+      params: { id: "incident-1" },
+      query: {},
+      headers: {
+        "x-admin-role": "agency_admin",
+        "x-admin-category": "medical",
+      },
+    }, reply);
+
+    assert.match(String(calls[0]?.[0]), /i\.category = \$2/);
+    assert.deepEqual(calls[0]?.[1], ["incident-1", "medical"]);
+    assert.equal(reply.statusCode, 404);
+    assert.equal((result as any).code, "INCIDENT_NOT_FOUND");
+  } finally {
+    (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
+  }
+});
+
+test("GET /api/incidents/:id/tracking rejects requests without reporter session or admin scope", async () => {
+  const app = createFakeApp();
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.getHandlers.get("/api/incidents/:id/tracking");
+  assert.ok(handler);
+
+  const reply = createReplyDouble();
+  const result = await handler?.({
+    params: { id: "incident-1" },
+    query: {},
+    headers: {},
+  }, reply);
+
+  assert.equal(reply.statusCode, 403);
+  assert.equal((result as any).code, "INCIDENT_TRACKING_ACCESS_DENIED");
+});
+
+test("POST /api/incidents persists request identity, dialed phone, and initial histories atomically", async () => {
+  const app = createFakeApp();
+  const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rowCount?: number; rows: Record<string, unknown>[] }>;
+  const originalQuery = queryMock.bind(pool);
+
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.postHandlers.get("/api/incidents");
+  assert.ok(handler);
+
+  const calls: unknown[][] = [];
+  (pool.query as unknown as typeof queryMock) = (async (...args: unknown[]) => {
+    calls.push(args);
+
+    if (calls.length === 1) return { rowCount: 1, rows: [{ "?column?": 1 }] };
+    if (calls.length === 2) return { rowCount: 0, rows: [] };
+    if (calls.length === 3) {
+      return {
+        rowCount: 1,
+        rows: [{
+          id: "incident-atomic-1",
+          client_request_id: "11111111-1111-4111-8111-111111111111",
+          dialed_phone: "1669",
+          category: "medical",
+          severity: "high",
+          status: "reported",
+          status_version: 0,
+          latitude: 16.8369,
+          longitude: 100.2365,
+          was_created: true,
+        }],
+      };
+    }
+
+    return { rowCount: 1, rows: [] };
+  }) as typeof queryMock;
+
+  try {
+    const reply = createReplyDouble();
+    const result = await handler?.({
+      id: "req-atomic-create",
+      ip: "127.0.0.21",
+      log: { error() {} },
+      body: {
+        clientRequestId: "11111111-1111-4111-8111-111111111111",
+        dialedPhone: "1669",
+        category: "medical",
+        severity: "high",
+        latitude: 16.8369,
+        longitude: 100.2365,
+        accuracy: 12,
+        sessionId: "session-atomic-1234",
+      },
+    }, reply);
+
+    assert.equal(reply.statusCode, 201);
+    assert.equal((result as any).clientRequestId, "11111111-1111-4111-8111-111111111111");
+    assert.equal((result as any).dialedPhone, "1669");
+
+    const createSql = String(calls[2]?.[0]);
+    assert.match(createSql, /client_request_id/);
+    assert.match(createSql, /dialed_phone/);
+    assert.match(createSql, /INSERT INTO incident_status_history/);
+    assert.match(createSql, /INSERT INTO incident_location_history/);
+    assert.match(createSql, /ON CONFLICT/);
+    assert.ok((calls[2]?.[1] as unknown[]).includes("11111111-1111-4111-8111-111111111111"));
+    assert.ok((calls[2]?.[1] as unknown[]).includes("1669"));
+  } finally {
+    (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
+  }
+});
+
+test("POST /api/incidents returns an existing incident without duplicate audit or SSE", async () => {
+  const app = createFakeApp();
+  const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rowCount?: number; rows: Record<string, unknown>[] }>;
+  const originalQuery = queryMock.bind(pool);
+
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.postHandlers.get("/api/incidents");
+  assert.ok(handler);
+
+  const calls: unknown[][] = [];
+  (pool.query as unknown as typeof queryMock) = (async (...args: unknown[]) => {
+    calls.push(args);
+
+    if (calls.length === 1) return { rowCount: 1, rows: [{ "?column?": 1 }] };
+    if (calls.length === 2) return { rowCount: 0, rows: [] };
+    if (calls.length === 3) {
+      return {
+        rowCount: 1,
+        rows: [{
+          id: "incident-existing-1",
+          client_request_id: "22222222-2222-4222-8222-222222222222",
+          dialed_phone: "191",
+          category: "police",
+          severity: "medium",
+          status: "reported",
+          status_version: 0,
+          latitude: 13.7563,
+          longitude: 100.5018,
+          was_created: false,
+        }],
+      };
+    }
+
+    return { rowCount: 1, rows: [] };
+  }) as typeof queryMock;
+
+  let eventCount = 0;
+  const onIncidentCreated = () => {
+    eventCount += 1;
+  };
+  emergencyEvents.on("incident.created", onIncidentCreated);
+
+  try {
+    const reply = createReplyDouble();
+    const result = await handler?.({
+      id: "req-idempotent-retry",
+      ip: "127.0.0.22",
+      log: { error() {} },
+      body: {
+        clientRequestId: "22222222-2222-4222-8222-222222222222",
+        dialedPhone: "191",
+        category: "police",
+        severity: "medium",
+        latitude: 13.7563,
+        longitude: 100.5018,
+        sessionId: "session-retry-1234",
+      },
+    }, reply);
+
+    assert.equal(reply.statusCode, 200);
+    assert.equal((result as any).id, "incident-existing-1");
+    assert.equal(calls.length, 3);
+    assert.equal(eventCount, 0);
+  } finally {
+    emergencyEvents.off("incident.created", onIncidentCreated);
+    (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
+  }
+});
+
 test("POST /api/incidents returns 400 for invalid reporter phone", async () => {
   const app = createFakeApp();
 
@@ -311,6 +934,8 @@ test("POST /api/incidents returns 400 for invalid reporter phone", async () => {
     {
       ip: "127.0.0.1",
       body: {
+        clientRequestId: "44444444-4444-4444-8444-444444444444",
+        dialedPhone: "199",
         category: "fire",
         severity: "high",
         status: "open",
@@ -365,8 +990,10 @@ test("POST /api/incidents returns 400 for unknown district code", async () => {
     const result = await handler?.(
       {
         ip: "127.0.0.1",
-        body: {
-          category: "fire",
+      body: {
+        clientRequestId: "55555555-5555-4555-8555-555555555555",
+        dialedPhone: "199",
+        category: "fire",
           severity: "high",
           status: "open",
           latitude: 13.7478,

@@ -239,7 +239,7 @@ export default function SettingsPage() {
                   <Select
                     value={settings.timezone}
                     onValueChange={(v) =>
-                      setSettings({ ...settings, timezone: v })
+                      setSettings({ ...settings, timezone: v ?? settings.timezone })
                     }
                   >
                     <SelectTrigger>
@@ -261,7 +261,7 @@ export default function SettingsPage() {
                   <Select
                     value={settings.language}
                     onValueChange={(v) =>
-                      setSettings({ ...settings, language: v })
+                      setSettings({ ...settings, language: v ?? settings.language })
                     }
                   >
                     <SelectTrigger>
@@ -387,7 +387,7 @@ export default function SettingsPage() {
                   value={alertPreferences.tone}
                   onValueChange={(value) =>
                     handleAlertPreferencesChange({
-                      tone: value as AlertTonePreset,
+                      tone: (value ?? alertPreferences.tone) as AlertTonePreset,
                     })
                   }
                   disabled={!alertPreferences.enabled}
@@ -510,7 +510,7 @@ export default function SettingsPage() {
                 <Select
                   value={settings.sessionTimeout}
                   onValueChange={(v) =>
-                    setSettings({ ...settings, sessionTimeout: v })
+                    setSettings({ ...settings, sessionTimeout: v ?? settings.sessionTimeout })
                   }
                 >
                   <SelectTrigger className="w-[200px]">
@@ -577,7 +577,7 @@ export default function SettingsPage() {
                   <Select
                     value={settings.escalationTime}
                     onValueChange={(v) =>
-                      setSettings({ ...settings, escalationTime: v })
+                      setSettings({ ...settings, escalationTime: v ?? settings.escalationTime })
                     }
                   >
                     <SelectTrigger>

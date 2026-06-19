@@ -301,8 +301,8 @@ export default function CallLogsPage() {
                 โหลดใหม่
               </Button>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline">
+                <DropdownMenuTrigger>
+                  <Button variant="outline" type="button">
                     <Download className="mr-2 h-4 w-4" />
                     ส่งออก
                   </Button>

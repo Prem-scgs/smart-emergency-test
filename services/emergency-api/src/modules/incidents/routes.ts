@@ -13,11 +13,16 @@ import {
   validateLocationCodes,
 } from "../../input-validation.js";
 import { createInMemoryRateLimiter } from "../../rate-limit.js";
+import {
+  INCIDENT_STATUS_ORDER,
+  validateIncidentStatusTransition,
+} from "./status-workflow.js";
 
 const incidentBody = z.object({
+  clientRequestId: z.string().uuid(),
+  dialedPhone: z.string().trim().min(1).max(32),
   category: z.string().min(1),
   severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
-  status: z.enum(["open", "acknowledged", "closed"]).default("open"),
   description: z.string().nullable().optional(),
   agencyContactId: z.string().uuid().nullable().optional(),
   latitude: z.number().min(-90).max(90),
@@ -38,12 +43,28 @@ const incidentCallUpdateBody = z.object({
   description: z.string().nullable().optional(),
 });
 
+const incidentStatusUpdateBody = z.object({
+  fromStatus: z.enum(INCIDENT_STATUS_ORDER),
+  toStatus: z.enum(INCIDENT_STATUS_ORDER),
+  expectedVersion: z.number().int().min(0),
+  note: z.string().nullable().optional(),
+});
+
 function rowToIncident(row: Record<string, unknown>) {
   return {
     id: row.id,
+    ...(Object.hasOwn(row, "client_request_id")
+      ? { clientRequestId: row.client_request_id }
+      : {}),
+    ...(Object.hasOwn(row, "dialed_phone")
+      ? { dialedPhone: row.dialed_phone }
+      : {}),
     category: row.category,
     severity: row.severity,
     status: row.status,
+    ...(Object.hasOwn(row, "status_version")
+      ? { statusVersion: row.status_version }
+      : {}),
     description: row.description,
     agencyContactId: row.agency_contact_id,
     agencyName: row.agency_name,
@@ -204,6 +225,435 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     }
 
     return rowToIncident(result.rows[0]);
+  });
+
+  app.get("/api/incidents/:id/tracking", async (request, reply) => {
+    const paramsResult = z
+      .object({
+        id: z.string().min(1),
+      })
+      .safeParse(request.params);
+
+    if (!paramsResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(paramsResult.error);
+    }
+
+    const queryResult = z
+      .object({
+        sessionId: z.string().trim().min(8).optional(),
+      })
+      .passthrough()
+      .safeParse(request.query ?? {});
+
+    if (!queryResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(queryResult.error);
+    }
+
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+    const sessionId = queryResult.data.sessionId;
+
+    if (!adminScope && !sessionId) {
+      reply.code(403);
+      return buildApiErrorPayload(
+        403,
+        "INCIDENT_TRACKING_ACCESS_DENIED",
+        "Reporter session or admin scope is required"
+      );
+    }
+
+    const values: string[] = [paramsResult.data.id];
+    const filters = ["i.id = $1"];
+
+    if (adminScope?.role === "agency_admin") {
+      values.push(adminScope.category);
+      filters.push(`i.category = $${values.length}`);
+    } else if (!adminScope && sessionId) {
+      values.push(sessionId);
+      filters.push(`i.session_id = $${values.length}`);
+    }
+
+    const result = await pool.query(
+      `
+        SELECT
+          i.id,
+          i.client_request_id,
+          i.dialed_phone,
+          i.category,
+          i.severity,
+          i.status,
+          i.status_version,
+          i.description,
+          i.agency_contact_id,
+          c.name AS agency_name,
+          c.phone AS agency_phone,
+          i.province_code,
+          i.province,
+          i.district_code,
+          i.district,
+          i.accuracy,
+          i.call_status,
+          i.reporter_phone,
+          i.session_id,
+          i.latitude,
+          i.longitude,
+          i.created_at,
+          i.updated_at,
+          ${markerColorSql()},
+          COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'id', status_history.id,
+                'fromStatus', status_history.from_status,
+                'toStatus', status_history.to_status,
+                'note', status_history.note,
+                'changedByAdminId', status_history.changed_by_admin_id,
+                'changedByRole', status_history.changed_by_role,
+                'statusVersion', status_history.status_version,
+                'createdAt', status_history.created_at
+              )
+              ORDER BY status_history.created_at ASC, status_history.id ASC
+            )
+            FROM incident_status_history status_history
+            WHERE status_history.incident_id = i.id
+          ), '[]'::jsonb) AS status_history,
+          (
+            SELECT jsonb_build_object(
+              'id', latest_location.id,
+              'latitude', latest_location.latitude,
+              'longitude', latest_location.longitude,
+              'accuracy', latest_location.accuracy,
+              'source', latest_location.source,
+              'createdAt', latest_location.created_at
+            )
+            FROM incident_location_history latest_location
+            WHERE latest_location.incident_id = i.id
+            ORDER BY latest_location.created_at DESC, latest_location.id DESC
+            LIMIT 1
+          ) AS latest_location,
+          COALESCE((
+            SELECT jsonb_agg(
+              jsonb_build_object(
+                'id', location_history.id,
+                'latitude', location_history.latitude,
+                'longitude', location_history.longitude,
+                'accuracy', location_history.accuracy,
+                'source', location_history.source,
+                'createdAt', location_history.created_at
+              )
+              ORDER BY location_history.created_at ASC, location_history.id ASC
+            )
+            FROM incident_location_history location_history
+            WHERE location_history.incident_id = i.id
+          ), '[]'::jsonb) AS location_history
+        FROM incidents i
+        LEFT JOIN contacts c ON c.id = i.agency_contact_id
+        WHERE ${filters.join(" AND ")}
+        LIMIT 1
+      `,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      reply.code(404);
+      return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
+    }
+
+    const row = result.rows[0];
+    return {
+      incident: rowToIncident(row),
+      statusHistory: row.status_history ?? [],
+      latestLocation: row.latest_location ?? null,
+      locationHistory: row.location_history ?? [],
+    };
+  });
+
+  app.get("/api/incidents/:id/events", async (request, reply) => {
+    const paramsResult = z
+      .object({
+        id: z.string().min(1),
+      })
+      .safeParse(request.params);
+
+    if (!paramsResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(paramsResult.error);
+    }
+
+    const queryResult = z
+      .object({
+        sessionId: z.string().trim().min(8),
+      })
+      .safeParse(request.query ?? {});
+
+    if (!queryResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(queryResult.error);
+    }
+
+    const incidentId = paramsResult.data.id;
+    const ownershipResult = await pool.query(
+      `
+        SELECT id
+        FROM incidents
+        WHERE id = $1 AND session_id = $2
+        LIMIT 1
+      `,
+      [incidentId, queryResult.data.sessionId]
+    );
+
+    if (ownershipResult.rows.length === 0) {
+      reply.code(403);
+      return buildApiErrorPayload(
+        403,
+        "INCIDENT_TRACKING_ACCESS_DENIED",
+        "Reporter session does not own this incident"
+      );
+    }
+
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Access-Control-Allow-Origin": config.corsOrigin,
+      Vary: "Origin",
+    });
+    reply.raw.flushHeaders?.();
+
+    let closed = false;
+    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+
+    const cleanup = () => {
+      if (closed) {
+        return;
+      }
+
+      closed = true;
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+      emergencyEvents.off("incident.status_updated", sendStatusUpdate);
+    };
+
+    const sendStatusUpdate = (payload: unknown) => {
+      if (
+        closed ||
+        !payload ||
+        typeof payload !== "object" ||
+        (payload as { id?: unknown }).id !== incidentId
+      ) {
+        return;
+      }
+
+      try {
+        reply.raw.write("event: incident.status_updated\n");
+        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        cleanup();
+      }
+    };
+
+    reply.raw.write("retry: 2000\n");
+    reply.raw.write(": connected\n\n");
+
+    heartbeatInterval = setInterval(() => {
+      if (closed) {
+        return;
+      }
+
+      try {
+        reply.raw.write(": keepalive\n\n");
+      } catch {
+        cleanup();
+      }
+    }, 15000);
+
+    emergencyEvents.on("incident.status_updated", sendStatusUpdate);
+    reply.raw.on("close", cleanup);
+  });
+
+  app.patch("/api/incidents/:id/status", async (request, reply) => {
+    const paramsResult = z
+      .object({
+        id: z.string().min(1),
+      })
+      .safeParse(request.params);
+
+    if (!paramsResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(paramsResult.error);
+    }
+
+    const bodyResult = incidentStatusUpdateBody.safeParse(request.body);
+    if (!bodyResult.success) {
+      reply.code(400);
+      return buildZodValidationErrorPayload(bodyResult.error);
+    }
+
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+
+    if (!adminScope) {
+      reply.code(403);
+      return buildApiErrorPayload(
+        403,
+        "INCIDENT_STATUS_ACCESS_DENIED",
+        "Admin scope is required"
+      );
+    }
+
+    const body = bodyResult.data;
+    const client = await pool.connect();
+    let transactionOpen = false;
+    let eventPayload: {
+      id: unknown;
+      category: unknown;
+      fromStatus: string;
+      status: unknown;
+      statusVersion: unknown;
+      note: string | null;
+      updatedAt: unknown;
+    } | null = null;
+
+    try {
+      await client.query("BEGIN");
+      transactionOpen = true;
+
+      const currentResult = await client.query(
+        `
+          SELECT id, category, status, status_version
+          FROM incidents
+          WHERE id = $1
+          FOR UPDATE
+        `,
+        [paramsResult.data.id]
+      );
+      const current = currentResult.rows[0];
+
+      if (
+        !current ||
+        (adminScope.role === "agency_admin" && current.category !== adminScope.category)
+      ) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        reply.code(404);
+        return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
+      }
+
+      if (
+        current.status !== body.fromStatus ||
+        current.status_version !== body.expectedVersion
+      ) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        reply.code(409);
+        return {
+          ...buildApiErrorPayload(
+            409,
+            "INCIDENT_STATUS_CONFLICT",
+            "Incident status was changed by another admin"
+          ),
+          currentState: {
+            status: current.status,
+            statusVersion: current.status_version,
+          },
+        };
+      }
+
+      const transitionResult = validateIncidentStatusTransition({
+        role: adminScope.role,
+        fromStatus: body.fromStatus,
+        toStatus: body.toStatus,
+        note: body.note,
+      });
+
+      if (!transitionResult.ok) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        reply.code(transitionResult.statusCode);
+        return buildApiErrorPayload(
+          transitionResult.statusCode,
+          transitionResult.code,
+          transitionResult.error
+        );
+      }
+
+      const updateResult = await client.query(
+        `
+          UPDATE incidents
+          SET
+            status = $1,
+            status_version = status_version + 1,
+            updated_at = now()
+          WHERE id = $2
+            AND status_version = $3
+          RETURNING id, category, status, status_version, updated_at
+        `,
+        [body.toStatus, paramsResult.data.id, body.expectedVersion]
+      );
+      const updated = updateResult.rows[0];
+
+      if (!updated) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        reply.code(409);
+        return buildApiErrorPayload(
+          409,
+          "INCIDENT_STATUS_CONFLICT",
+          "Incident status was changed by another admin"
+        );
+      }
+
+      await client.query(
+        `
+          INSERT INTO incident_status_history
+            (incident_id, from_status, to_status, note, changed_by_role, status_version)
+          VALUES
+            ($1, $2, $3, $4, $5, $6)
+        `,
+        [
+          paramsResult.data.id,
+          body.fromStatus,
+          body.toStatus,
+          transitionResult.transition.note,
+          adminScope.role,
+          updated.status_version,
+        ]
+      );
+
+      await client.query("COMMIT");
+      transactionOpen = false;
+      eventPayload = {
+        id: updated.id,
+        category: updated.category,
+        fromStatus: body.fromStatus,
+        status: updated.status,
+        statusVersion: updated.status_version,
+        note: transitionResult.transition.note,
+        updatedAt: updated.updated_at,
+      };
+    } catch (error) {
+      if (transactionOpen) {
+        await client.query("ROLLBACK");
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    emitEmergencyEvent({
+      type: "incident.status_updated",
+      payload: eventPayload,
+    });
+    return eventPayload;
   });
 
   app.get("/api/incidents/map-points", async (request) => {
@@ -393,17 +843,45 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
     const result = await pool.query(
       `
-        INSERT INTO incidents
-          (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, location)
-        VALUES
-          ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, ST_SetSRID(ST_MakePoint($7, $6), 4326))
-        RETURNING *, ${markerColorSql()}
-      
+        WITH inserted_incident AS (
+          INSERT INTO incidents
+            (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, client_request_id, dialed_phone, status_version, location)
+          VALUES
+            ($1, $2, 'reported', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, ST_SetSRID(ST_MakePoint($6, $5), 4326))
+          ON CONFLICT (client_request_id) WHERE client_request_id IS NOT NULL
+          DO NOTHING
+          RETURNING *
+        ),
+        inserted_status_history AS (
+          INSERT INTO incident_status_history
+            (incident_id, from_status, to_status, note, changed_by_role, status_version)
+          SELECT id, NULL, 'reported', NULL, 'mobile', status_version
+          FROM inserted_incident
+          RETURNING incident_id
+        ),
+        inserted_location_history AS (
+          INSERT INTO incident_location_history
+            (incident_id, latitude, longitude, location, accuracy, source)
+          SELECT id, latitude, longitude, location, accuracy, 'initial'
+          FROM inserted_incident
+          RETURNING incident_id
+        ),
+        selected_incident AS (
+          SELECT inserted_incident.*, true AS was_created
+          FROM inserted_incident
+          UNION ALL
+          SELECT incidents.*, false AS was_created
+          FROM incidents
+          WHERE incidents.client_request_id = $15
+            AND NOT EXISTS (SELECT 1 FROM inserted_incident)
+          LIMIT 1
+        )
+        SELECT selected_incident.*, ${markerColorSql()}
+        FROM selected_incident
       `,
       [
         body.category,
         body.severity,
-        body.status,
         body.description ?? null,
         body.agencyContactId ?? null,
         body.latitude,
@@ -416,28 +894,35 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         body.callStatus ?? null,
         body.reporterPhone ?? null,
         body.sessionId ?? null,
+        body.clientRequestId,
+        body.dialedPhone,
       ]
     );
 
-    const incident = rowToIncident(result.rows[0]);
-    await writeAuditLog(request, {
-      action: "incidents.create",
-      resourceType: "incident",
-      resourceId: String(incident.id),
-      details: {
-        category: incident.category,
-        severity: incident.severity,
-        status: incident.status,
-        provinceCode: incident.provinceCode,
-        districtCode: incident.districtCode,
-      },
-    });
-    emitEmergencyEvent({
-      type: "incident.created",
-      payload: incident,
-    });
+    const row = result.rows[0];
+    const incident = rowToIncident(row);
+    const wasCreated = row?.was_created === true;
 
-    reply.code(201);
+    if (wasCreated) {
+      await writeAuditLog(request, {
+        action: "incidents.create",
+        resourceType: "incident",
+        resourceId: String(incident.id),
+        details: {
+          category: incident.category,
+          severity: incident.severity,
+          status: incident.status,
+          provinceCode: incident.provinceCode,
+          districtCode: incident.districtCode,
+        },
+      });
+      emitEmergencyEvent({
+        type: "incident.created",
+        payload: incident,
+      });
+    }
+
+    reply.code(wasCreated ? 201 : 200);
     return incident;
   });
 
@@ -569,9 +1054,10 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       closed = true;
       clearInterval(heartbeatInterval);
       emergencyEvents.off("incident.created", sendIncident);
+      emergencyEvents.off("incident.status_updated", sendStatusUpdate);
     };
 
-    const sendIncident = (payload: unknown) => {
+    const sendEvent = (eventName: string, payload: unknown) => {
       if (closed) {
         return;
       }
@@ -584,11 +1070,19 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       }
 
       try {
-        reply.raw.write(`event: incident.created\n`);
+        reply.raw.write(`event: ${eventName}\n`);
         reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
       } catch {
         cleanup();
       }
+    };
+
+    const sendIncident = (payload: unknown) => {
+      sendEvent("incident.created", payload);
+    };
+
+    const sendStatusUpdate = (payload: unknown) => {
+      sendEvent("incident.status_updated", payload);
     };
 
     reply.raw.write("retry: 2000\n");
@@ -607,6 +1101,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     }, 15000);
 
     emergencyEvents.on("incident.created", sendIncident);
+    emergencyEvents.on("incident.status_updated", sendStatusUpdate);
     reply.raw.on("close", cleanup);
   });
 }

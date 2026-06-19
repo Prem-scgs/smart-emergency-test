@@ -49,6 +49,7 @@ db-migrate:
 	pnpm db:migrate:audit-logs
 	pnpm db:migrate:contact-coverage
 	pnpm db:migrate:db-readiness
+	pnpm db:migrate:incident-tracking
 
 db-seed:
 	pnpm db:seed
@@ -66,6 +67,7 @@ db-reset:
 	pnpm db:migrate:audit-logs
 	pnpm db:migrate:contact-coverage
 	pnpm db:migrate:db-readiness
+	pnpm db:migrate:incident-tracking
 	pnpm db:seed
 
 web:

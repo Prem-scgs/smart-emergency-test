@@ -1,9 +1,10 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import { AdminUser, AdminRole, Agency, AuthState, ROLE_PERMISSIONS, EmergencyCategory } from './types'
 
-// Mock agencies based on emergency categories
+const ADMIN_USER_STORAGE_KEY = 'admin_user'
+
 export const AGENCIES: Agency[] = [
   {
     id: 'police',
@@ -72,12 +73,49 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+export function restoreStoredAdminUser(raw: string | null): AdminUser | null {
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw) as Omit<AdminUser, 'lastLogin'> & { lastLogin?: string | Date }
+
+    return {
+      ...parsed,
+      lastLogin: parsed.lastLogin ? new Date(parsed.lastLogin) : new Date(),
+    }
+  } catch {
+    return null
+  }
+}
+
+function loadStoredAuthState(): AuthState {
+  if (typeof window === 'undefined') {
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    }
+  }
+
+  const user = restoreStoredAdminUser(window.localStorage.getItem(ADMIN_USER_STORAGE_KEY))
+
+  return {
+    user,
+    isAuthenticated: Boolean(user),
+    isLoading: false,
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     isAuthenticated: false,
-    isLoading: false,
+    isLoading: true,
   })
+
+  useEffect(() => {
+    setAuthState(loadStoredAuthState())
+  }, [])
 
   const login = useCallback(async (
     email: string, 
@@ -87,7 +125,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<boolean> => {
     setAuthState(prev => ({ ...prev, isLoading: true }))
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500))
     
     const agency = agencyId ? AGENCIES.find(a => a.id === agencyId) : undefined
@@ -109,9 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: false,
     })
 
-    // Store in localStorage for persistence
     if (typeof window !== 'undefined') {
-      localStorage.setItem('admin_user', JSON.stringify(user))
+      window.localStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(user))
     }
 
     return true
@@ -124,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading: false,
     })
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('admin_user')
+      window.localStorage.removeItem(ADMIN_USER_STORAGE_KEY)
     }
   }, [])
 

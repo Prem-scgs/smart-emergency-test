@@ -207,8 +207,8 @@ export default function UsersPage() {
             ส่งออก
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
+            <DialogTrigger>
+              <Button size="sm" type="button">
                 <Plus className="mr-2 h-4 w-4" />
                 เพิ่มผู้ใช้
               </Button>
@@ -345,7 +345,7 @@ export default function UsersPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <Select value={roleFilter} onValueChange={value => setRoleFilter(value ?? 'all')}>
                   <SelectTrigger className="w-[140px]">
                     <Filter className="mr-2 h-4 w-4" />
                     <SelectValue placeholder="บทบาท" />
@@ -417,8 +417,8 @@ export default function UsersPage() {
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                              <DropdownMenuTrigger>
+                                <Button variant="ghost" size="icon" type="button">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>

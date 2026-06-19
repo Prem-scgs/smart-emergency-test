@@ -283,7 +283,7 @@ export default function ContactsPage() {
                 className="pl-9"
               />
             </div>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <Select value={categoryFilter} onValueChange={value => setCategoryFilter(value ?? 'all')}>
               <SelectTrigger>
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
@@ -400,7 +400,9 @@ export default function ContactsPage() {
               <Label>Category</Label>
               <Select
                 value={form.category}
-                onValueChange={value => setForm(prev => ({ ...prev, category: value }))}
+                onValueChange={value =>
+                  setForm(prev => ({ ...prev, category: value ?? prev.category }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -420,7 +422,8 @@ export default function ContactsPage() {
                 <Select
                   value={selectedProvinceCode || '__none__'}
                   onValueChange={value => {
-                    const nextCode = value === '__none__' ? '' : value
+                    const normalizedValue = value ?? '__none__'
+                    const nextCode = normalizedValue === '__none__' ? '' : normalizedValue
                     setSelectedProvinceCode(nextCode)
                     const province = provinceMap[nextCode]
                     setForm(prev => ({
@@ -452,12 +455,14 @@ export default function ContactsPage() {
                 <Select
                   value={form.district || '__none__'}
                   onValueChange={value => {
+                    const normalizedValue = value ?? '__none__'
+                    const nextDistrict = normalizedValue === '__none__' ? '' : normalizedValue
                     const district = availableDistricts.find(
-                      item => getLocationCanonicalName(item) === value
+                      item => getLocationCanonicalName(item) === nextDistrict
                     )
                     setForm(prev => ({
                       ...prev,
-                      district: value === '__none__' ? '' : value,
+                      district: nextDistrict,
                       province:
                         district && selectedProvince
                           ? getLocationCanonicalName(selectedProvince)

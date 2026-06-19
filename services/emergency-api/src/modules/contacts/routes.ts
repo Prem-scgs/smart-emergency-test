@@ -65,24 +65,40 @@ export async function registerContactRoutes(app: FastifyInstance) {
       filters.push(`category = $${values.length}`);
     }
 
-    if (query.province) {
-      values.push(query.province);
-      filters.push(`province = $${values.length}`);
-    }
-
-    if (query.provinceCode) {
+    if (query.districtCode && query.provinceCode) {
+      values.push(query.districtCode, query.provinceCode);
+      const districtCodeIndex = values.length - 1;
+      const provinceCodeIndex = values.length;
+      filters.push(
+        `(
+          district_code = $${districtCodeIndex}
+          OR (district_code IS NULL AND province_code = $${provinceCodeIndex})
+          OR (district_code IS NULL AND province_code IS NULL)
+        )`
+      );
+    } else if (query.district && query.province) {
+      values.push(query.district, query.province);
+      const districtIndex = values.length - 1;
+      const provinceIndex = values.length;
+      filters.push(
+        `(
+          district = $${districtIndex}
+          OR (district IS NULL AND province = $${provinceIndex})
+          OR (district IS NULL AND province IS NULL)
+        )`
+      );
+    } else if (query.provinceCode) {
       values.push(query.provinceCode);
-      filters.push(`province_code = $${values.length}`);
-    }
-
-    if (query.district) {
-      values.push(query.district);
-      filters.push(`district = $${values.length}`);
-    }
-
-    if (query.districtCode) {
+      filters.push(`(province_code = $${values.length} OR province_code IS NULL)`);
+    } else if (query.province) {
+      values.push(query.province);
+      filters.push(`(province = $${values.length} OR province IS NULL)`);
+    } else if (query.districtCode) {
       values.push(query.districtCode);
-      filters.push(`district_code = $${values.length}`);
+      filters.push(`(district_code = $${values.length} OR district_code IS NULL)`);
+    } else if (query.district) {
+      values.push(query.district);
+      filters.push(`(district = $${values.length} OR district IS NULL)`);
     }
 
     if (query.active !== undefined) {
@@ -92,7 +108,18 @@ export async function registerContactRoutes(app: FastifyInstance) {
 
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
     const result = await pool.query(
-      `SELECT * FROM contacts ${whereClause} ORDER BY created_at DESC`,
+      `
+        SELECT *
+        FROM contacts
+        ${whereClause}
+        ORDER BY
+          CASE
+            WHEN district_code IS NOT NULL OR district IS NOT NULL THEN 0
+            WHEN province_code IS NOT NULL OR province IS NOT NULL THEN 1
+            ELSE 2
+          END,
+          created_at DESC
+      `,
       values
     );
 

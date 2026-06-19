@@ -3,7 +3,6 @@
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Activity,
   AlertTriangle,
   Building2,
   CheckCircle2,
@@ -20,6 +19,8 @@ import {
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis } from 'recharts'
 
 import type { IncidentMapPoint } from '@/components/admin/incident-map'
+import { IncidentDetailPanel } from '@/components/admin/incident-detail-panel'
+import { IncidentQueue } from '@/components/admin/incident-queue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -117,14 +118,12 @@ const severityLabels: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   open: 'เปิดอยู่',
+  reported: 'แจ้งเหตุแล้ว',
   acknowledged: 'รับเรื่องแล้ว',
-  closed: 'ปิดเรื่องแล้ว',
-}
-
-const statusStyles: Record<string, string> = {
-  open: 'bg-destructive text-destructive-foreground',
-  acknowledged: 'bg-warning text-warning-foreground',
-  closed: 'bg-success text-success-foreground',
+  coordinating: 'กำลังประสานงาน',
+  dispatched: 'ส่งเจ้าหน้าที่แล้ว',
+  on_scene: 'ถึงที่เกิดเหตุ',
+  closed: 'ปิดเหตุ',
 }
 
 function selectLabel(label: string) {
@@ -223,6 +222,8 @@ export default function DashboardPage() {
   const [sseStatus, setSseStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [sseEventCount, setSseEventCount] = useState(0)
   const [lastSseAt, setLastSseAt] = useState<string | null>(null)
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null)
+  const [isIncidentDetailOpen, setIsIncidentDetailOpen] = useState(false)
 
   const locationBoxRef = useRef<HTMLDivElement | null>(null)
 
@@ -264,8 +265,22 @@ export default function DashboardPage() {
       loadDashboardData()
     }
 
+    function handleIncidentStatusUpdated() {
+      loadDashboardData()
+    }
+
     window.addEventListener('smart-emergency:incident-created', handleIncidentCreated)
-    return () => window.removeEventListener('smart-emergency:incident-created', handleIncidentCreated)
+    window.addEventListener(
+      'smart-emergency:incident-status-updated',
+      handleIncidentStatusUpdated
+    )
+    return () => {
+      window.removeEventListener('smart-emergency:incident-created', handleIncidentCreated)
+      window.removeEventListener(
+        'smart-emergency:incident-status-updated',
+        handleIncidentStatusUpdated
+      )
+    }
   }, [loadDashboardData])
 
   useEffect(() => {
@@ -412,7 +427,6 @@ export default function DashboardPage() {
   const closedIncidents = visibleIncidents.filter(incident => incident.status === 'closed')
   const activeContacts = roleContacts.filter(contact => contact.active)
   const criticalIncidents = visibleIncidents.filter(incident => incident.severity === 'critical')
-  const recentIncidents = visibleIncidents.slice(0, 6)
 
   const agencyDisplayName = agency ? categoryLabelMap[agency.category] ?? agency.name : 'หน่วยงานนี้'
   const roleName = isSuperAdmin ? 'super_admin' : user?.role ?? 'agency'
@@ -545,6 +559,11 @@ export default function DashboardPage() {
     setIsLocationMenuOpen(false)
   }
 
+  function openIncidentDetail(incidentId: string) {
+    setSelectedIncidentId(incidentId)
+    setIsIncidentDetailOpen(true)
+  }
+
   return (
     <div className="space-y-6 p-4 lg:p-6">
       {realtimeIncident && (
@@ -594,11 +613,11 @@ export default function DashboardPage() {
                     size="sm"
                     className="bg-white text-black hover:bg-zinc-100"
                     onClick={() => {
-                      window.location.href = '/admin/call-logs'
+                      openIncidentDetail(realtimeIncident.id)
                       setRealtimeIncident(null)
                     }}
                   >
-                    ดูบันทึกการโทร
+                    ดูเคส
                   </Button>
                   <Button
                     variant="outline"
@@ -786,7 +805,11 @@ export default function DashboardPage() {
             </div>
 
             <div className="relative h-[460px] overflow-hidden">
-              <IncidentMap incidents={visibleIncidents} />
+              <IncidentMap
+                incidents={visibleIncidents}
+                selectedIncidentId={selectedIncidentId}
+                onSelectIncident={openIncidentDetail}
+              />
               <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-4 py-3 text-sm shadow-sm">
                 <p className="font-medium">เหตุที่แสดง {visibleIncidents.length.toLocaleString()} รายการ</p>
                 <p className="text-xs text-muted-foreground">
@@ -797,47 +820,23 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4" />
-              เหตุที่ต้องติดตาม
-            </CardTitle>
-            <CardDescription>รายการล่าสุดใน scope ของ role นี้</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p className="text-sm text-muted-foreground">กำลังโหลดข้อมูล...</p>
-            ) : recentIncidents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">ไม่พบเหตุการณ์ตามตัวกรอง</p>
-            ) : (
-              <div className="space-y-3">
-                {recentIncidents.map(incident => (
-                  <div key={incident.id} className="rounded-md border p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {categoryLabelMap[incident.category] ?? incident.category}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {incident.areaName ?? OUTSIDE_AREA_LABEL}
-                        </p>
-                      </div>
-                      <Badge className={statusStyles[incident.status] ?? 'bg-muted text-muted-foreground'}>
-                        {statusLabels[incident.status] ?? incident.status}
-                      </Badge>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{severityLabels[incident.severity] ?? incident.severity}</span>
-                      <span>{formatDateTime(incident.createdAt)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <IncidentQueue
+          incidents={visibleIncidents}
+          selectedIncidentId={selectedIncidentId}
+          categoryLabels={categoryLabelMap}
+          isLoading={isLoading}
+          onSelect={openIncidentDetail}
+        />
       </div>
+
+      <IncidentDetailPanel
+        incidentId={selectedIncidentId}
+        open={isIncidentDetailOpen}
+        user={user}
+        categoryLabels={categoryLabelMap}
+        onOpenChange={setIsIncidentDetailOpen}
+        onStatusUpdated={loadDashboardData}
+      />
 
       <Card>
         <CardHeader className="gap-4">

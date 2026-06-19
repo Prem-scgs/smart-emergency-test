@@ -17,7 +17,9 @@ import { MobileNav, NavItem } from './mobile-nav'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EmergencyCategory, EmergencyContact, CallStatus } from '@/lib/types'
 import { toast } from 'sonner'
-import { getOrCreateReporterSessionId, getStoredReporterPhone, setStoredReporterPhone } from '@/lib/reporter-session'
+import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
+import { buildIncidentCallUpdatePayload, buildIncidentCreatePayload } from '@/lib/mobile-incident'
+import { type IncidentTrackingHistoryEntry, type IncidentWorkflowStatus } from '@/lib/incident-tracking'
 
 type Screen =
   | 'splash'
@@ -41,6 +43,13 @@ interface MobileLocation {
   lastUpdated: Date
 }
 
+interface LocalTrackingSnapshot {
+  incidentId: string
+  status: IncidentWorkflowStatus
+  updatedAt: string
+  history: IncidentTrackingHistoryEntry[]
+}
+
 const FALLBACK_LOCATION: MobileLocation = {
   latitude: 13.7478,
   longitude: 100.5351,
@@ -52,25 +61,18 @@ const FALLBACK_LOCATION: MobileLocation = {
   lastUpdated: new Date(),
 }
 
-const CATEGORY_SEVERITY: Record<string, 'low' | 'medium' | 'high' | 'critical'> = {
-  police: 'medium',
-  medical: 'high',
-  fire: 'high',
-  rescue: 'high',
-  flood: 'high',
-  'road-accident': 'high',
-}
-
 export function MobileApp() {
   const [screen, setScreen] = useState<Screen>('splash')
   const [activeNav, setActiveNav] = useState<NavItem>('home')
   const [selectedCategory, setSelectedCategory] = useState<EmergencyCategory | null>(null)
   const [selectedContact, setSelectedContact] = useState<EmergencyContact | null>(null)
+  const [activeIncidentId, setActiveIncidentId] = useState<string | null>(null)
+  const [activeClientRequestId, setActiveClientRequestId] = useState<string | null>(null)
   const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(null)
-  const [reporterPhone, setReporterPhone] = useState('')
   const [contacts, setContacts] = useState<EmergencyContact[]>([])
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<MobileLocation>(FALLBACK_LOCATION)
+  const [localTrackingSnapshot, setLocalTrackingSnapshot] = useState<LocalTrackingSnapshot | null>(null)
   const { theme, setTheme } = useTheme()
 
   const handleSplashComplete = useCallback(() => {
@@ -78,7 +80,6 @@ export function MobileApp() {
   }, [])
 
   useEffect(() => {
-    setReporterPhone(getStoredReporterPhone())
     getOrCreateReporterSessionId()
   }, [])
 
@@ -160,7 +161,7 @@ export function MobileApp() {
           province: contact.province ?? location.province,
           districtCode: contact.districtCode ?? location.districtCode,
           district: contact.district ?? location.district,
-          status: contact.active ? 'active' : 'inactive',
+          status: contact.active ? ('active' as const) : ('inactive' as const),
           is24Hours: contact.is24Hours,
           coordinates:
             contact.latitude != null && contact.longitude != null
@@ -242,66 +243,130 @@ export function MobileApp() {
     setScreen('incident')
   }
 
+  const createIncidentForCall = useCallback(
+    async (
+      contact: EmergencyContact,
+      incidentCategory: EmergencyCategory,
+      clientRequestId: string
+    ) => {
+      const response = await fetch(API_BASE_URL + '/api/incidents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(
+          buildIncidentCreatePayload({
+            category: incidentCategory,
+            contact,
+            location: currentLocation,
+            sessionId: getOrCreateReporterSessionId(),
+            clientRequestId,
+          })
+        ),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to start incident')
+      }
+
+      return (await response.json()) as { id: string }
+    },
+    [currentLocation]
+  )
+
+  const startCallFlow = useCallback(
+    async (contact: EmergencyContact, incidentCategory: EmergencyCategory) => {
+      const clientRequestId = crypto.randomUUID()
+      setSelectedCategory(incidentCategory)
+      setSelectedContact(contact)
+      setActiveIncidentId(null)
+      setActiveClientRequestId(clientRequestId)
+      setLocalTrackingSnapshot(null)
+      setScreen('call')
+
+      try {
+        const incident = await createIncidentForCall(contact, incidentCategory, clientRequestId)
+        setActiveIncidentId(incident.id)
+        setLocalTrackingSnapshot({
+          incidentId: incident.id,
+          status: 'reported',
+          updatedAt: new Date().toISOString(),
+          history: [
+            {
+              toStatus: 'reported',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        })
+        toast.success('Emergency alert sent to admin dashboard')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to start incident')
+      }
+    },
+    [createIncidentForCall]
+  )
+
   const handleSOSPress = () => {
     const medicalContact = contacts.find(c => c.category === 'medical')
     if (!medicalContact) {
       toast.error('ยังไม่พบเบอร์ติดต่อหมวดแพทย์จากฐานข้อมูล')
       return
     }
-    setSelectedCategory('medical')
-    setSelectedContact(medicalContact)
-    setScreen('call')
+    void startCallFlow(medicalContact, 'medical')
   }
 
   const handleCall = (contact: EmergencyContact) => {
-    setSelectedContact(contact)
-    setScreen('call')
+    const incidentCategory = selectedCategory ?? contact.category
+    void startCallFlow(contact, incidentCategory)
   }
 
   const handleCallComplete = async (status: CallStatus) => {
     const incidentCategory = selectedCategory ?? selectedContact?.category
 
     if (!incidentCategory || !selectedContact) {
-      toast.error('Unable to create incident from this call')
+      toast.error('Unable to update incident from this call')
       return
     }
 
     try {
-      const response = await fetch(API_BASE_URL + '/api/incidents', {
-        method: 'POST',
+      let incidentId = activeIncidentId
+
+      if (!incidentId) {
+        const clientRequestId = activeClientRequestId ?? crypto.randomUUID()
+        setActiveClientRequestId(clientRequestId)
+        const incident = await createIncidentForCall(
+          selectedContact,
+          incidentCategory,
+          clientRequestId
+        )
+        incidentId = incident.id
+        setActiveIncidentId(incident.id)
+      }
+
+      const response = await fetch(API_BASE_URL + '/api/incidents/' + incidentId + '/call', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          category: incidentCategory,
-          severity: CATEGORY_SEVERITY[incidentCategory] ?? 'medium',
-          status: 'open',
-          description: 'Reported via mobile app to ' + selectedContact.agencyName + ' (' + status + ')',
-          latitude: currentLocation.latitude,
-          longitude: currentLocation.longitude,
-          provinceCode: currentLocation.provinceCode,
-          province: currentLocation.province,
-          districtCode: currentLocation.districtCode,
-          district: currentLocation.district,
-          accuracy: currentLocation.accuracy,
-          callStatus: status,
-          reporterPhone,
-          sessionId: getOrCreateReporterSessionId(),
-        }),
+        body: JSON.stringify(
+          buildIncidentCallUpdatePayload({
+            status,
+            contact: selectedContact,
+          })
+        ),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to submit incident')
+        throw new Error('Failed to update call result')
       }
 
-      const incident = (await response.json()) as { id: string }
-      setStoredReporterPhone(reporterPhone)
-      toast.success('Incident sent to admin dashboard')
       setSelectedCategory(incidentCategory)
-      setTrackingIncidentId(incident.id)
+      setTrackingIncidentId(incidentId)
+      setActiveIncidentId(null)
+      setActiveClientRequestId(null)
       setScreen('tracking')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to submit incident')
+      toast.error(error instanceof Error ? error.message : 'Failed to update call result')
     }
   }
 
@@ -331,6 +396,8 @@ export function MobileApp() {
     setActiveNav('home')
     setSelectedCategory(null)
     setSelectedContact(null)
+    setActiveIncidentId(null)
+    setActiveClientRequestId(null)
     setTrackingIncidentId(null)
   }
 
@@ -342,8 +409,6 @@ export function MobileApp() {
     return (
       <EmergencyCallScreen
         contact={selectedContact}
-        reporterPhone={reporterPhone}
-        onReporterPhoneChange={setReporterPhone}
         onCancel={handleBack}
         onComplete={handleCallComplete}
       />
@@ -378,10 +443,16 @@ export function MobileApp() {
   }
 
   if (screen === 'tracking' && trackingIncidentId && selectedCategory) {
+    const activeTracking =
+      localTrackingSnapshot?.incidentId === trackingIncidentId ? localTrackingSnapshot : null
+
     return (
       <IncidentTrackingScreen
         incidentId={trackingIncidentId}
         categoryId={selectedCategory}
+        trackingStatus={activeTracking?.status}
+        trackingHistory={activeTracking?.history}
+        trackingUpdatedAt={activeTracking?.updatedAt}
         onBack={handleBack}
         onCall={() => {
           const contact = contacts.find(c => c.category === selectedCategory)
@@ -389,8 +460,7 @@ export function MobileApp() {
             toast.error('ยังไม่พบเบอร์ติดต่อของหมวดเหตุนี้จากฐานข้อมูล')
             return
           }
-          setSelectedContact(contact)
-          setScreen('call')
+          void startCallFlow(contact, selectedCategory)
         }}
       />
     )

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { 
   ArrowLeft,
   Phone,
-  MessageSquare,
   MapPin,
   Clock,
   CheckCircle2,
@@ -12,50 +11,38 @@ import {
   Truck,
   Users,
   AlertCircle,
-  Navigation,
   RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import {
+  buildIncidentTrackingSteps,
+  getIncidentTrackingProgressPercent,
+  type IncidentTrackingHistoryEntry,
+  type IncidentWorkflowStatus,
+} from '@/lib/incident-tracking'
+import {
+  buildMobileIncidentEventsUrl,
+  buildMobileTrackingUrl,
+  isMobileIncidentWorkflowStatus,
+  type MobileTrackingResponse,
+} from '@/lib/mobile-tracking'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
+import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { cn } from '@/lib/utils'
 import { EmergencyCategory } from '@/lib/types'
-
-// Tracking status types
-type TrackingStatus = 
-  | 'reported'      // เหตุถูกแจ้งแล้ว
-  | 'acknowledged'  // รับทราบเหตุ
-  | 'dispatched'    // ส่งทีมออกไป
-  | 'en-route'      // กำลังเดินทาง
-  | 'on-scene'      // ถึงที่เกิดเหตุ
-  | 'resolved'      // เสร็จสิ้น
-
-interface TrackingStep {
-  status: TrackingStatus
-  label: string
-  labelTh: string
-  description: string
-  timestamp?: Date
-  isActive: boolean
-  isCompleted: boolean
-}
 
 interface IncidentTrackingScreenProps {
   incidentId: string
   categoryId: EmergencyCategory
+  trackingStatus?: IncidentWorkflowStatus
+  trackingHistory?: IncidentTrackingHistoryEntry[]
+  trackingUpdatedAt?: string | Date | null
   onBack: () => void
   onCall: () => void
-}
-
-interface TrackingIncidentDetail {
-  id: string
-  provinceCode?: string | null
-  province?: string | null
-  districtCode?: string | null
-  district?: string | null
 }
 
 const API_BASE_URL = 'http://localhost:4000'
@@ -63,128 +50,87 @@ const API_BASE_URL = 'http://localhost:4000'
 export function IncidentTrackingScreen({ 
   incidentId, 
   categoryId, 
+  trackingStatus = 'reported',
+  trackingHistory = [],
+  trackingUpdatedAt = null,
   onBack,
   onCall 
 }: IncidentTrackingScreenProps) {
-  const [currentStatus, setCurrentStatus] = useState<TrackingStatus>('dispatched')
-  const [eta, setEta] = useState(8) // minutes
-  const [responderDistance, setResponderDistance] = useState(2.3) // km
-  const [lastUpdated, setLastUpdated] = useState(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [incidentDetail, setIncidentDetail] = useState<TrackingIncidentDetail | null>(null)
+  const [trackingData, setTrackingData] = useState<MobileTrackingResponse | null>(null)
+  const [trackingError, setTrackingError] = useState<string | null>(null)
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date())
 
   const { categories } = useReferenceCategories()
   const { provinceByCode, districtByCode } = useLocationLookupMaps()
   const category = categories.find(c => c.id === categoryId)
 
-  const loadIncidentDetail = useCallback(async () => {
-    const response = await fetch(API_BASE_URL + '/api/incidents/' + encodeURIComponent(incidentId))
-    if (response.status === 404) {
-      setIncidentDetail(null)
-      return
+  const loadTracking = useCallback(async () => {
+    const sessionId = getOrCreateReporterSessionId()
+    const response = await fetch(buildMobileTrackingUrl(API_BASE_URL, incidentId, sessionId))
+    if (!response.ok) {
+      throw new Error('โหลดสถานะเหตุการณ์ไม่สำเร็จ')
     }
 
-    if (!response.ok) return
+    const nextTracking = (await response.json()) as MobileTrackingResponse
+    if (!isMobileIncidentWorkflowStatus(nextTracking.incident.status)) {
+      throw new Error('สถานะเหตุการณ์ไม่ถูกต้อง')
+    }
 
-    const detail = (await response.json()) as TrackingIncidentDetail
-    setIncidentDetail(detail)
+    setTrackingData(nextTracking)
+    setTrackingError(null)
+    setLastRefreshedAt(new Date(nextTracking.incident.updatedAt))
   }, [incidentId])
 
   useEffect(() => {
-    void loadIncidentDetail()
-  }, [loadIncidentDetail])
+    void loadTracking().catch(error => {
+      setTrackingError(error instanceof Error ? error.message : 'โหลดสถานะเหตุการณ์ไม่สำเร็จ')
+    })
+  }, [loadTracking])
 
-  // Simulate status progression
   useEffect(() => {
-    const interval = setInterval(() => {
-      setEta(prev => Math.max(0, prev - 1))
-      setResponderDistance(prev => Math.max(0.1, prev - 0.3))
-      
-      // Progress status after certain time
-      if (eta <= 3 && currentStatus === 'en-route') {
-        setCurrentStatus('on-scene')
-      } else if (eta <= 6 && currentStatus === 'dispatched') {
-        setCurrentStatus('en-route')
-      }
-    }, 10000) // Update every 10 seconds for demo
+    const sessionId = getOrCreateReporterSessionId()
+    const eventSource = new EventSource(
+      buildMobileIncidentEventsUrl(API_BASE_URL, incidentId, sessionId)
+    )
 
-    return () => clearInterval(interval)
-  }, [eta, currentStatus])
+    const refreshAuthoritativeTracking = () => {
+      void loadTracking().catch(error => {
+        setTrackingError(error instanceof Error ? error.message : 'โหลดสถานะเหตุการณ์ไม่สำเร็จ')
+      })
+    }
 
-  const trackingSteps: TrackingStep[] = [
-    {
-      status: 'reported',
-      label: 'Reported',
-      labelTh: 'แจ้งเหตุแล้ว',
-      description: 'เหตุฉุกเฉินถูกบันทึกในระบบ',
-      timestamp: new Date(Date.now() - 15 * 60000),
-      isActive: currentStatus === 'reported',
-      isCompleted: ['acknowledged', 'dispatched', 'en-route', 'on-scene', 'resolved'].includes(currentStatus),
-    },
-    {
-      status: 'acknowledged',
-      label: 'Acknowledged',
-      labelTh: 'รับทราบเหตุ',
-      description: 'ศูนย์รับแจ้งเหตุรับทราบแล้ว',
-      timestamp: new Date(Date.now() - 12 * 60000),
-      isActive: currentStatus === 'acknowledged',
-      isCompleted: ['dispatched', 'en-route', 'on-scene', 'resolved'].includes(currentStatus),
-    },
-    {
-      status: 'dispatched',
-      label: 'Dispatched',
-      labelTh: 'ส่งทีมแล้ว',
-      description: 'ทีมกู้ภัยได้รับมอบหมายภารกิจ',
-      timestamp: new Date(Date.now() - 8 * 60000),
-      isActive: currentStatus === 'dispatched',
-      isCompleted: ['en-route', 'on-scene', 'resolved'].includes(currentStatus),
-    },
-    {
-      status: 'en-route',
-      label: 'En Route',
-      labelTh: 'กำลังเดินทาง',
-      description: 'ทีมกู้ภัยกำลังเดินทางมายังจุดเกิดเหตุ',
-      timestamp: currentStatus === 'en-route' || ['on-scene', 'resolved'].includes(currentStatus) 
-        ? new Date(Date.now() - 5 * 60000) 
-        : undefined,
-      isActive: currentStatus === 'en-route',
-      isCompleted: ['on-scene', 'resolved'].includes(currentStatus),
-    },
-    {
-      status: 'on-scene',
-      label: 'On Scene',
-      labelTh: 'ถึงที่เกิดเหตุ',
-      description: 'ทีมกู้ภัยถึงที่เกิดเหตุแล้ว',
-      timestamp: currentStatus === 'on-scene' || currentStatus === 'resolved' 
-        ? new Date() 
-        : undefined,
-      isActive: currentStatus === 'on-scene',
-      isCompleted: currentStatus === 'resolved',
-    },
-    {
-      status: 'resolved',
-      label: 'Resolved',
-      labelTh: 'เสร็จสิ้น',
-      description: 'ภารกิจกู้ภัยเสร็จสิ้น',
-      timestamp: currentStatus === 'resolved' ? new Date() : undefined,
-      isActive: currentStatus === 'resolved',
-      isCompleted: false,
-    },
-  ]
+    eventSource.onopen = refreshAuthoritativeTracking
+    eventSource.addEventListener('incident.status_updated', refreshAuthoritativeTracking)
 
-  const currentStepIndex = trackingSteps.findIndex(step => step.isActive)
-  const progressPercent = ((currentStepIndex + 1) / trackingSteps.length) * 100
+    return () => {
+      eventSource.removeEventListener('incident.status_updated', refreshAuthoritativeTracking)
+      eventSource.close()
+    }
+  }, [incidentId, loadTracking])
+
+  const authoritativeStatus = trackingData?.incident.status
+  const currentStatus = isMobileIncidentWorkflowStatus(authoritativeStatus)
+    ? authoritativeStatus
+    : trackingStatus
+  const currentHistory = trackingData?.statusHistory ?? trackingHistory
+  const incidentDetail = trackingData?.incident ?? null
+
+  const trackingSteps = buildIncidentTrackingSteps(currentStatus, currentHistory)
+  const activeStep = trackingSteps.find(step => step.isActive) ?? trackingSteps[0]
+  const progressPercent = getIncidentTrackingProgressPercent(currentStatus)
 
   const handleRefresh = () => {
     setIsRefreshing(true)
-    setLastUpdated(new Date())
-    void loadIncidentDetail().finally(() => {
-      setTimeout(() => setIsRefreshing(false), 1000)
-    })
+    void loadTracking()
+      .catch(error => {
+        setTrackingError(error instanceof Error ? error.message : 'โหลดสถานะเหตุการณ์ไม่สำเร็จ')
+      })
+      .finally(() => setIsRefreshing(false))
   }
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('th-TH', {
+  const formatTime = (date: string | Date) => {
+    return new Date(date).toLocaleTimeString('th-TH', {
       hour: '2-digit',
       minute: '2-digit',
     })
@@ -198,6 +144,13 @@ export function IncidentTrackingScreen({
   ]
     .filter(Boolean)
     .join(', ')
+  const updatedAt = trackingData?.incident.updatedAt ?? trackingUpdatedAt ?? activeStep?.timestamp ?? lastRefreshedAt
+  const showDispatchCard = currentStatus === 'dispatched' || currentStatus === 'on_scene'
+  const showWaitingCard =
+    currentStatus === 'reported' ||
+    currentStatus === 'acknowledged' ||
+    currentStatus === 'coordinating'
+  const showClosedCard = currentStatus === 'closed'
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -241,108 +194,107 @@ export function IncidentTrackingScreen({
                   {getCategoryDisplayLabel(category, false)}
                 </Badge>
                 <h2 className="text-lg font-semibold text-foreground">
-                  {trackingSteps.find(s => s.isActive)?.labelTh}
+                  {activeStep?.labelTh}
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  {trackingSteps.find(s => s.isActive)?.description}
+                  {activeStep?.description}
                 </p>
               </div>
-              {currentStatus === 'en-route' && (
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-primary">{eta} นาที</p>
-                  <p className="text-xs text-muted-foreground">เวลาโดยประมาณ</p>
-                </div>
-              )}
+              <div className="text-right">
+                <p className="text-sm font-medium text-foreground">สถานะล่าสุด</p>
+                <p className="text-xs text-muted-foreground">
+                  {showClosedCard ? 'เคสนี้เสร็จสิ้นแล้ว' : 'ติดตามจากหน่วยงานแบบเรียลไทม์'}
+                </p>
+              </div>
             </div>
 
             <Progress value={progressPercent} className="h-2 mb-2" />
             <p className="text-xs text-muted-foreground text-right">
-              อัปเดตล่าสุด: {formatTime(lastUpdated)}
+              อัปเดตล่าสุด: {formatTime(updatedAt)}
             </p>
+            {trackingError ? (
+              <p className="mt-2 text-xs text-destructive text-right">{trackingError}</p>
+            ) : null}
           </CardContent>
         </Card>
 
-        {/* Responder Info Card */}
-        {(currentStatus === 'dispatched' || currentStatus === 'en-route') && (
+        {showWaitingCard && (
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-start gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Truck className="h-6 w-6 text-primary" />
+                  <Clock className="h-6 w-6 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-foreground">หน่วยกู้ภัย ปทุมวัน 1</h3>
-                  <p className="text-sm text-muted-foreground">รถพยาบาล ALS</p>
+                <div className="space-y-1">
+                  <h3 className="font-medium text-foreground">เคสอยู่ระหว่างการดำเนินการ</h3>
+                  <p className="text-sm text-muted-foreground">
+                    หน่วยงานจะอัปเดตสถานะเคสนี้เป็นรายขั้นตอนเมื่อมีความคืบหน้า
+                  </p>
+                  {locationLabel ? (
+                    <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>{locationLabel}</span>
+                    </div>
+                  ) : null}
                 </div>
-                <Badge variant="secondary" className="bg-success/10 text-success">
-                  กำลังมา
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between text-sm mb-4">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Navigation className="h-4 w-4" />
-                  <span>ระยะทาง {responderDistance.toFixed(1)} กม.</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>ETA {eta} นาที</span>
-                </div>
-              </div>
-
-              {/* Map Placeholder */}
-              <div className="relative h-40 bg-muted rounded-lg overflow-hidden mb-4">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <MapPin className="h-8 w-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">แผนที่ติดตามตำแหน่ง</p>
-                  </div>
-                </div>
-                {/* Animated dot representing responder */}
-                <div className="absolute top-1/3 left-1/4 animate-pulse">
-                  <div className="h-4 w-4 bg-primary rounded-full" />
-                </div>
-                {/* Your location */}
-                <div className="absolute bottom-1/3 right-1/3">
-                  <div className="h-4 w-4 bg-destructive rounded-full border-2 border-white" />
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={onCall}
-                >
-                  <Phone className="h-4 w-4 mr-2" />
-                  โทรหาหน่วยกู้ภัย
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  ส่งข้อความ
-                </Button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* On Scene Info */}
-        {currentStatus === 'on-scene' && (
+        {showDispatchCard && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  {currentStatus === 'on_scene' ? (
+                    <Users className="h-6 w-6 text-primary" />
+                  ) : (
+                    <Truck className="h-6 w-6 text-primary" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-foreground">
+                    {currentStatus === 'on_scene' ? 'เจ้าหน้าที่ถึงจุดเกิดเหตุแล้ว' : 'เจ้าหน้าที่กำลังเข้าพื้นที่'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {currentStatus === 'on_scene'
+                      ? 'กำลังดำเนินการช่วยเหลือและประเมินสถานการณ์'
+                      : 'เมื่อมีสถานะใหม่ หน้านี้จะอัปเดตตามข้อมูลจากศูนย์'}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="bg-primary/10 text-primary">
+                  {currentStatus === 'on_scene' ? 'หน้างาน' : 'กำลังมา'}
+                </Badge>
+              </div>
+
+              {locationLabel ? (
+                <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-3 text-sm text-muted-foreground mb-4">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span>{locationLabel}</span>
+                </div>
+              ) : null}
+
+              <Button variant="outline" className="w-full" onClick={onCall}>
+                <Phone className="h-4 w-4 mr-2" />
+                โทรกลับไปยังหน่วยงาน
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {showClosedCard && (
           <Card className="border-success/50 bg-success/5">
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-                  <Users className="h-6 w-6 text-success" />
+                  <CheckCircle2 className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-foreground">ทีมกู้ภัยถึงแล้ว</h3>
-                  <p className="text-sm text-muted-foreground">กำลังดำเนินการช่วยเหลือ</p>
+                  <h3 className="font-medium text-foreground">เหตุนี้ปิดเรียบร้อยแล้ว</h3>
+                  <p className="text-sm text-muted-foreground">คุณยังสามารถย้อนกลับมาดูไทม์ไลน์ของเคสนี้ได้</p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full" onClick={onCall}>
-                <Phone className="h-4 w-4 mr-2" />
-                ติดต่อทีมกู้ภัย
-              </Button>
             </CardContent>
           </Card>
         )}
