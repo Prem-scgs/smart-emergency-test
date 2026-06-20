@@ -241,11 +241,9 @@ export interface Alert {
   actionUrl?: string
 }
 
-export interface WebSocketEvent {
+export interface SseEvent {
   type: NotificationType
   data: any
   timestamp: Date
   agencyId?: string
 }
-
-export type SseEvent = WebSocketEvent

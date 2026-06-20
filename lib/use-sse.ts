@@ -87,16 +87,6 @@ function severityLabel(severity: string) {
   return labels[severity] ?? severity
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    open: 'เปิดอยู่',
-    acknowledged: 'รับเรื่องแล้ว',
-    closed: 'ปิดแล้ว',
-  }
-
-  return labels[status] ?? status
-}
-
 function buildAreaText(payload: IncidentEventPayload) {
   if (payload.areaName) return payload.areaName
   if (payload.district && payload.province) return `${payload.district} ${payload.province}`
@@ -140,7 +130,7 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
   const notification: Notification = {
     id: `incident-${payload.id}`,
     type: 'new-incident',
-    title: 'มีเหตุแจ้งเข้าใหม่',
+    title: 'มีเหตุใหม่เข้าระบบ',
     message: `${categoryText} - ${areaText}`,
     agencyId,
     category: payload.category as Notification['category'],
@@ -159,12 +149,12 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
     severity: alertSeverity,
     title:
       alertSeverity === 'critical'
-        ? 'เหตุฉุกเฉินระดับวิกฤต'
+        ? 'เหตุวิกฤตใหม่'
         : alertSeverity === 'warning'
-          ? 'มีเหตุเร่งด่วนเข้าใหม่'
+          ? 'มีเหตุเร่งด่วนใหม่'
           : 'มีเหตุแจ้งเข้าใหม่',
     message: `${categoryText} ในพื้นที่ ${areaText}`,
-    description: `ระดับความรุนแรง ${severityLabel(payload.severity)} · สถานะ ${statusLabel(payload.status)}`,
+    description: `ระดับความรุนแรง ${severityLabel(payload.severity)} สถานะ ${payload.status}`,
     agencyId,
     category: payload.category as Alert['category'],
     timestamp,

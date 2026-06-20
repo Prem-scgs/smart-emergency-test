@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Notification, Alert } from '@/lib/types'
 import { canUserSeeAlert, canUserSeeNotification } from './notification-visibility'
-import { useWebSocket } from '@/lib/use-websocket'
+import { useSse } from '@/lib/use-sse'
 import { useAuth } from '@/lib/auth-context'
 
 interface NotificationContextType {
@@ -63,8 +63,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setAlerts([])
   }, [])
 
-  // Setup WebSocket
-  useWebSocket({
+  // Setup SSE connection
+  useSse({
     onNotification: addNotification,
     onAlert: addAlert,
     enabled: !!user,

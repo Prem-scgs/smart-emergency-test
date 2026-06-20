@@ -33,7 +33,6 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useAuth } from '@/lib/auth-context'
-import { useSse } from '@/lib/use-sse'
 import { cn } from '@/lib/utils'
 
 import { NotificationBell } from './notification-bell'
@@ -58,11 +57,6 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const { user, isAuthenticated, hasPermission, logout, canViewAllAgencies } = useAuth()
-
-  useSse({
-    enabled: isAuthenticated,
-    user,
-  })
 
   const visibleMenuItems = useMemo(() => {
     return sidebarItems.filter(item => hasPermission(item.permission))

@@ -24,12 +24,15 @@ test("buildRealtimeIncidentArtifacts maps incident payload to notification and a
 
   assert.equal(notification.id, "incident-incident-1");
   assert.equal(notification.type, "new-incident");
+  assert.equal(notification.title, "มีเหตุใหม่เข้าระบบ");
   assert.equal(notification.category, "medical");
   assert.equal(notification.areaId, undefined);
   assert.equal(notification.provinceCode, "10");
   assert.equal(notification.districtCode, "1001");
   assert.equal(alert.id, "alert-incident-1");
   assert.equal(alert.severity, "warning");
+  assert.equal(alert.title, "มีเหตุเร่งด่วนใหม่");
+  assert.equal(alert.description, "ระดับความรุนแรง สูง สถานะ open");
   assert.equal(alert.category, "medical");
   assert.equal(alert.actionUrl, "/admin/dashboard");
 });
