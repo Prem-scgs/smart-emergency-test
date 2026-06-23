@@ -23,6 +23,7 @@ export interface MobileTrackingIncident {
   district?: string | null
   latitude: number
   longitude: number
+  createdAt: string
   updatedAt: string
 }
 
@@ -45,12 +46,9 @@ function buildIncidentUrl(
   resource: 'tracking' | 'events',
   sessionId: string
 ) {
-  const url = new URL(
-    `/api/incidents/${encodeURIComponent(incidentId)}/${resource}`,
-    baseUrl
-  )
-  url.searchParams.set('sessionId', sessionId)
-  return url.toString()
+  const base = baseUrl.replace(/\/$/, '')
+  const query = new URLSearchParams({ sessionId })
+  return `${base}/api/incidents/${encodeURIComponent(incidentId)}/${resource}?${query.toString()}`
 }
 
 export function buildMobileTrackingUrl(

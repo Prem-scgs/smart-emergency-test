@@ -46,6 +46,7 @@ export async function writeAuditLog(
         JSON.stringify(input.details ?? {}),
       ]
     );
+    return true;
   } catch (error) {
     request.log.error(
       {
@@ -58,5 +59,6 @@ export async function writeAuditLog(
       },
       "audit.write_failed"
     );
+    return false;
   }
 }

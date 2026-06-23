@@ -32,8 +32,10 @@ import {
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { cn } from '@/lib/utils'
 import { EmergencyCategory } from '@/lib/types'
+import { IncidentLocationShareCard } from './incident-location-share-card'
 
 interface IncidentTrackingScreenProps {
   incidentId: string
@@ -44,8 +46,6 @@ interface IncidentTrackingScreenProps {
   onBack: () => void
   onCall: () => void
 }
-
-const API_BASE_URL = 'http://localhost:4000'
 
 export function IncidentTrackingScreen({ 
   incidentId, 
@@ -67,7 +67,7 @@ export function IncidentTrackingScreen({
 
   const loadTracking = useCallback(async () => {
     const sessionId = getOrCreateReporterSessionId()
-    const response = await fetch(buildMobileTrackingUrl(API_BASE_URL, incidentId, sessionId))
+    const response = await fetch(buildMobileTrackingUrl(getEmergencyApiBaseUrl(), incidentId, sessionId))
     if (!response.ok) {
       throw new Error('โหลดสถานะเหตุการณ์ไม่สำเร็จ')
     }
@@ -91,7 +91,7 @@ export function IncidentTrackingScreen({
   useEffect(() => {
     const sessionId = getOrCreateReporterSessionId()
     const eventSource = new EventSource(
-      buildMobileIncidentEventsUrl(API_BASE_URL, incidentId, sessionId)
+      buildMobileIncidentEventsUrl(getEmergencyApiBaseUrl(), incidentId, sessionId)
     )
 
     const refreshAuthoritativeTracking = () => {
@@ -298,6 +298,10 @@ export function IncidentTrackingScreen({
             </CardContent>
           </Card>
         )}
+
+        {incidentDetail ? (
+          <IncidentLocationShareCard incident={incidentDetail} />
+        ) : null}
 
         {/* Timeline */}
         <Card>

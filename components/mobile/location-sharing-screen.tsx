@@ -6,41 +6,40 @@ import {
   Copy, 
   Share2, 
   MessageCircle, 
-  Phone,
+  MessageSquare,
   Navigation,
   ArrowLeft,
   Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import {
+  buildGoogleMapsLocationUrl,
+  buildSmsLocationShareUrl,
+  formatLocationCoordinates,
+  type LocationShareLocation,
+} from '@/lib/location-share'
 
 interface LocationSharingScreenProps {
   onBack: () => void
+  location: LocationShareLocation
 }
 
-export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
+export function LocationSharingScreen({ onBack, location }: LocationSharingScreenProps) {
   const [copied, setCopied] = useState(false)
-  
-  const location = {
-    latitude: 13.7563,
-    longitude: 100.5018,
-    address: 'Pathum Wan, Bangkok, Thailand',
-    plusCode: '7P52QRXF+XX',
-  }
-
-  const coordinates = `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
-  const googleMapsUrl = `https://maps.google.com/?q=${location.latitude},${location.longitude}`
+  const coordinates = formatLocationCoordinates(location)
+  const googleMapsUrl = buildGoogleMapsLocationUrl(location)
+  const locationName = [location.district, location.province].filter(Boolean).join(', ') || 'ตำแหน่งปัจจุบัน'
 
   const handleCopyCoordinates = async () => {
     try {
       await navigator.clipboard.writeText(coordinates)
       setCopied(true)
-      toast.success('Coordinates copied to clipboard')
+      toast.success('คัดลอกพิกัดแล้ว')
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error('Failed to copy coordinates')
+      toast.error('ไม่สามารถคัดลอกพิกัดได้')
     }
   }
 
@@ -57,10 +56,10 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
     {
       id: 'sms',
       name: 'SMS',
-      icon: Phone,
-      color: 'bg-blue-500 hover:bg-blue-600',
+      icon: MessageSquare,
+      color: 'bg-sky-600 hover:bg-sky-700',
       action: () => {
-        window.open(`sms:?body=${encodeURIComponent(`My location: ${googleMapsUrl}`)}`, '_blank')
+        window.location.href = buildSmsLocationShareUrl(location)
       },
     },
     {
@@ -83,7 +82,7 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
             variant="ghost"
             size="icon"
             onClick={onBack}
-            aria-label="Go back"
+            aria-label="ย้อนกลับ"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -91,8 +90,8 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
             <Share2 className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-semibold text-foreground">Share Location</h1>
-            <p className="text-xs text-muted-foreground">Send your location to emergency contacts</p>
+            <h1 className="font-semibold text-foreground">แชร์ตำแหน่ง</h1>
+            <p className="text-xs text-muted-foreground">ส่งตำแหน่งให้ผู้ติดต่อฉุกเฉิน</p>
           </div>
         </div>
       </div>
@@ -107,8 +106,8 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
               <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-full bg-primary text-primary-foreground mb-2">
                 <MapPin className="h-6 w-6" />
               </div>
-              <p className="text-sm font-medium text-foreground">{location.address}</p>
-              <p className="text-xs text-muted-foreground mt-1">Map View</p>
+              <p className="text-sm font-medium text-foreground">{locationName}</p>
+              <p className="text-xs text-muted-foreground mt-1">แผนที่ตำแหน่ง</p>
             </div>
           </div>
         </Card>
@@ -118,7 +117,7 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Navigation className="h-4 w-4 text-primary" />
-              Coordinates
+              พิกัดปัจจุบัน
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -129,6 +128,7 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
                 size="sm"
                 onClick={handleCopyCoordinates}
                 className="shrink-0"
+                aria-label="คัดลอกพิกัด"
               >
                 {copied ? (
                   <Check className="h-4 w-4 text-success" />
@@ -136,11 +136,6 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
                   <Copy className="h-4 w-4" />
                 )}
               </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                Plus Code: {location.plusCode}
-              </Badge>
             </div>
           </CardContent>
         </Card>
@@ -150,7 +145,7 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Share2 className="h-4 w-4 text-primary" />
-              Share via
+              แชร์ผ่าน
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -176,7 +171,7 @@ export function LocationSharingScreen({ onBack }: LocationSharingScreenProps) {
           onClick={() => window.open(googleMapsUrl, '_blank')}
         >
           <MapPin className="h-4 w-4 mr-2" />
-          Open in Google Maps
+          เปิดใน Google Maps
         </Button>
       </div>
     </div>

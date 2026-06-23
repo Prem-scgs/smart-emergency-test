@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { registerReferenceRoutes } from "./routes.js";
 import { pool } from "../../db.js";
+import { config } from "../../config.js";
 
 type Handler = (request?: any, reply?: any) => Promise<unknown> | unknown;
 
@@ -49,5 +50,27 @@ test("GET /api/users/mock-profile returns standardized 404 error when profile is
     });
   } finally {
     (pool.query as any) = originalQuery;
+  }
+});
+
+test("GET /api/reference/share-channels exposes availability without recipients", async () => {
+  const app = createFakeApp();
+  const originalChannels = { ...config.shareChannels };
+  config.shareChannels.lineOaId = "@smartemergency";
+  config.shareChannels.smsCenterPhone = null;
+  config.shareChannels.whatsappCenterPhone = "66812345678";
+
+  try {
+    await registerReferenceRoutes(app as any);
+    const handler = app.getHandlers.get("/api/reference/share-channels");
+    assert.ok(handler);
+
+    assert.deepEqual(await handler(), {
+      line: { enabled: true },
+      sms: { enabled: false },
+      whatsapp: { enabled: true },
+    });
+  } finally {
+    Object.assign(config.shareChannels, originalChannels);
   }
 });

@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-
-const API_BASE_URL = 'http://localhost:4000'
+import { getEmergencyApiBaseUrl } from './emergency-api-url'
 
 export interface ReferenceProvince {
   id: string
@@ -77,7 +76,7 @@ export async function loadReferenceProvinces(fetchImpl: typeof fetch = fetch) {
 
   provincesPromise = (async () => {
     try {
-      const response = await fetchImpl(API_BASE_URL + '/api/reference/provinces')
+      const response = await fetchImpl(getEmergencyApiBaseUrl() + '/api/reference/provinces')
       if (!response.ok) {
         cachedProvinces = []
         return cachedProvinces
@@ -111,7 +110,7 @@ export async function loadReferenceDistricts(
   const promise = (async () => {
     try {
       const search = new URLSearchParams({ provinceCode })
-      const response = await fetchImpl(API_BASE_URL + '/api/reference/districts?' + search.toString())
+      const response = await fetchImpl(getEmergencyApiBaseUrl() + '/api/reference/districts?' + search.toString())
       if (!response.ok) {
         cachedDistrictsByProvince.set(provinceCode, [])
         return []
@@ -159,7 +158,7 @@ async function loadAllReferenceDistricts(fetchImpl: typeof fetch = fetch) {
 
   allDistrictsPromise = (async () => {
     try {
-      const response = await fetchImpl(API_BASE_URL + '/api/reference/districts')
+      const response = await fetchImpl(getEmergencyApiBaseUrl() + '/api/reference/districts')
       if (!response.ok) {
         cachedAllDistricts = []
         return cachedAllDistricts

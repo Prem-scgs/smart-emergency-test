@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { buildApiErrorPayload } from "../../api-error.js";
+import { config } from "../../config.js";
 import { pool } from "../../db.js";
+import { getShareChannelAvailability } from "../../location-share.js";
 
 function rowToCategory(row: Record<string, unknown>) {
   return {
@@ -60,6 +62,10 @@ function rowToDashboardStats(row: Record<string, unknown>) {
 }
 
 export async function registerReferenceRoutes(app: FastifyInstance) {
+  app.get("/api/reference/share-channels", async () => {
+    return getShareChannelAvailability(config.shareChannels);
+  });
+
   app.get("/api/reference/categories", async () => {
     const result = await pool.query(
       "SELECT * FROM emergency_categories WHERE active = true ORDER BY sort_order, id"

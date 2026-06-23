@@ -1,73 +1,38 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useEffect } from 'react'
+import { AlertCircle, CheckCircle2, Loader2, Shield } from 'lucide-react'
 
-interface SystemCheck {
-  id: string
-  label: string
-  status: 'pending' | 'checking' | 'success' | 'error'
-}
+import { Button } from '@/components/ui/button'
+import { locationStatusMessage, type LocationLockStatus } from '@/lib/mobile-location'
 
 interface SplashScreenProps {
+  locationStatus: LocationLockStatus
+  onRetry: () => void
+  onContinueWithoutLocation: () => void
   onComplete: () => void
 }
 
-export function SplashScreen({ onComplete }: SplashScreenProps) {
-  const [checks, setChecks] = useState<SystemCheck[]>([
-    { id: 'gps', label: 'GPS Permission', status: 'pending' },
-    { id: 'internet', label: 'Internet Connectivity', status: 'pending' },
-    { id: 'database', label: 'Emergency Database Sync', status: 'pending' },
-  ])
-
+export function SplashScreen({
+  locationStatus,
+  onRetry,
+  onContinueWithoutLocation,
+  onComplete,
+}: SplashScreenProps) {
   useEffect(() => {
-    const runChecks = async () => {
-      // Check GPS
-      setChecks(prev => prev.map(c => c.id === 'gps' ? { ...c, status: 'checking' } : c))
-      await new Promise(resolve => setTimeout(resolve, 800))
-      setChecks(prev => prev.map(c => c.id === 'gps' ? { ...c, status: 'success' } : c))
-
-      // Check Internet
-      setChecks(prev => prev.map(c => c.id === 'internet' ? { ...c, status: 'checking' } : c))
-      await new Promise(resolve => setTimeout(resolve, 600))
-      setChecks(prev => prev.map(c => c.id === 'internet' ? { ...c, status: 'success' } : c))
-
-      // Sync Database
-      setChecks(prev => prev.map(c => c.id === 'database' ? { ...c, status: 'checking' } : c))
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setChecks(prev => prev.map(c => c.id === 'database' ? { ...c, status: 'success' } : c))
-
-      // Complete after all checks
-      await new Promise(resolve => setTimeout(resolve, 500))
+    if (locationStatus === 'locked') {
       onComplete()
     }
+  }, [locationStatus, onComplete])
 
-    runChecks()
-  }, [onComplete])
-
-  const StatusIcon = ({ status }: { status: SystemCheck['status'] }) => {
-    switch (status) {
-      case 'pending':
-        return <div className="h-5 w-5 rounded-full border-2 border-muted-foreground/30" />
-      case 'checking':
-        return <Loader2 className="h-5 w-5 text-primary animate-spin" />
-      case 'success':
-        return <CheckCircle2 className="h-5 w-5 text-success" />
-      case 'error':
-        return <AlertCircle className="h-5 w-5 text-destructive" />
-    }
-  }
+  const isRequesting = locationStatus === 'requesting'
+  const isLocked = locationStatus === 'locked'
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-background safe-area-inset">
-      {/* Logo Section */}
       <div className="flex flex-col items-center gap-4 mb-12">
-        <div className="relative">
-          <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
-          <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-primary">
-            <Shield className="h-12 w-12 text-primary-foreground" />
-          </div>
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary">
+          <Shield className="h-12 w-12 text-primary-foreground" />
         </div>
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -79,31 +44,33 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
         </div>
       </div>
 
-      {/* System Checks */}
-      <div className="w-full max-w-xs space-y-3 px-8">
-        {checks.map((check, index) => (
-          <div
-            key={check.id}
-            className={cn(
-              'flex items-center gap-3 rounded-lg bg-card px-4 py-3 transition-all duration-300',
-              check.status === 'checking' && 'ring-2 ring-primary/20'
-            )}
-            style={{
-              animationDelay: `${index * 100}ms`,
-            }}
-          >
-            <StatusIcon status={check.status} />
-            <span className={cn(
-              'text-sm font-medium transition-colors',
-              check.status === 'success' ? 'text-foreground' : 'text-muted-foreground'
-            )}>
-              {check.label}
-            </span>
+      <div className="w-full max-w-sm space-y-4 px-8">
+        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-4">
+          {isRequesting ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : isLocked ? (
+            <CheckCircle2 className="h-5 w-5 text-success" />
+          ) : (
+            <AlertCircle className="h-5 w-5 text-destructive" />
+          )}
+          <div>
+            <p className="text-sm font-medium">ตำแหน่งปัจจุบัน</p>
+            <p className="text-sm text-muted-foreground">
+              {locationStatusMessage[locationStatus]}
+            </p>
           </div>
-        ))}
+        </div>
+
+        {!isRequesting && !isLocked ? (
+          <div className="space-y-2">
+            <Button className="w-full" onClick={onRetry}>ลองอีกครั้ง</Button>
+            <Button className="w-full" variant="outline" onClick={onContinueWithoutLocation}>
+              เข้าสู่หน้าหลักโดยไม่ใช้ตำแหน่ง
+            </Button>
+          </div>
+        ) : null}
       </div>
 
-      {/* Footer */}
       <div className="absolute bottom-8 text-center">
         <p className="text-xs text-muted-foreground">
           Version 1.0.0

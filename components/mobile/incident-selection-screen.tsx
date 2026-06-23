@@ -1,6 +1,6 @@
 'use client'
 
-import { Ambulance, ArrowLeft, Bookmark, Bug, Car, CheckCircle2, Clock, Flame, HeartHandshake, LifeBuoy, Luggage, MapPin, Navigation, Phone, Share2, ShieldAlert, Waves, type LucideIcon } from 'lucide-react'
+import { Ambulance, ArrowLeft, Bookmark, Bug, Car, CheckCircle2, Clock, Flame, HeartHandshake, LifeBuoy, Luggage, MapPin, Navigation, Phone, ShieldAlert, Waves, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -29,10 +29,9 @@ interface IncidentSelectionScreenProps {
   onBack: () => void
   onCall: (contact: EmergencyContact) => void
   onViewMap: (contact: EmergencyContact) => void
-  onShareLocation: () => void
 }
 
-export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContacts = false, onBack, onCall, onViewMap, onShareLocation }: IncidentSelectionScreenProps) {
+export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContacts = false, onBack, onCall, onViewMap }: IncidentSelectionScreenProps) {
   const { categories } = useReferenceCategories()
   const category = categories.find(item => item.id === categoryId)
   const visibleContacts = contacts.filter(contact => contact.category === categoryId)
@@ -94,10 +93,9 @@ export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContact
 
                     <Separator className="my-3" />
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button onClick={() => onCall(contact)} className="bg-success hover:bg-success/90 text-success-foreground"><Phone className="h-4 w-4 mr-1" />Call</Button>
                       <Button variant="outline" onClick={() => onViewMap(contact)}><MapPin className="h-4 w-4 mr-1" />Map</Button>
-                      <Button variant="outline" onClick={onShareLocation}><Share2 className="h-4 w-4 mr-1" />Share</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -108,10 +106,7 @@ export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContact
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 px-4 pb-8 pt-6 bg-gradient-to-t from-background via-background to-transparent">
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onShareLocation}><Share2 className="h-4 w-4 mr-2" />Share Location</Button>
-          <Button variant="outline" className="flex-1"><Bookmark className="h-4 w-4 mr-2" />Save Incident</Button>
-        </div>
+        <Button variant="outline" className="w-full"><Bookmark className="h-4 w-4 mr-2" />Save Incident</Button>
       </div>
     </div>
   )

@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+const mobileAppUrl = new URL('../components/mobile/mobile-app.tsx', import.meta.url)
+const splashUrl = new URL('../components/mobile/splash-screen.tsx', import.meta.url)
+
+test('mobile incidents never use fallback coordinates', async () => {
+  const source = await readFile(mobileAppUrl, 'utf8')
+
+  assert.doesNotMatch(source, /FALLBACK_LOCATION/)
+  assert.match(source, /useState<MobileLocation \| null>\(null\)/)
+  assert.match(source, /if \(!currentLocation \|\| locationStatus !== 'locked'\)/)
+})
+
+test('mobile splash reflects real GPS state instead of timers', async () => {
+  const source = await readFile(splashUrl, 'utf8')
+
+  assert.doesNotMatch(source, /setTimeout/)
+  assert.match(source, /locationStatus: LocationLockStatus/)
+  assert.match(source, /onRetry: \(\) => void/)
+  assert.match(source, /onContinueWithoutLocation: \(\) => void/)
+})
+
+test('mobile keeps central contacts available without GPS', async () => {
+  const source = await readFile(mobileAppUrl, 'utf8')
+
+  assert.match(source, /function isGlobalContact/)
+  assert.match(source, /loadContacts\(null\)/)
+  assert.match(source, /apiContacts = apiContacts\.filter\(isGlobalApiContact\)/)
+})

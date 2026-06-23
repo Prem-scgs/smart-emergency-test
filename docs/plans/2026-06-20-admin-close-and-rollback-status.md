@@ -149,7 +149,7 @@ Submit `fromStatus`, selected `toStatus`, `expectedVersion`, and optional `note`
 
 **Files:**
 - Modify: `CODEX_HANDOFF.md`
-- Modify: `SESSION_LOG.md`
+- Modify: `docs/operations/SESSION_LOG.md`
 
 - [ ] **Step 1: Run automated verification**
 

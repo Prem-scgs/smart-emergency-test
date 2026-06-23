@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 
-type NavItem = 'home' | 'history' | 'location'
+type NavItem = 'home' | 'history'
 
 interface MobileNavProps {
   active: NavItem
@@ -12,7 +12,6 @@ interface MobileNavProps {
 const navItems = [
   { id: 'home' as const, label: 'หน้าหลัก' },
   { id: 'history' as const, label: 'ประวัติ' },
-  { id: 'location' as const, label: 'ตำแหน่ง' },
 ]
 
 export function MobileNav({ active, onNavigate }: MobileNavProps) {

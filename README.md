@@ -124,9 +124,9 @@ The backend validates these values on startup.
 ## Important Files
 
 - Shared handoff: [CODEX_HANDOFF.md](D:\testwork_Fullstack(SCSG)\smart-emergency\CODEX_HANDOFF.md)
-- Production tracking: [PRODUCTION_CHECKLIST.md](D:\testwork_Fullstack(SCSG)\smart-emergency\PRODUCTION_CHECKLIST.md)
-- Session history: [SESSION_LOG.md](D:\testwork_Fullstack(SCSG)\smart-emergency\SESSION_LOG.md)
-- Local operations guide: [RUNBOOK.md](D:\testwork_Fullstack(SCSG)\smart-emergency\RUNBOOK.md)
+- Production tracking: [PRODUCTION_CHECKLIST.md](docs/operations/PRODUCTION_CHECKLIST.md)
+- Session history: [SESSION_LOG.md](docs/operations/SESSION_LOG.md)
+- Local operations guide: [RUNBOOK.md](docs/operations/RUNBOOK.md)
 
 ## Current Caveats
 

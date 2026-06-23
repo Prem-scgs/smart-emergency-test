@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16, React, Fastify, TypeScript, PostgreSQL/PostGIS, SSE, node:test
 
-**Design:** `docs/superpowers/specs/2026-06-18-incident-status-tracking-design.md`
+**Design:** `docs/specs/2026-06-18-incident-status-tracking-design.md`
 
 ---
 
@@ -120,8 +120,8 @@
 
 **Files:**
 - Modify: `CODEX_HANDOFF.md`
-- Modify: `SESSION_LOG.md`
-- Modify as needed: `README.md`, `RUNBOOK.md`
+- Modify: `docs/operations/SESSION_LOG.md`
+- Modify as needed: `README.md`, `docs/operations/RUNBOOK.md`
 
 - [ ] Run focused unit/route tests, `pnpm test:api`, `pnpm build:api`, and `pnpm build`.
 - [ ] Browser-test: Mobile Call -> Admin queue/alert -> Admin status update -> Mobile timeline.

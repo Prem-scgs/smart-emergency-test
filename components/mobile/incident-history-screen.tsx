@@ -21,10 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { CallStatus, EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
-
-const API_BASE_URL = 'http://localhost:4000'
 
 interface IncidentHistoryItem {
   id: string
@@ -69,7 +68,7 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
         setIsLoading(true)
         setError(null)
         const sessionId = getOrCreateReporterSessionId()
-        const response = await fetch(API_BASE_URL + '/api/incidents/history?sessionId=' + encodeURIComponent(sessionId))
+        const response = await fetch(getEmergencyApiBaseUrl() + '/api/incidents/history?sessionId=' + encodeURIComponent(sessionId))
 
         if (!response.ok) {
           throw new Error('Failed to load incident history')

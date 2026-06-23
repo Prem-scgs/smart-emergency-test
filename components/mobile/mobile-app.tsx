@@ -10,7 +10,6 @@ import { EmergencyCategoriesGrid } from './emergency-categories-grid'
 import { SOSButton } from './sos-button'
 import { IncidentSelectionScreen } from './incident-selection-screen'
 import { EmergencyCallScreen } from './emergency-call-screen'
-import { LocationSharingScreen } from './location-sharing-screen'
 import { IncidentHistoryScreen } from './incident-history-screen'
 import { IncidentTrackingScreen } from './incident-tracking-screen'
 import { MobileNav, NavItem } from './mobile-nav'
@@ -20,17 +19,16 @@ import { toast } from 'sonner'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { buildIncidentCallUpdatePayload, buildIncidentCreatePayload } from '@/lib/mobile-incident'
 import { type IncidentTrackingHistoryEntry, type IncidentWorkflowStatus } from '@/lib/incident-tracking'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getLocationFailureStatus, type LocationLockStatus } from '@/lib/mobile-location'
 
 type Screen =
   | 'splash'
   | 'home'
   | 'incident'
   | 'call'
-  | 'location-share'
   | 'history'
   | 'tracking'
-
-const API_BASE_URL = 'http://localhost:4000'
 
 interface MobileLocation {
   latitude: number
@@ -50,15 +48,27 @@ interface LocalTrackingSnapshot {
   history: IncidentTrackingHistoryEntry[]
 }
 
-const FALLBACK_LOCATION: MobileLocation = {
-  latitude: 13.7478,
-  longitude: 100.5351,
-  provinceCode: '10',
-  province: 'Bangkok',
-  districtCode: '1007',
-  district: 'Pathum Wan',
-  accuracy: 15,
-  lastUpdated: new Date(),
+interface ApiContact {
+  id: string
+  name: string
+  phone: string
+  category: EmergencyCategory
+  provinceCode?: string | null
+  province: string | null
+  districtCode?: string | null
+  district: string | null
+  active: boolean
+  is24Hours: boolean
+  latitude?: number | null
+  longitude?: number | null
+}
+
+function isGlobalApiContact(contact: ApiContact) {
+  return !contact.provinceCode && !contact.province && !contact.districtCode && !contact.district
+}
+
+function isGlobalContact(contact: EmergencyContact) {
+  return !contact.provinceCode && !contact.province && !contact.districtCode && !contact.district
 }
 
 export function MobileApp() {
@@ -71,7 +81,8 @@ export function MobileApp() {
   const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(null)
   const [contacts, setContacts] = useState<EmergencyContact[]>([])
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
-  const [currentLocation, setCurrentLocation] = useState<MobileLocation>(FALLBACK_LOCATION)
+  const [currentLocation, setCurrentLocation] = useState<MobileLocation | null>(null)
+  const [locationStatus, setLocationStatus] = useState<LocationLockStatus>('requesting')
   const [localTrackingSnapshot, setLocalTrackingSnapshot] = useState<LocalTrackingSnapshot | null>(null)
   const { theme, setTheme } = useTheme()
 
@@ -88,7 +99,7 @@ export function MobileApp() {
       latitude: String(latitude),
       longitude: String(longitude),
     })
-    const response = await fetch(API_BASE_URL + '/api/areas/resolve-point?' + search.toString())
+    const response = await fetch(getEmergencyApiBaseUrl() + '/api/areas/resolve-point?' + search.toString())
     if (!response.ok) {
       throw new Error('Failed to resolve location from point')
     }
@@ -104,44 +115,34 @@ export function MobileApp() {
     }
   }
 
-  async function loadContacts(location: MobileLocation) {
+  async function loadContacts(location: MobileLocation | null) {
     try {
       setIsLoadingContacts(true)
       const fetchContacts = async (query: URLSearchParams) => {
-        const response = await fetch(API_BASE_URL + '/api/contacts?' + query.toString())
+        const response = await fetch(getEmergencyApiBaseUrl() + '/api/contacts?' + query.toString())
         if (!response.ok) {
           throw new Error('Failed to load contacts')
         }
 
-        return await response.json() as Array<{
-          id: string
-          name: string
-          phone: string
-          category: EmergencyCategory
-          provinceCode?: string | null
-          province: string | null
-          districtCode?: string | null
-          district: string | null
-          active: boolean
-          is24Hours: boolean
-          latitude?: number | null
-          longitude?: number | null
-        }>
+        return await response.json() as ApiContact[]
       }
 
       const exactSearch = new URLSearchParams({ active: 'true' })
-      if (location.provinceCode) exactSearch.set('provinceCode', location.provinceCode)
-      if (location.districtCode) exactSearch.set('districtCode', location.districtCode)
-      if (location.province) exactSearch.set('province', location.province)
-      if (location.district) exactSearch.set('district', location.district)
+      if (location?.provinceCode) exactSearch.set('provinceCode', location.provinceCode)
+      if (location?.districtCode) exactSearch.set('districtCode', location.districtCode)
+      if (location?.province) exactSearch.set('province', location.province)
+      if (location?.district) exactSearch.set('district', location.district)
 
       const provinceFallbackSearch = new URLSearchParams({ active: 'true' })
-      if (location.provinceCode) provinceFallbackSearch.set('provinceCode', location.provinceCode)
-      if (location.province) provinceFallbackSearch.set('province', location.province)
+      if (location?.provinceCode) provinceFallbackSearch.set('provinceCode', location.provinceCode)
+      if (location?.province) provinceFallbackSearch.set('province', location.province)
 
       let apiContacts = await fetchContacts(exactSearch)
-      if (apiContacts.length === 0 && location.provinceCode) {
+      if (apiContacts.length === 0 && location?.provinceCode) {
         apiContacts = await fetchContacts(provinceFallbackSearch)
+      }
+      if (!location) {
+        apiContacts = apiContacts.filter(isGlobalApiContact)
       }
 
       const mappedContacts = apiContacts
@@ -157,10 +158,10 @@ export function MobileApp() {
           agencyName: contact.name,
           phoneNumber: contact.phone,
           category: contact.category,
-          provinceCode: contact.provinceCode ?? location.provinceCode,
-          province: contact.province ?? location.province,
-          districtCode: contact.districtCode ?? location.districtCode,
-          district: contact.district ?? location.district,
+          provinceCode: contact.provinceCode ?? location?.provinceCode,
+          province: contact.province ?? location?.province ?? '',
+          districtCode: contact.districtCode ?? location?.districtCode,
+          district: contact.district ?? location?.district ?? '',
           status: contact.active ? ('active' as const) : ('inactive' as const),
           is24Hours: contact.is24Hours,
           coordinates:
@@ -187,31 +188,38 @@ export function MobileApp() {
         latitude: nextLocation.latitude,
         longitude: nextLocation.longitude,
         accuracy: nextLocation.accuracy,
-        provinceCode: resolved.provinceCode ?? FALLBACK_LOCATION.provinceCode,
-        province: resolved.provinceNameEn ?? FALLBACK_LOCATION.province,
-        districtCode: resolved.districtCode ?? FALLBACK_LOCATION.districtCode,
-        district: resolved.districtNameEn ?? FALLBACK_LOCATION.district,
+        provinceCode: resolved.provinceCode ?? undefined,
+        province: resolved.provinceNameEn ?? '',
+        districtCode: resolved.districtCode ?? undefined,
+        district: resolved.districtNameEn ?? '',
         lastUpdated: new Date(),
       }
 
       setCurrentLocation(location)
+      setLocationStatus('locked')
       await loadContacts(location)
     } catch {
-      const fallbackLocation: MobileLocation = {
-        ...FALLBACK_LOCATION,
+      const location: MobileLocation = {
         latitude: nextLocation.latitude,
         longitude: nextLocation.longitude,
+        province: '',
+        district: '',
         accuracy: nextLocation.accuracy,
         lastUpdated: new Date(),
       }
-      setCurrentLocation(fallbackLocation)
-      await loadContacts(fallbackLocation)
+      setCurrentLocation(location)
+      setLocationStatus('locked')
+      await loadContacts(null)
     }
   }
 
   const refreshLocation = useCallback(() => {
+    setLocationStatus('requesting')
+
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-      void syncLocation(FALLBACK_LOCATION)
+      setCurrentLocation(null)
+      setLocationStatus('unavailable')
+      void loadContacts(null)
       return
     }
 
@@ -223,13 +231,15 @@ export function MobileApp() {
           accuracy: position.coords.accuracy,
         })
       },
-      () => {
-        void syncLocation(FALLBACK_LOCATION)
+      error => {
+        setCurrentLocation(null)
+        setLocationStatus(getLocationFailureStatus(error.code))
+        void loadContacts(null)
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 60000,
+        timeout: 15000,
+        maximumAge: 0,
       }
     )
   }, [])
@@ -249,7 +259,11 @@ export function MobileApp() {
       incidentCategory: EmergencyCategory,
       clientRequestId: string
     ) => {
-      const response = await fetch(API_BASE_URL + '/api/incidents', {
+      if (!currentLocation || locationStatus !== 'locked') {
+        throw new Error('ยังไม่สามารถส่งเหตุได้ กรุณาอนุญาตและล็อกตำแหน่งก่อน')
+      }
+
+      const response = await fetch(getEmergencyApiBaseUrl() + '/api/incidents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +285,7 @@ export function MobileApp() {
 
       return (await response.json()) as { id: string }
     },
-    [currentLocation]
+    [currentLocation, locationStatus]
   )
 
   const startCallFlow = useCallback(
@@ -283,6 +297,10 @@ export function MobileApp() {
       setActiveClientRequestId(clientRequestId)
       setLocalTrackingSnapshot(null)
       setScreen('call')
+
+      if ((!currentLocation || locationStatus !== 'locked') && isGlobalContact(contact)) {
+        return
+      }
 
       try {
         const incident = await createIncidentForCall(contact, incidentCategory, clientRequestId)
@@ -303,7 +321,7 @@ export function MobileApp() {
         toast.error(error instanceof Error ? error.message : 'Failed to start incident')
       }
     },
-    [createIncidentForCall]
+    [createIncidentForCall, currentLocation, locationStatus]
   )
 
   const handleSOSPress = () => {
@@ -332,6 +350,12 @@ export function MobileApp() {
       let incidentId = activeIncidentId
 
       if (!incidentId) {
+        if (!currentLocation || locationStatus !== 'locked') {
+          toast.info('โทรออกแล้ว แต่ยังไม่ได้ส่งเหตุเนื่องจากไม่มีพิกัด')
+          handleBack()
+          return
+        }
+
         const clientRequestId = activeClientRequestId ?? crypto.randomUUID()
         setActiveClientRequestId(clientRequestId)
         const incident = await createIncidentForCall(
@@ -343,7 +367,7 @@ export function MobileApp() {
         setActiveIncidentId(incident.id)
       }
 
-      const response = await fetch(API_BASE_URL + '/api/incidents/' + incidentId + '/call', {
+      const response = await fetch(getEmergencyApiBaseUrl() + '/api/incidents/' + incidentId + '/call', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -385,9 +409,6 @@ export function MobileApp() {
       case 'history':
         setScreen('history')
         break
-      case 'location':
-        setScreen('location-share')
-        break
     }
   }
 
@@ -402,7 +423,14 @@ export function MobileApp() {
   }
 
   if (screen === 'splash') {
-    return <SplashScreen onComplete={handleSplashComplete} />
+    return (
+      <SplashScreen
+        locationStatus={locationStatus}
+        onRetry={refreshLocation}
+        onContinueWithoutLocation={handleSplashComplete}
+        onComplete={handleSplashComplete}
+      />
+    )
   }
 
   if (screen === 'call' && selectedContact) {
@@ -424,13 +452,8 @@ export function MobileApp() {
         onBack={handleBack}
         onCall={handleCall}
         onViewMap={() => toast.info('Map view coming soon')}
-        onShareLocation={() => setScreen('location-share')}
       />
     )
-  }
-
-  if (screen === 'location-share') {
-    return <LocationSharingScreen onBack={handleBack} />
   }
 
   if (screen === 'history') {
@@ -491,7 +514,11 @@ export function MobileApp() {
 
       <ScrollArea className="flex-1">
         <div className="p-4 pb-40 space-y-6">
-          <LocationHeader location={currentLocation} onRefresh={refreshLocation} />
+          <LocationHeader
+            location={currentLocation}
+            locationStatus={locationStatus}
+            onRefresh={refreshLocation}
+          />
 
           <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3">

@@ -13,8 +13,9 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { GisBoundary } from '@/components/admin/gis-boundary-map'
 import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
 
 const GisBoundaryMap = dynamic(

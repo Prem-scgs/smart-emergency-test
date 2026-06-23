@@ -10,7 +10,7 @@ test("writeAuditLog writes structured audit entries", async () => {
     return { rowCount: 1 };
   };
 
-  await writeAuditLog(
+  const recorded = await writeAuditLog(
     {
       id: "req-1",
       ip: "127.0.0.1",
@@ -28,6 +28,7 @@ test("writeAuditLog writes structured audit entries", async () => {
   );
 
   assert.equal(calls.length, 1);
+  assert.equal(recorded, true);
   assert.match(String(calls[0]?.[0]), /INSERT INTO audit_logs/);
   assert.deepEqual(calls[0]?.[1], [
     "contacts.create",
@@ -47,7 +48,7 @@ test("writeAuditLog swallows audit write failures and logs them", async () => {
     throw new Error("db down");
   };
 
-  await writeAuditLog(
+  const recorded = await writeAuditLog(
     {
       id: "req-2",
       ip: "127.0.0.1",
@@ -67,5 +68,6 @@ test("writeAuditLog swallows audit write failures and logs them", async () => {
   );
 
   assert.equal(logged.length, 1);
+  assert.equal(recorded, false);
   assert.match(JSON.stringify(logged[0]), /AUDIT_LOG_WRITE_FAILED/);
 });

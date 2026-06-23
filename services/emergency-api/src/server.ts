@@ -20,7 +20,9 @@ const app = Fastify({
 });
 
 await app.register(cors, {
-  origin: config.corsOrigin,
+  origin: (origin, callback) => {
+    callback(null, !origin || config.corsOrigins.includes(origin));
+  },
   methods: corsMethods,
 });
 

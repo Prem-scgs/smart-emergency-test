@@ -35,6 +35,7 @@ import { buildAdminApiHeaders } from '@/lib/admin-api'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/lib/auth-context'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { useReferenceCategories } from '@/lib/reference-categories'
 import {
   getLocationDisplayName,
@@ -45,7 +46,7 @@ import {
 import type { EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = getEmergencyApiBaseUrl()
 const OUTSIDE_AREA_LABEL = 'นอกพื้นที่ที่จัดการ'
 
 type DashboardIncident = IncidentMapPoint & {

@@ -4,8 +4,14 @@ import { getMockAdminScopeFromRequest } from "../../admin-scope.js";
 import { buildApiErrorPayload } from "../../api-error.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { emergencyEvents, emitEmergencyEvent } from "../../events.js";
-import { config } from "../../config.js";
+import { config, getAllowedCorsOrigin } from "../../config.js";
 import { pool } from "../../db.js";
+import {
+  buildIncidentLocationShareMessage,
+  buildLocationMapsUrl,
+  buildLocationShareUrl,
+  getShareChannelRecipient,
+} from "../../location-share.js";
 import {
   buildZodValidationErrorPayload,
   isPlausiblePhoneNumber,
@@ -48,6 +54,17 @@ const incidentStatusUpdateBody = z.object({
   toStatus: z.enum(INCIDENT_STATUS_ORDER),
   expectedVersion: z.number().int().min(0),
   note: z.string().nullable().optional(),
+});
+
+const incidentShareAttemptBody = z.object({
+  sessionId: z.string().trim().min(8).max(128),
+  channel: z.enum(["line", "sms", "whatsapp"]),
+  reporterPhone: z
+    .string()
+    .trim()
+    .regex(/^0\d{8,9}$/, "reporterPhone must be a Thai phone number")
+    .nullable()
+    .optional(),
 });
 
 function rowToIncident(row: Record<string, unknown>) {
@@ -103,6 +120,25 @@ const incidentCreateRateLimiter = createInMemoryRateLimiter({
   maxRequests: 10,
   windowMs: 60_000,
 });
+
+const incidentShareRateLimiter = createInMemoryRateLimiter({
+  maxRequests: 10,
+  windowMs: 60_000,
+});
+
+function getMobilePlatform(headers: Record<string, unknown> | undefined) {
+  const explicitPlatform = headers?.["x-mobile-platform"];
+  if (explicitPlatform === "ios" || explicitPlatform === "android" || explicitPlatform === "desktop") {
+    return explicitPlatform;
+  }
+
+  const userAgent = typeof headers?.["user-agent"] === "string"
+    ? headers["user-agent"]
+    : "";
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
+  if (/Windows NT|Macintosh|Linux x86_64/i.test(userAgent)) return "desktop";
+  return "android";
+}
 
 export async function registerIncidentRoutes(app: FastifyInstance) {
   app.get("/api/incidents", async (request) => {
@@ -372,6 +408,97 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     };
   });
 
+  app.post("/api/incidents/:id/share-attempts", async (request, reply) => {
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const body = incidentShareAttemptBody.parse(request.body);
+    const recipient = getShareChannelRecipient(config.shareChannels, body.channel);
+
+    if (!recipient) {
+      reply.code(503);
+      return buildApiErrorPayload(
+        503,
+        "SHARE_CHANNEL_NOT_CONFIGURED",
+        "Share channel is not configured"
+      );
+    }
+
+    const rateLimitKey = `${request.ip ?? "unknown"}:${params.id}:${body.sessionId}`;
+    const rateLimitResult = incidentShareRateLimiter.check(rateLimitKey);
+    if (!rateLimitResult.allowed) {
+      reply.header("Retry-After", String(Math.ceil(rateLimitResult.retryAfterMs / 1000)));
+      reply.code(429);
+      return buildApiErrorPayload(
+        429,
+        "SHARE_RATE_LIMIT_EXCEEDED",
+        "Too many share attempts"
+      );
+    }
+
+    const incidentResult = await pool.query(
+      `
+        SELECT
+          id,
+          category,
+          province,
+          district,
+          latitude,
+          longitude,
+          created_at
+        FROM incidents
+        WHERE id = $1 AND session_id = $2
+        LIMIT 1
+      `,
+      [params.id, body.sessionId]
+    );
+
+    if (incidentResult.rows.length === 0) {
+      reply.code(404);
+      return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
+    }
+
+    const incident = incidentResult.rows[0];
+    const message = buildIncidentLocationShareMessage({
+      id: incident.id,
+      category: incident.category,
+      province: incident.province,
+      district: incident.district,
+      latitude: Number(incident.latitude),
+      longitude: Number(incident.longitude),
+      createdAt: incident.created_at,
+      reporterPhone: body.reporterPhone ?? null,
+    });
+    const platform = getMobilePlatform(
+      request.headers as Record<string, unknown> | undefined
+    );
+    const shareUrl = buildLocationShareUrl(
+      body.channel,
+      recipient,
+      message,
+      platform
+    );
+    const recorded = await writeAuditLog(request, {
+      action: "incident.location_share_opened",
+      resourceType: "incident",
+      resourceId: params.id,
+      actorType: "mobile_session",
+      details: {
+        channel: body.channel,
+        reporterPhoneIncluded: Boolean(body.reporterPhone),
+      },
+    });
+
+    return {
+      recorded,
+      channel: body.channel,
+      shareUrl,
+      message,
+      mapsUrl: buildLocationMapsUrl({
+        latitude: Number(incident.latitude),
+        longitude: Number(incident.longitude),
+      }),
+    };
+  });
+
   app.get("/api/incidents/:id/events", async (request, reply) => {
     const paramsResult = z
       .object({
@@ -421,7 +548,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
-      "Access-Control-Allow-Origin": config.corsOrigin,
+      "Access-Control-Allow-Origin": getAllowedCorsOrigin(request.headers?.origin),
       Vary: "Origin",
     });
     reply.raw.flushHeaders?.();
@@ -1039,7 +1166,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
-      "Access-Control-Allow-Origin": config.corsOrigin,
+      "Access-Control-Allow-Origin": getAllowedCorsOrigin(request.headers?.origin),
       Vary: "Origin",
     });
     reply.raw.flushHeaders?.();

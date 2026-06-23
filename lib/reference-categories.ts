@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { EmergencyCategory } from './types'
-
-const API_BASE_URL = 'http://localhost:4000'
+import { getEmergencyApiBaseUrl } from './emergency-api-url'
 
 export interface ReferenceCategory {
   id: EmergencyCategory
@@ -55,7 +54,7 @@ export async function loadReferenceCategories(fetchImpl: typeof fetch = fetch) {
 
   categoriesPromise = (async () => {
     try {
-      const response = await fetchImpl(API_BASE_URL + '/api/reference/categories')
+      const response = await fetchImpl(getEmergencyApiBaseUrl() + '/api/reference/categories')
       if (!response.ok) {
         cachedCategories = FALLBACK_REFERENCE_CATEGORIES
         return cachedCategories

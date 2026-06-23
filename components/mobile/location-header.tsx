@@ -5,6 +5,7 @@ import { MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getLocationDisplayName, useReferenceLocations } from '@/lib/reference-locations'
+import { locationStatusMessage, type LocationLockStatus } from '@/lib/mobile-location'
 import { cn } from '@/lib/utils'
 
 interface LocationData {
@@ -20,12 +21,19 @@ interface LocationData {
 
 interface LocationHeaderProps {
   className?: string
-  location: LocationData
+  location: LocationData | null
+  locationStatus: LocationLockStatus
   isRefreshing?: boolean
   onRefresh?: () => void
 }
 
-export function LocationHeader({ className, location, isRefreshing = false, onRefresh }: LocationHeaderProps) {
+export function LocationHeader({
+  className,
+  location,
+  locationStatus,
+  isRefreshing = false,
+  onRefresh,
+}: LocationHeaderProps) {
   const {
     provinces,
     districts,
@@ -34,10 +42,10 @@ export function LocationHeader({ className, location, isRefreshing = false, onRe
   const isOnline = typeof navigator === 'undefined' ? true : navigator.onLine
 
   useEffect(() => {
-    if (location.provinceCode) {
+    if (location?.provinceCode) {
       setSelectedProvinceCode(location.provinceCode)
     }
-  }, [location.provinceCode, setSelectedProvinceCode])
+  }, [location?.provinceCode, setSelectedProvinceCode])
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -47,10 +55,10 @@ export function LocationHeader({ className, location, isRefreshing = false, onRe
     })
   }
 
-  const province = provinces.find(item => item.provinceCode === location.provinceCode)
-  const district = districts.find(item => item.districtCode === location.districtCode)
-  const provinceLabel = getLocationDisplayName(province) || location.province
-  const districtLabel = getLocationDisplayName(district) || location.district
+  const province = provinces.find(item => item.provinceCode === location?.provinceCode)
+  const district = districts.find(item => item.districtCode === location?.districtCode)
+  const provinceLabel = getLocationDisplayName(province) || location?.province
+  const districtLabel = getLocationDisplayName(district) || location?.district
 
   return (
     <div className={cn('rounded-xl bg-card p-4 shadow-sm border', className)}>
@@ -62,7 +70,7 @@ export function LocationHeader({ className, location, isRefreshing = false, onRe
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-foreground truncate">
-                {districtLabel}
+                {districtLabel || locationStatusMessage[locationStatus]}
               </h2>
               {isOnline ? (
                 <Wifi className="h-4 w-4 text-success shrink-0" />
@@ -71,29 +79,29 @@ export function LocationHeader({ className, location, isRefreshing = false, onRe
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {provinceLabel}
+              {provinceLabel || 'ยังไม่ระบุพื้นที่'}
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            {location ? <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="text-xs">
                 GPS: {location.accuracy.toFixed(0)}m
               </Badge>
               <Badge variant="outline" className="text-xs">
                 Updated: {formatTime(location.lastUpdated)}
               </Badge>
-            </div>
+            </div> : null}
           </div>
         </div>
         <Button
           variant="ghost"
           size="icon"
           onClick={onRefresh}
-          disabled={isRefreshing}
+          disabled={isRefreshing || locationStatus === 'requesting'}
           className="shrink-0"
           aria-label="Refresh location"
         >
           <RefreshCw className={cn(
             'h-4 w-4',
-            isRefreshing && 'animate-spin'
+            (isRefreshing || locationStatus === 'requesting') && 'animate-spin'
           )} />
         </Button>
       </div>

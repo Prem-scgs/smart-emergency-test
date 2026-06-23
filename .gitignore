@@ -17,6 +17,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.codex-*.log
 .codex-dev.*.log
 .codex-api.*.log
 .codex-dev.log
@@ -41,3 +42,4 @@ next-env.d.ts
 
 # local backups
 _backup/
+_local/

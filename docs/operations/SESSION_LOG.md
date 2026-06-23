@@ -453,8 +453,8 @@ Copy this block for each new work session:
   - Mobile tracks real status/history, can revisit cases, and updates GPS only on explicit user action.
   - Keep the simulated call screen temporarily, but remove result choices/reporter phone and never persist simulated timer/connection state.
   - Store `dialed_phone` at Call initiation; keep SSE and consolidate to one client.
-- Design: `docs/superpowers/specs/2026-06-18-incident-status-tracking-design.md`
-- Plan: `docs/superpowers/plans/2026-06-18-incident-status-tracking.md`
+- Design: `docs/specs/2026-06-18-incident-status-tracking-design.md`
+- Plan: `docs/plans/2026-06-18-incident-status-tracking.md`
 - Next action: start Task 1 by creating `016_incident_tracking.sql`; no implementation work has started yet.
 - Git: documentation changes are uncommitted; ask Prem before commit or push.
 ## 2026-06-18 - Incident status tracking Task 1 complete

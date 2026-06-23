@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { buildAdminCategoryCollections, getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { useReferenceCategories } from '@/lib/reference-categories'
 import {
   getLocationCanonicalName,
@@ -21,7 +22,7 @@ import {
   useReferenceLocations,
 } from '@/lib/reference-locations'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = getEmergencyApiBaseUrl()
 
 
 interface Contact {

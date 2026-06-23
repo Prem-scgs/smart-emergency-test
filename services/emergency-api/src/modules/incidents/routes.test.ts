@@ -5,6 +5,7 @@ import { EventEmitter } from "node:events";
 import { registerIncidentRoutes } from "./routes.js";
 import { pool } from "../../db.js";
 import { emergencyEvents } from "../../events.js";
+import { config } from "../../config.js";
 
 type Handler = (request?: any, reply?: any) => Promise<unknown> | unknown;
 
@@ -37,8 +38,13 @@ function createFakeApp() {
 function createReplyDouble() {
   return {
     statusCode: 200,
+    headers: {} as Record<string, string>,
     code(statusCode: number) {
       this.statusCode = statusCode;
+      return this;
+    },
+    header(name: string, value: string) {
+      this.headers[name] = value;
       return this;
     },
   };
@@ -74,6 +80,237 @@ test("registerIncidentRoutes registers GET /api/incidents/:id/events", async () 
   await registerIncidentRoutes(app as any);
 
   assert.equal(typeof app.getHandlers.get("/api/incidents/:id/events"), "function");
+});
+
+test("registerIncidentRoutes registers POST /api/incidents/:id/share-attempts", async () => {
+  const app = createFakeApp();
+
+  await registerIncidentRoutes(app as any);
+
+  assert.equal(
+    typeof app.postHandlers.get("/api/incidents/:id/share-attempts"),
+    "function"
+  );
+});
+
+test("POST /api/incidents/:id/share-attempts returns 503 for an unconfigured channel", async () => {
+  const app = createFakeApp();
+  const originalChannels = { ...config.shareChannels };
+  config.shareChannels.smsCenterPhone = null;
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.postHandlers.get("/api/incidents/:id/share-attempts");
+    assert.ok(handler);
+
+    const reply = createReplyDouble();
+    const result = await handler({
+      id: "request-share-disabled",
+      ip: "127.0.0.1",
+      log: { error() {} },
+      params: { id: "77777777-7777-4777-8777-777777777777" },
+      body: { sessionId: "session-share-disabled", channel: "sms" },
+    }, reply);
+
+    assert.equal(reply.statusCode, 503);
+    assert.equal((result as any).code, "SHARE_CHANNEL_NOT_CONFIGURED");
+  } finally {
+    Object.assign(config.shareChannels, originalChannels);
+  }
+});
+
+test("POST /api/incidents/:id/share-attempts validates ownership and records the attempt", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const originalChannels = { ...config.shareChannels };
+  const calls: Array<{ sql: string; values?: unknown[] }> = [];
+  config.shareChannels.smsCenterPhone = "0812345678";
+  (pool.query as any) = async (sql: unknown, values?: unknown[]) => {
+    calls.push({ sql: String(sql), values });
+    if (calls.length === 1) {
+      return {
+        rows: [{
+          id: "77777777-7777-4777-8777-777777777777",
+          category: "medical",
+          province: "กรุงเทพมหานคร",
+          district: "ปทุมวัน",
+          latitude: 13.7478,
+          longitude: 100.5351,
+          created_at: "2026-06-21T03:42:00.000Z",
+        }],
+      };
+    }
+    return { rowCount: 1, rows: [] };
+  };
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.postHandlers.get("/api/incidents/:id/share-attempts");
+    assert.ok(handler);
+
+    const reply = createReplyDouble();
+    const result = await handler({
+      id: "request-share-success",
+      ip: "127.0.0.1",
+      log: { error() {} },
+      headers: { "x-mobile-platform": "android" },
+      params: { id: "77777777-7777-4777-8777-777777777777" },
+      body: {
+        sessionId: "session-share-success",
+        channel: "sms",
+        reporterPhone: "0811111111",
+      },
+    }, reply) as any;
+
+    assert.equal(reply.statusCode, 200);
+    assert.equal(result.recorded, true);
+    assert.equal(result.channel, "sms");
+    assert.match(result.shareUrl, /^sms:0812345678\?body=/);
+    assert.match(result.message, /เบอร์ผู้แจ้ง: 0811111111/);
+    assert.match(result.mapsUrl, /13\.747800,100\.535100/);
+    assert.deepEqual(calls[0]?.values, [
+      "77777777-7777-4777-8777-777777777777",
+      "session-share-success",
+    ]);
+    assert.match(calls[1]?.sql ?? "", /INSERT INTO audit_logs/);
+    assert.doesNotMatch(JSON.stringify(calls[1]?.values), /0811111111/);
+  } finally {
+    (pool.query as any) = originalQuery;
+    Object.assign(config.shareChannels, originalChannels);
+  }
+});
+
+test("POST /api/incidents/:id/share-attempts returns recorded false when audit fails", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const originalChannels = { ...config.shareChannels };
+  let callCount = 0;
+  config.shareChannels.lineOaId = "@smartemergency";
+  (pool.query as any) = async () => {
+    callCount += 1;
+    if (callCount === 1) {
+      return {
+        rows: [{
+          id: "88888888-8888-4888-8888-888888888888",
+          category: "fire",
+          province: null,
+          district: null,
+          latitude: 13.7,
+          longitude: 100.5,
+          created_at: "2026-06-21T03:42:00.000Z",
+        }],
+      };
+    }
+    throw new Error("audit unavailable");
+  };
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.postHandlers.get("/api/incidents/:id/share-attempts");
+    assert.ok(handler);
+    const result = await handler({
+      id: "request-share-audit-fail",
+      ip: "127.0.0.2",
+      log: { error() {} },
+      headers: { "x-mobile-platform": "ios" },
+      params: { id: "88888888-8888-4888-8888-888888888888" },
+      body: { sessionId: "session-share-audit-fail", channel: "line" },
+    }, createReplyDouble()) as any;
+
+    assert.equal(result.recorded, false);
+    assert.match(result.shareUrl, /^https:\/\/line\.me/);
+  } finally {
+    (pool.query as any) = originalQuery;
+    Object.assign(config.shareChannels, originalChannels);
+  }
+});
+
+test("POST /api/incidents/:id/share-attempts returns 404 for a different reporter session", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const originalChannels = { ...config.shareChannels };
+  config.shareChannels.whatsappCenterPhone = "66812345678";
+  (pool.query as any) = async () => ({ rows: [] });
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.postHandlers.get("/api/incidents/:id/share-attempts");
+    assert.ok(handler);
+    const reply = createReplyDouble();
+    const result = await handler({
+      id: "request-share-wrong-session",
+      ip: "127.0.0.3",
+      log: { error() {} },
+      headers: {},
+      params: { id: "99999999-9999-4999-8999-999999999999" },
+      body: { sessionId: "session-share-wrong", channel: "whatsapp" },
+    }, reply);
+
+    assert.equal(reply.statusCode, 404);
+    assert.equal((result as any).code, "INCIDENT_NOT_FOUND");
+  } finally {
+    (pool.query as any) = originalQuery;
+    Object.assign(config.shareChannels, originalChannels);
+  }
+});
+
+test("POST /api/incidents/:id/share-attempts rate limits the eleventh attempt", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const originalChannels = { ...config.shareChannels };
+  config.shareChannels.smsCenterPhone = "0812345678";
+  (pool.query as any) = async (sql: unknown) => {
+    if (String(sql).includes("FROM incidents")) {
+      return {
+        rows: [{
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          category: "medical",
+          province: null,
+          district: null,
+          latitude: 13.7,
+          longitude: 100.5,
+          created_at: "2026-06-21T03:42:00.000Z",
+        }],
+      };
+    }
+    return { rowCount: 1, rows: [] };
+  };
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.postHandlers.get("/api/incidents/:id/share-attempts");
+    assert.ok(handler);
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      const reply = createReplyDouble();
+      await handler({
+        id: `request-rate-${attempt}`,
+        ip: "127.0.0.10",
+        log: { error() {} },
+        headers: {},
+        params: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+        body: { sessionId: "session-rate-limit", channel: "sms" },
+      }, reply);
+      assert.equal(reply.statusCode, 200);
+    }
+
+    const blockedReply = createReplyDouble();
+    const result = await handler({
+      id: "request-rate-11",
+      ip: "127.0.0.10",
+      log: { error() {} },
+      headers: {},
+      params: { id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+      body: { sessionId: "session-rate-limit", channel: "sms" },
+    }, blockedReply);
+
+    assert.equal(blockedReply.statusCode, 429);
+    assert.equal((result as any).code, "SHARE_RATE_LIMIT_EXCEEDED");
+    assert.ok(Number(blockedReply.headers["Retry-After"]) >= 1);
+  } finally {
+    (pool.query as any) = originalQuery;
+    Object.assign(config.shareChannels, originalChannels);
+  }
 });
 
 test("GET /api/incidents/:id/events rejects a reporter session that does not own the incident", async () => {

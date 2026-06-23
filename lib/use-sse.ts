@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { buildAdminEventsUrl } from './admin-api'
+import { getEmergencyApiBaseUrl } from './emergency-api-url'
 import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
 interface IncidentEventPayload {
@@ -177,7 +178,7 @@ export function useSse(options: UseSseOptions = {}) {
     }
 
     let isDisposed = false
-    const eventSource = new EventSource(buildAdminEventsUrl('http://localhost:4000', user))
+    const eventSource = new EventSource(buildAdminEventsUrl(getEmergencyApiBaseUrl(), user))
     eventSourceRef.current = eventSource
 
     const setDebugStatus = (status: SseDebugStatus) => {

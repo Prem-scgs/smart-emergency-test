@@ -1,7 +1,8 @@
+import { getEmergencyApiBaseUrl } from './emergency-api-url'
 import { mockUserProfile } from './mock-data'
 import type { UserProfile } from './types'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = getEmergencyApiBaseUrl()
 
 let cachedUserProfile: UserProfile | null = null
 let userProfilePromise: Promise<UserProfile> | null = null

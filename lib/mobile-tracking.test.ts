@@ -21,6 +21,17 @@ test('buildMobileIncidentEventsUrl scopes realtime events by incident and report
   )
 })
 
+test('tracking URLs support the relative emergency API proxy base', () => {
+  assert.equal(
+    buildMobileTrackingUrl('/emergency-api', 'incident/123', 'session mobile 123'),
+    '/emergency-api/api/incidents/incident%2F123/tracking?sessionId=session+mobile+123'
+  )
+  assert.equal(
+    buildMobileIncidentEventsUrl('/emergency-api', 'incident/123', 'session mobile 123'),
+    '/emergency-api/api/incidents/incident%2F123/events?sessionId=session+mobile+123'
+  )
+})
+
 test('isMobileIncidentWorkflowStatus accepts only the approved workflow', () => {
   assert.equal(isMobileIncidentWorkflowStatus('reported'), true)
   assert.equal(isMobileIncidentWorkflowStatus('on_scene'), true)

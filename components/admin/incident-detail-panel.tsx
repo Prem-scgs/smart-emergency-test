@@ -38,6 +38,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { buildAdminApiHeaders, getBackendAdminScope } from '@/lib/admin-api'
 import { getAdminStatusChoices, requiresStatusReason } from '@/lib/admin-status-controls'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import {
   getIncidentTrackingStatusMeta,
   type IncidentTrackingHistoryEntry,
@@ -45,7 +46,7 @@ import {
 } from '@/lib/incident-tracking'
 import type { AdminUser } from '@/lib/types'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = getEmergencyApiBaseUrl()
 const WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
   'reported',
   'acknowledged',

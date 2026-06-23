@@ -50,10 +50,11 @@ import {
 } from '@/components/ui/table'
 import { useAuth } from '@/lib/auth-context'
 import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from '@/lib/emergency-category-utils'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import type { CallStatus, EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
-const API_BASE_URL = 'http://localhost:4000'
+const API_BASE_URL = getEmergencyApiBaseUrl()
 
 interface ApiIncident {
   id: string
