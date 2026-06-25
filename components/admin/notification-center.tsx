@@ -3,10 +3,30 @@ import { X, Trash2, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { buildAdminCategoryCollections, getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
 import { useNotifications } from '@/lib/notification-context'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import { useReferenceCategories } from '@/lib/reference-categories'
 import { cn } from '@/lib/utils'
+
+
+const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
+const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
+
+function openIncidentDetailFromNotification(incidentId: string) {
+  if (typeof window === 'undefined') return
+
+  window.dispatchEvent(
+    new CustomEvent(OPEN_INCIDENT_DETAIL_EVENT, {
+      detail: { incidentId },
+    })
+  )
+
+  if (!window.location.pathname.startsWith('/admin/dashboard')) {
+    window.sessionStorage.setItem(PENDING_INCIDENT_DETAIL_KEY, incidentId)
+    window.location.href = '/admin/dashboard'
+  }
+}
 
 interface NotificationCenterProps {
   isOpen: boolean
@@ -16,6 +36,8 @@ interface NotificationCenterProps {
 export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterProps) {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications()
   const { provinceByCode, districtByCode } = useLocationLookupMaps()
+  const { categories: referenceCategories } = useReferenceCategories()
+  const { labelMap: categoryLabelMap } = buildAdminCategoryCollections(referenceCategories)
 
   const handleMarkAsRead = (id: string) => {
     markAsRead(id)
@@ -108,7 +130,7 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                     {notification.category && (
                       <div className="mt-2">
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                          {getEmergencyCategoryLabel(notification.category, notification.category)}
+                          {categoryLabelMap[notification.category] ?? getEmergencyCategoryLabel(notification.category, notification.category)}
                         </span>
                       </div>
                     )}
@@ -121,8 +143,21 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                       size="sm"
                       className="flex-shrink-0"
                       type="button"
-                      onClick={() => {
-                        window.location.href = notification.actionUrl as string
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        handleMarkAsRead(notification.id)
+                        onOpenChange(false)
+
+                        const incidentId = notification.incidentId
+                        const actionUrl = notification.actionUrl
+
+                        window.setTimeout(() => {
+                          if (incidentId) {
+                            openIncidentDetailFromNotification(incidentId)
+                          } else if (actionUrl) {
+                            window.location.href = actionUrl
+                          }
+                        }, 0)
                       }}
                     >
                       ดู

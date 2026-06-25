@@ -87,3 +87,16 @@ test('buildAdminEventsUrl appends scope as query params for event source', () =>
 
   assert.equal(url, 'http://localhost:4000/api/events?role=agency_admin&category=medical')
 })
+
+test('buildAdminEventsUrl supports relative API base paths', () => {
+  const url = buildAdminEventsUrl('/emergency-api', {
+    id: 'user-1',
+    email: 'prem@example.com',
+    name: 'Prem',
+    role: 'super_admin',
+    permissions: [],
+    lastLogin: new Date(),
+  })
+
+  assert.equal(url, '/emergency-api/api/events?role=super_admin')
+})

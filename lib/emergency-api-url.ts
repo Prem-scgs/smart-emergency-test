@@ -12,3 +12,26 @@ export function getEmergencyApiBaseUrl(
 
   return '/emergency-api'
 }
+
+export function getEmergencyApiEventsBaseUrl(
+  location: ApiLocation | undefined = typeof window === 'undefined' ? undefined : window.location,
+  configuredUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL,
+) {
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, '')
+  }
+
+  if (location?.origin) {
+    try {
+      const origin = new URL(location.origin)
+      if (origin.hostname === 'localhost' || origin.hostname === '127.0.0.1') {
+        origin.port = '4000'
+        return origin.toString().replace(/\/$/, '')
+      }
+    } catch {
+      return getEmergencyApiBaseUrl(location)
+    }
+  }
+
+  return getEmergencyApiBaseUrl(location)
+}

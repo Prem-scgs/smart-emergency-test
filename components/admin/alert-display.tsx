@@ -102,6 +102,24 @@ function playAlertTone(severity: string, preset: AlertTonePreset) {
   }, 1400)
 }
 
+const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
+const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
+
+function openIncidentDetailFromAlert(incidentId: string) {
+  if (typeof window === 'undefined') return
+
+  window.dispatchEvent(
+    new CustomEvent(OPEN_INCIDENT_DETAIL_EVENT, {
+      detail: { incidentId },
+    })
+  )
+
+  if (!window.location.pathname.startsWith('/admin/dashboard')) {
+    window.sessionStorage.setItem(PENDING_INCIDENT_DETAIL_KEY, incidentId)
+    window.location.href = '/admin/dashboard'
+  }
+}
+
 function getSeverityConfig(severity: string) {
   switch (severity) {
     case 'critical':
@@ -243,10 +261,18 @@ export function AlertDisplay() {
             {currentAlert.actionLabel && (
               <AlertDialogAction
                 onClick={() => {
-                  if (currentAlert.actionUrl) {
-                    window.location.href = currentAlert.actionUrl
-                  }
+                  const incidentId = currentAlert.incidentId
+                  const actionUrl = currentAlert.actionUrl
+
                   clearAlert(currentAlert.id)
+
+                  window.setTimeout(() => {
+                    if (incidentId) {
+                      openIncidentDetailFromAlert(incidentId)
+                    } else if (actionUrl) {
+                      window.location.href = actionUrl
+                    }
+                  }, 0)
                 }}
               >
                 {currentAlert.actionLabel}

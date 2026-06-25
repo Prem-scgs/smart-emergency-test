@@ -30,16 +30,29 @@ export function buildAdminApiHeaders(user: AdminUser | null | undefined): Header
   }
 }
 
-export function buildAdminEventsUrl(baseUrl: string, user: AdminUser | null | undefined) {
-  const scope = getBackendAdminScope(user)
-  const url = new URL('/api/events', baseUrl)
+function buildApiUrl(baseUrl: string, path: string, searchParams: URLSearchParams) {
+  const base = baseUrl.replace(/\/$/, '')
 
-  if (!scope) return url.toString()
-
-  url.searchParams.set('role', scope.role)
-  if (scope.category) {
-    url.searchParams.set('category', scope.category)
+  if (/^https?:\/\//i.test(base)) {
+    const url = new URL(path, base)
+    searchParams.forEach((value, key) => url.searchParams.set(key, value))
+    return url.toString()
   }
 
-  return url.toString()
+  const query = searchParams.toString()
+  return `${base}${path}${query ? `?${query}` : ''}`
+}
+
+export function buildAdminEventsUrl(baseUrl: string, user: AdminUser | null | undefined) {
+  const scope = getBackendAdminScope(user)
+  const searchParams = new URLSearchParams()
+
+  if (scope) {
+    searchParams.set('role', scope.role)
+    if (scope.category) {
+      searchParams.set('category', scope.category)
+    }
+  }
+
+  return buildApiUrl(baseUrl, '/api/events', searchParams)
 }

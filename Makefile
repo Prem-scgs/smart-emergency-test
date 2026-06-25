@@ -1,4 +1,4 @@
-.PHONY: help install dev web api api-build db-up db-ui db-down db-status db-migrate db-seed db-reset verify status
+.PHONY: help install dev web api api-build db-up db-ui db-down db-status db-migrate db-seed db-reset verify status stack-build stack-up stack-down stack-logs stack-status
 
 help:
 	@echo "Smart Emergency commands"
@@ -14,14 +14,19 @@ help:
 	@echo "  make web          Start Next.js frontend"
 	@echo "  make api          Start emergency-api"
 	@echo "  make dev          Start DB UI hint, then run web and api in separate terminals"
+	@echo "  make stack-up     Start local full stack in Docker"
+	@echo "  make stack-build  Build local full stack Docker images"
 	@echo ""
 	@echo "Check:"
 	@echo "  make api-build    Build emergency-api"
 	@echo "  make verify       Run backend build"
 	@echo "  make status       Show git and Docker Compose status"
+	@echo "  make stack-status Show local full stack Docker status"
 	@echo ""
 	@echo "Stop:"
 	@echo "  make db-down      Stop Docker Compose services"
+	@echo "  make stack-down   Stop local full stack Docker services"
+	@echo "  make stack-logs   Follow local full stack Docker logs"
 
 install:
 	pnpm install
@@ -91,3 +96,19 @@ dev:
 	@echo "  make db-ui"
 	@echo "  make api"
 	@echo "  make web"
+
+stack-build:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml build api
+	docker compose -f docker-compose.yml -f docker-compose.local.yml build web
+
+stack-up:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+
+stack-down:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml down
+
+stack-logs:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f
+
+stack-status:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml ps

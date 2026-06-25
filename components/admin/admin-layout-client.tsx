@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -56,7 +56,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const { theme, setTheme } = useTheme()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  const { user, isAuthenticated, hasPermission, logout, canViewAllAgencies } = useAuth()
+  const { user, isAuthenticated, isLoading, hasPermission, logout, canViewAllAgencies } = useAuth()
 
   const visibleMenuItems = useMemo(() => {
     return sidebarItems.filter(item => hasPermission(item.permission))
@@ -65,6 +65,24 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const handleLogout = () => {
     logout()
     router.push('/admin')
+  }
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/admin')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Checking admin access...
+      </div>
+    )
+  }
+
+  if (!isAuthenticated || !user) {
+    return null
   }
 
   const getRoleBadge = () => {

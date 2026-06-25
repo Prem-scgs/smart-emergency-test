@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
-  Info,
   Filter,
   MapPinned,
   MapPin,
@@ -24,6 +23,7 @@ import { IncidentQueue } from '@/components/admin/incident-queue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   ChartContainer,
   ChartTooltip,
@@ -47,6 +47,8 @@ import type { EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
+const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
+const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
 const OUTSIDE_AREA_LABEL = 'นอกพื้นที่ที่จัดการ'
 
 type DashboardIncident = IncidentMapPoint & {
@@ -64,15 +66,6 @@ interface DashboardContact {
   active: boolean
 }
 
-interface DashboardRealtimeIncident {
-  id: string
-  category: string
-  severity: 'low' | 'medium' | 'high' | 'critical'
-  status: string
-  province?: string | null
-  district?: string | null
-  areaName?: string | null
-}
 
 interface DashboardSseDebugDetail {
   status?: 'connecting' | 'connected' | 'disconnected'
@@ -219,7 +212,6 @@ export default function DashboardPage() {
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [realtimeIncident, setRealtimeIncident] = useState<DashboardRealtimeIncident | null>(null)
   const [sseStatus, setSseStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [sseEventCount, setSseEventCount] = useState(0)
   const [lastSseAt, setLastSseAt] = useState<string | null>(null)
@@ -257,12 +249,7 @@ export default function DashboardPage() {
   }, [loadDashboardData])
 
   useEffect(() => {
-    function handleIncidentCreated(event: Event) {
-      const detail = (event as CustomEvent<DashboardRealtimeIncident>).detail
-      if (detail) {
-        setRealtimeIncident(detail)
-      }
-
+    function handleIncidentCreated() {
       loadDashboardData()
     }
 
@@ -284,15 +271,6 @@ export default function DashboardPage() {
     }
   }, [loadDashboardData])
 
-  useEffect(() => {
-    if (!realtimeIncident) return
-
-    const timer = window.setTimeout(() => {
-      setRealtimeIncident(null)
-    }, 12000)
-
-    return () => window.clearTimeout(timer)
-  }, [realtimeIncident])
 
   useEffect(() => {
     function handleSseStatus(event: Event) {
@@ -433,23 +411,6 @@ export default function DashboardPage() {
   const roleName = isSuperAdmin ? 'super_admin' : user?.role ?? 'agency'
   const roleLabel = isSuperAdmin ? 'ทุกหน่วยงาน' : agencyDisplayName
 
-  const realtimeCategoryLabel = realtimeIncident
-    ? categoryLabelMap[realtimeIncident.category as EmergencyCategory] ?? realtimeIncident.category
-    : ''
-  const realtimeLocationLabel = realtimeIncident
-    ? realtimeIncident.areaName ||
-      [realtimeIncident.district, realtimeIncident.province].filter(Boolean).join(' ') ||
-      OUTSIDE_AREA_LABEL
-    : ''
-  const realtimeSeverityLabel = realtimeIncident
-    ? severityLabels[realtimeIncident.severity] ?? realtimeIncident.severity
-    : ''
-  const realtimeBannerClassName =
-    realtimeIncident?.severity === 'critical'
-      ? 'border-red-500/30 bg-red-950/95 text-red-50'
-      : realtimeIncident?.severity === 'high'
-        ? 'border-amber-500/30 bg-zinc-950/95 text-zinc-50'
-        : 'border-sky-500/30 bg-zinc-950/95 text-zinc-50'
   const sseStatusLabel =
     sseStatus === 'connected'
       ? 'connected'
@@ -565,75 +526,26 @@ export default function DashboardPage() {
     setIsIncidentDetailOpen(true)
   }
 
+  useEffect(() => {
+    function openFromEvent(event: Event) {
+      const incidentId = (event as CustomEvent<{ incidentId?: string }>).detail?.incidentId
+      if (!incidentId) return
+
+      openIncidentDetail(incidentId)
+    }
+
+    const pendingIncidentId = window.sessionStorage.getItem(PENDING_INCIDENT_DETAIL_KEY)
+    if (pendingIncidentId) {
+      window.sessionStorage.removeItem(PENDING_INCIDENT_DETAIL_KEY)
+      openIncidentDetail(pendingIncidentId)
+    }
+
+    window.addEventListener(OPEN_INCIDENT_DETAIL_EVENT, openFromEvent)
+    return () => window.removeEventListener(OPEN_INCIDENT_DETAIL_EVENT, openFromEvent)
+  }, [])
+
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      {realtimeIncident && (
-        <div className="pointer-events-none fixed top-20 right-4 z-[1250] w-[min(28rem,calc(100vw-2rem))]">
-          <div
-            className={cn(
-              'pointer-events-auto rounded-2xl border shadow-2xl backdrop-blur',
-              realtimeBannerClassName
-            )}
-          >
-            <div className="flex items-start gap-3 px-4 py-4">
-              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
-                {realtimeIncident.severity === 'critical' || realtimeIncident.severity === 'high' ? (
-                  <AlertTriangle className="h-5 w-5" />
-                ) : (
-                  <Info className="h-5 w-5" />
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold">มีเหตุแจ้งเข้าใหม่</p>
-                      <Badge variant="outline" className="border-white/15 bg-white/10 text-current">
-                        {realtimeCategoryLabel}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-sm opacity-90">{realtimeLocationLabel}</p>
-                    <p className="mt-2 text-xs opacity-75">
-                      ระดับความรุนแรง {realtimeSeverityLabel} • สถานะ {statusLabels[realtimeIncident.status] ?? realtimeIncident.status}
-                    </p>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-current hover:bg-white/10 hover:text-current"
-                    onClick={() => setRealtimeIncident(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="bg-white text-black hover:bg-zinc-100"
-                    onClick={() => {
-                      openIncidentDetail(realtimeIncident.id)
-                      setRealtimeIncident(null)
-                    }}
-                  >
-                    ดูเคส
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-white/15 bg-transparent text-current hover:bg-white/10 hover:text-current"
-                    onClick={() => setRealtimeIncident(null)}
-                  >
-                    ปิด
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <Card className="border-dashed border-primary/30 bg-background/80">
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
@@ -745,26 +657,26 @@ export default function DashboardPage() {
                 </div>
 
                 <div ref={locationBoxRef} className="relative w-full lg:max-w-[430px]">
-                  <div className="flex h-10 items-center rounded-2xl border border-border bg-background pl-3 pr-2 shadow-none transition focus-within:border-primary">
-                    <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <input
-                      value={locationQuery}
-                      onChange={event => handleLocationInputChange(event.target.value)}
-                      onFocus={() => setIsLocationMenuOpen(true)}
-                      placeholder="ค้นหาพื้นที่..."
-                      className="h-full w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
-                    />
-                    {(locationQuery.length > 0 || selectedLocation) && (
-                      <button
-                        type="button"
-                        onClick={clearLocationSelection}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                        aria-label="ล้างคำค้นหา"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={locationQuery}
+                    onChange={event => handleLocationInputChange(event.target.value)}
+                    onFocus={() => setIsLocationMenuOpen(true)}
+                    placeholder="ค้นหาพื้นที่..."
+                    className="h-10 rounded-full bg-background pl-9 pr-10"
+                  />
+                  {(locationQuery.length > 0 || selectedLocation) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={clearLocationSelection}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full"
+                      aria-label="ล้างคำค้นหา"
+                    >
+                      <X data-icon="inline-start" />
+                    </Button>
+                  )}
 
                   {isLocationMenuOpen && (
                     <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-30 overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
@@ -850,14 +762,14 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="overview" className="gap-4">
-            <TabsList className="w-full justify-start overflow-x-auto rounded-xl bg-muted/60 p-1">
-              <TabsTrigger value="overview" className="min-w-[108px]">
+            <TabsList className="w-full bg-muted">
+              <TabsTrigger value="overview" className="min-w-0 flex-1">
                 ภาพรวม
               </TabsTrigger>
-              <TabsTrigger value="trend" className="min-w-[108px]">
+              <TabsTrigger value="trend" className="min-w-0 flex-1">
                 แนวโน้ม
               </TabsTrigger>
-              <TabsTrigger value="areas" className="min-w-[108px]">
+              <TabsTrigger value="areas" className="min-w-0 flex-1">
                 พื้นที่
               </TabsTrigger>
             </TabsList>

@@ -235,6 +235,7 @@ export interface Alert {
   description?: string
   agencyId?: string
   category?: EmergencyCategory
+  incidentId?: string
   timestamp: Date
   dismissible: boolean
   actionLabel?: string

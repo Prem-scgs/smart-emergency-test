@@ -4,16 +4,16 @@ import type { EmergencyCategory } from './types'
 import { FALLBACK_REFERENCE_CATEGORIES, getCategoryDisplayLabel, type ReferenceCategory } from './reference-categories'
 
 export const emergencyCategoryLabelsTh: Record<EmergencyCategory, string> = {
-  police: '?????',
-  medical: '????????',
-  fire: '????????',
-  rescue: '??????',
-  flood: '???????',
-  'road-accident': '????????????????',
-  child: '????',
-  elderly: '??????????',
-  animal: '?????',
-  tourist: '?????????????',
+  police: 'ตำรวจ',
+  medical: 'แพทย์',
+  fire: 'ดับเพลิง',
+  rescue: 'กู้ภัย',
+  flood: 'น้ำท่วม',
+  'road-accident': 'อุบัติเหตุทางถนน',
+  child: 'เด็ก',
+  elderly: 'ผู้สูงอายุ',
+  animal: 'สัตว์',
+  tourist: 'นักท่องเที่ยว',
 }
 
 const emergencyCategoryThemeMap: Partial<Record<EmergencyCategory, { color: string; bgColor: string }>> = {
@@ -41,7 +41,7 @@ export function buildAdminCategoryCollections(categories: ReferenceCategory[] = 
 
 export const { styles: adminEmergencyCategoryStyles, options: adminEmergencyCategoryOptions, labelMap: adminEmergencyCategoryLabelMap } = buildAdminCategoryCollections()
 
-export function getEmergencyCategoryLabel(category: string | null | undefined, fallback = '??????') {
+export function getEmergencyCategoryLabel(category: string | null | undefined, fallback = 'ไม่ระบุหมวดเหตุ') {
   if (!category) return fallback
   return adminEmergencyCategoryLabelMap[category] ?? category
 }

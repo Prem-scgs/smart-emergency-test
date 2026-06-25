@@ -34,6 +34,7 @@ test("buildRealtimeIncidentArtifacts maps incident payload to notification and a
   assert.equal(alert.title, "มีเหตุเร่งด่วนใหม่");
   assert.equal(alert.description, "ระดับความรุนแรง สูง สถานะ open");
   assert.equal(alert.category, "medical");
+  assert.equal(alert.incidentId, "incident-1");
   assert.equal(alert.actionUrl, "/admin/dashboard");
 });
 

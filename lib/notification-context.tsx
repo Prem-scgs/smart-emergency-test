@@ -22,7 +22,7 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
+  const { user, isAuthenticated, isLoading } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
 
@@ -67,7 +67,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useSse({
     onNotification: addNotification,
     onAlert: addAlert,
-    enabled: !!user,
+    enabled: !isLoading && isAuthenticated && !!user,
     user,
   })
 

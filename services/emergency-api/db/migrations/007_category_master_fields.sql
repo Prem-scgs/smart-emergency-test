@@ -5,12 +5,12 @@ ALTER TABLE emergency_categories ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NUL
 UPDATE emergency_categories
 SET
   label_th = CASE id
-    WHEN 'police' THEN '?????'
-    WHEN 'medical' THEN '????????'
-    WHEN 'fire' THEN '????????'
-    WHEN 'rescue' THEN '??????'
-    WHEN 'flood' THEN '???????'
-    WHEN 'road-accident' THEN '????????????????'
+    WHEN 'police' THEN 'ตำรวจ'
+    WHEN 'medical' THEN 'แพทย์'
+    WHEN 'fire' THEN 'ดับเพลิง'
+    WHEN 'rescue' THEN 'กู้ภัย'
+    WHEN 'flood' THEN 'น้ำท่วม'
+    WHEN 'road-accident' THEN 'อุบัติเหตุทางถนน'
     ELSE COALESCE(label_th, name)
   END,
   sort_order = CASE id

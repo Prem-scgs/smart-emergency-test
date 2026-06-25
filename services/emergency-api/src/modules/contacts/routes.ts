@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { buildApiErrorPayload } from "../../api-error.js";
+import { getMockAdminScope } from "../../admin-scope.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { pool } from "../../db.js";
 
@@ -33,6 +34,17 @@ const contactQuery = z.object({
   active: z.coerce.boolean().optional(),
 });
 
+function buildContactForbiddenPayload() {
+  return buildApiErrorPayload(403, "CONTACT_FORBIDDEN", "Contact is outside your admin scope");
+}
+
+function isAgencyContactScopeMismatch(
+  scope: ReturnType<typeof getMockAdminScope>,
+  category: string | null | undefined
+) {
+  return scope?.role === "agency_admin" && category !== scope.category;
+}
+
 function rowToContact(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -57,11 +69,13 @@ function rowToContact(row: Record<string, unknown>) {
 export async function registerContactRoutes(app: FastifyInstance) {
   app.get("/api/contacts", async (request) => {
     const query = contactQuery.parse(request.query);
+    const scope = getMockAdminScope(request.headers);
     const filters: string[] = [];
     const values: Array<string | boolean> = [];
+    const effectiveCategory = scope?.role === "agency_admin" ? scope.category : query.category;
 
-    if (query.category) {
-      values.push(query.category);
+    if (effectiveCategory) {
+      values.push(effectiveCategory);
       filters.push(`category = $${values.length}`);
     }
 
@@ -128,6 +142,13 @@ export async function registerContactRoutes(app: FastifyInstance) {
 
   app.post("/api/contacts", async (request, reply) => {
     const body = contactBody.parse(request.body);
+    const scope = getMockAdminScope(request.headers);
+
+    if (isAgencyContactScopeMismatch(scope, body.category ?? null)) {
+      reply.code(403);
+      return buildContactForbiddenPayload();
+    }
+
     const hasPoint = body.latitude != null && body.longitude != null;
     const result = await pool.query(
       `
@@ -175,6 +196,27 @@ export async function registerContactRoutes(app: FastifyInstance) {
   app.put("/api/contacts/:id", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
     const body = contactBody.parse(request.body);
+    const scope = getMockAdminScope(request.headers);
+
+    if (isAgencyContactScopeMismatch(scope, body.category ?? null)) {
+      reply.code(403);
+      return buildContactForbiddenPayload();
+    }
+
+    if (scope?.role === "agency_admin") {
+      const existing = await pool.query("SELECT category FROM contacts WHERE id = $1", [id]);
+
+      if (existing.rowCount === 0) {
+        reply.code(404);
+        return buildApiErrorPayload(404, "CONTACT_NOT_FOUND", "Contact not found");
+      }
+
+      if (existing.rows[0]?.category !== scope.category) {
+        reply.code(403);
+        return buildContactForbiddenPayload();
+      }
+    }
+
     const hasPoint = body.latitude != null && body.longitude != null;
     const result = await pool.query(
       `
@@ -239,6 +281,22 @@ export async function registerContactRoutes(app: FastifyInstance) {
 
   app.delete("/api/contacts/:id", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
+    const scope = getMockAdminScope(request.headers);
+
+    if (scope?.role === "agency_admin") {
+      const existing = await pool.query("SELECT category FROM contacts WHERE id = $1", [id]);
+
+      if (existing.rowCount === 0) {
+        reply.code(404);
+        return buildApiErrorPayload(404, "CONTACT_NOT_FOUND", "Contact not found");
+      }
+
+      if (existing.rows[0]?.category !== scope.category) {
+        reply.code(403);
+        return buildContactForbiddenPayload();
+      }
+    }
+
     const result = await pool.query("DELETE FROM contacts WHERE id = $1", [id]);
 
     if (result.rowCount === 0) {

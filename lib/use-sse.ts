@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { buildAdminEventsUrl } from './admin-api'
-import { getEmergencyApiBaseUrl } from './emergency-api-url'
+import { getEmergencyApiEventsBaseUrl } from './emergency-api-url'
 import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
 interface IncidentEventPayload {
@@ -158,6 +158,7 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
     description: `ระดับความรุนแรง ${severityLabel(payload.severity)} สถานะ ${payload.status}`,
     agencyId,
     category: payload.category as Alert['category'],
+    incidentId: payload.id,
     timestamp,
     dismissible: true,
     actionLabel: 'ดูรายละเอียด',
@@ -178,7 +179,7 @@ export function useSse(options: UseSseOptions = {}) {
     }
 
     let isDisposed = false
-    const eventSource = new EventSource(buildAdminEventsUrl(getEmergencyApiBaseUrl(), user))
+    const eventSource = new EventSource(buildAdminEventsUrl(getEmergencyApiEventsBaseUrl(), user))
     eventSourceRef.current = eventSource
 
     const setDebugStatus = (status: SseDebugStatus) => {

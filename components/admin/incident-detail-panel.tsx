@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LoaderCircle, MapPin, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -112,14 +112,18 @@ export function IncidentDetailPanel({
   const [note, setNote] = useState('')
   const [targetStatus, setTargetStatus] = useState<IncidentWorkflowStatus | null>(null)
   const [isCloseWarningOpen, setIsCloseWarningOpen] = useState(false)
+  const activeIncidentIdRef = useRef<string | null>(null)
 
   const loadTracking = useCallback(async () => {
     if (!incidentId) return
 
+    const requestedIncidentId = incidentId
+    activeIncidentIdRef.current = requestedIncidentId
+
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch(`${API_BASE_URL}/api/incidents/${incidentId}/tracking`, {
+      const response = await fetch(`${API_BASE_URL}/api/incidents/${requestedIncidentId}/tracking`, {
         headers: buildAdminApiHeaders(user),
       })
 
@@ -127,16 +131,27 @@ export function IncidentDetailPanel({
         throw new Error('โหลดรายละเอียดเหตุการณ์ไม่สำเร็จ')
       }
 
-      setTracking((await response.json()) as TrackingResponse)
+      const payload = (await response.json()) as TrackingResponse
+      if (activeIncidentIdRef.current !== requestedIncidentId) return
+
+      setTracking(payload)
     } catch (loadError) {
+      if (activeIncidentIdRef.current !== requestedIncidentId) return
       setError(loadError instanceof Error ? loadError.message : 'โหลดรายละเอียดเหตุการณ์ไม่สำเร็จ')
     } finally {
-      setIsLoading(false)
+      if (activeIncidentIdRef.current === requestedIncidentId) {
+        setIsLoading(false)
+      }
     }
   }, [incidentId, user])
 
   useEffect(() => {
     if (!open || !incidentId) return
+
+    activeIncidentIdRef.current = incidentId
+    setTracking(null)
+    setError(null)
+    setIsLoading(true)
     setNote('')
     setTargetStatus(null)
     setIsCloseWarningOpen(false)
@@ -385,8 +400,12 @@ export function IncidentDetailPanel({
                       อัปเดตเป็น {getIncidentTrackingStatusMeta(targetStatus).labelTh}
                     </Button>
                   </div>
-                ) : (
+                ) : tracking.incident.status === 'closed' ? (
                   <p className="text-sm text-muted-foreground">เคสนี้ปิดเรียบร้อยแล้ว</p>
+                ) : !adminRole ? (
+                  <p className="text-sm text-muted-foreground">ไม่พบสิทธิ์ผู้ดูแลสำหรับอัปเดตสถานะ</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">ยังไม่มีสถานะถัดไปที่อัปเดตได้</p>
                 )}
               </section>
 
