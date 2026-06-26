@@ -1,23 +1,21 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-  BarChart3,
-  Download,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  Phone,
-  Users,
-  MapPin,
   AlertTriangle,
-  FileText,
-  Filter,
+  BarChart3,
+  Calendar,
+  CheckCircle,
+  Download,
+  MapPin,
+  Phone,
   RefreshCw,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -25,6 +23,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart"
 import {
   Select,
   SelectContent,
@@ -41,129 +44,140 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import {
-  Bar,
-  BarChart,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts"
+import { buildAdminApiHeaders } from "@/lib/admin-api"
+import { useAuth } from "@/lib/auth-context"
+import { getEmergencyApiBaseUrl } from "@/lib/emergency-api-url"
+import { getEmergencyCategoryLabel } from "@/lib/emergency-category-utils"
 
-// Mock data for charts
-const monthlyCallData = [
-  { month: "ม.ค.", calls: 1245, resolved: 1180, avgTime: 4.2 },
-  { month: "ก.พ.", calls: 1389, resolved: 1320, avgTime: 3.9 },
-  { month: "มี.ค.", calls: 1567, resolved: 1489, avgTime: 4.1 },
-  { month: "เม.ย.", calls: 1823, resolved: 1756, avgTime: 3.8 },
-  { month: "พ.ค.", calls: 1654, resolved: 1598, avgTime: 4.0 },
-  { month: "มิ.ย.", calls: 1432, resolved: 1378, avgTime: 4.3 },
-]
+const API_BASE_URL = getEmergencyApiBaseUrl()
 
-const categoryData = [
-  { name: "การแพทย์ฉุกเฉิน", value: 35, color: "#D32F2F" },
-  { name: "เพลิงไหม้", value: 20, color: "#ED6C02" },
-  { name: "ตำรวจ/อาชญากรรม", value: 25, color: "#1976D2" },
-  { name: "อุบัติเหตุจราจร", value: 15, color: "#7B1FA2" },
-  { name: "อื่นๆ", value: 5, color: "#757575" },
-]
+type ReportRange = "week" | "month" | "quarter" | "year"
 
-const hourlyData = [
-  { hour: "00:00", calls: 45 },
-  { hour: "02:00", calls: 32 },
-  { hour: "04:00", calls: 28 },
-  { hour: "06:00", calls: 56 },
-  { hour: "08:00", calls: 124 },
-  { hour: "10:00", calls: 156 },
-  { hour: "12:00", calls: 143 },
-  { hour: "14:00", calls: 167 },
-  { hour: "16:00", calls: 189 },
-  { hour: "18:00", calls: 213 },
-  { hour: "20:00", calls: 178 },
-  { hour: "22:00", calls: 89 },
-]
-
-const topLocations = [
-  { area: "เขตบางรัก", calls: 234, change: 12 },
-  { area: "เขตปทุมวัน", calls: 198, change: -5 },
-  { area: "เขตสาทร", calls: 187, change: 8 },
-  { area: "เขตพระนคร", calls: 165, change: 15 },
-  { area: "เขตดินแดง", calls: 143, change: -3 },
-]
-
-const operatorPerformance = [
-  {
-    name: "สมชาย ผดุงเดช",
-    calls: 156,
-    avgTime: "3:45",
-    satisfaction: 4.8,
-    resolved: 98,
-  },
-  {
-    name: "สมหญิง รักดี",
-    calls: 143,
-    avgTime: "4:12",
-    satisfaction: 4.6,
-    resolved: 95,
-  },
-  {
-    name: "วิชัย มานะ",
-    calls: 138,
-    avgTime: "3:58",
-    satisfaction: 4.7,
-    resolved: 97,
-  },
-  {
-    name: "มานี ใจดี",
-    calls: 129,
-    avgTime: "4:25",
-    satisfaction: 4.5,
-    resolved: 94,
-  },
-  {
-    name: "ประยุทธ์ เข้มแข็ง",
-    calls: 121,
-    avgTime: "4:02",
-    satisfaction: 4.4,
-    resolved: 93,
-  },
-]
+interface ReportSummary {
+  range: ReportRange
+  totals: {
+    totalIncidents: number
+    activeIncidents: number
+    closedIncidents: number
+    connectedCalls: number
+  }
+  byStatus: Array<{ status: string; count: number }>
+  byCategory: Array<{ category: string; count: number }>
+  byArea: Array<{ areaName: string; count: number }>
+  trend: Array<{ bucket: string; count: number; closedCount: number }>
+}
 
 const chartConfig = {
-  calls: { label: "สายทั้งหมด", color: "var(--chart-1)" },
-  resolved: { label: "แก้ไขแล้ว", color: "var(--chart-3)" },
+  count: { label: "เหตุทั้งหมด", color: "var(--chart-1)" },
+  closedCount: { label: "ปิดเคสแล้ว", color: "var(--chart-3)" },
+}
+
+const categoryColors = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+  "#64748b",
+]
+
+const statusLabels: Record<string, string> = {
+  open: "เปิดเคส",
+  reported: "แจ้งเหตุแล้ว",
+  acknowledged: "รับเรื่องแล้ว",
+  coordinating: "กำลังประสานงาน",
+  dispatched: "ส่งเจ้าหน้าที่แล้ว",
+  on_scene: "ถึงที่เกิดเหตุ",
+  closed: "ปิดเคส",
+}
+
+function formatNumber(value: number | undefined) {
+  return new Intl.NumberFormat("th-TH").format(value ?? 0)
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("th-TH", { maximumFractionDigits: 1 }).format(value) + "%"
+}
+
+function formatDateLabel(value: string) {
+  const date = new Date(value + "T00:00:00")
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
 }
 
 export default function ReportsPage() {
-  const [dateRange, setDateRange] = useState("month")
-  const [reportType, setReportType] = useState("overview")
+  const { user, canViewAllAgencies, getUserAgency } = useAuth()
+  const [dateRange, setDateRange] = useState<ReportRange>("month")
+  const [reportSummary, setReportSummary] = useState<ReportSummary | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState("")
+
+  const isSuperAdmin = canViewAllAgencies()
+  const agency = getUserAgency()
+  const scopeLabel = isSuperAdmin
+    ? "สิทธิ์: ทุกหน่วยงาน"
+    : "สิทธิ์: " + (agency?.nameTh ?? agency?.name ?? "หน่วยงานของฉัน")
+
+  const closedRate = useMemo(() => {
+    const total = reportSummary?.totals.totalIncidents ?? 0
+    if (total === 0) return 0
+    return ((reportSummary?.totals.closedIncidents ?? 0) / total) * 100
+  }, [reportSummary])
+
+  const trendData = useMemo(() => {
+    return (reportSummary?.trend ?? []).map(item => ({
+      ...item,
+      label: formatDateLabel(item.bucket),
+    }))
+  }, [reportSummary])
+
+  const categoryData = useMemo(() => {
+    return (reportSummary?.byCategory ?? []).map((item, index) => ({
+      ...item,
+      name: getEmergencyCategoryLabel(item.category, item.category),
+      color: categoryColors[index % categoryColors.length],
+    }))
+  }, [reportSummary])
+
+  const loadReports = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setErrorMessage("")
+      const response = await fetch(
+        API_BASE_URL + "/api/reports/summary?range=" + dateRange,
+        { headers: buildAdminApiHeaders(user) }
+      )
+      if (!response.ok) throw new Error("โหลดรายงานไม่สำเร็จ")
+      const data = (await response.json()) as ReportSummary
+      setReportSummary(data)
+    } catch {
+      setErrorMessage("ไม่สามารถโหลดรายงานจากฐานข้อมูลได้")
+      setReportSummary(null)
+      toast.error("โหลดรายงานไม่สำเร็จ")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [dateRange, user])
+
+  useEffect(() => {
+    void loadReports()
+  }, [loadReports])
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            รายงานและสถิติ
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">รายงานและสถิติ</h1>
           <p className="text-muted-foreground">
-            วิเคราะห์ข้อมูลและประสิทธิภาพการทำงานของระบบ
+            รายงานจากฐานข้อมูลจริง แสดงข้อมูลตามสิทธิ์ของ role ปัจจุบัน
           </p>
         </div>
-        <div className="flex gap-2">
-          <Select value={dateRange} onValueChange={value => setDateRange(value ?? 'month')}>
-            <SelectTrigger className="w-[150px]">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="min-h-10 px-3">
+            {scopeLabel}
+          </Badge>
+          <Select value={dateRange} onValueChange={value => setDateRange((value ?? "month") as ReportRange)}>
+            <SelectTrigger className="w-[170px]">
               <Calendar className="mr-2 h-4 w-4" />
               <SelectValue />
             </SelectTrigger>
@@ -174,109 +188,100 @@ export default function ReportsPage() {
               <SelectItem value="year">1 ปีที่ผ่านมา</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon">
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="outline" size="icon" onClick={() => void loadReports()} disabled={isLoading}>
+            <RefreshCw className={isLoading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
           </Button>
-          <Button>
+          <Button disabled title="ยังไม่เปิดใช้ export ในรอบนี้">
             <Download className="mr-2 h-4 w-4" />
             ส่งออกรายงาน
           </Button>
         </div>
       </div>
 
-      {/* KPI Summary */}
+      {errorMessage && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="flex items-center gap-3 py-4 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            {errorMessage}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">สายทั้งหมด</CardTitle>
+            <CardTitle className="text-sm font-medium">เหตุทั้งหมด</CardTitle>
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">9,110</div>
-            <div className="flex items-center gap-1 text-sm">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-success">+12.5%</span>
-              <span className="text-muted-foreground">จากเดือนที่แล้ว</span>
+            <div className="text-2xl font-bold">
+              {isLoading ? "..." : formatNumber(reportSummary?.totals.totalIncidents)}
             </div>
+            <p className="mt-1 text-sm text-muted-foreground">ตามช่วงเวลาที่เลือก</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">เวลาตอบสนองเฉลี่ย</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">4.1 นาที</div>
-            <div className="flex items-center gap-1 text-sm">
-              <TrendingDown className="h-4 w-4 text-success" />
-              <span className="text-success">-8.2%</span>
-              <span className="text-muted-foreground">ดีขึ้น</span>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">อัตราการแก้ไข</CardTitle>
+            <CardTitle className="text-sm font-medium">เหตุที่ยังเปิดอยู่</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">95.8%</div>
-            <div className="flex items-center gap-1 text-sm">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-success">+2.1%</span>
-              <span className="text-muted-foreground">จากเดือนที่แล้ว</span>
+            <div className="text-2xl font-bold">
+              {isLoading ? "..." : formatNumber(reportSummary?.totals.activeIncidents)}
             </div>
+            <p className="mt-1 text-sm text-muted-foreground">ทุกสถานะที่ยังไม่ปิดเคส</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">ผู้ใช้งานใหม่</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">อัตราปิดเคส</CardTitle>
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,234</div>
-            <div className="flex items-center gap-1 text-sm">
-              <TrendingUp className="h-4 w-4 text-success" />
-              <span className="text-success">+18.3%</span>
-              <span className="text-muted-foreground">จากเดือนที่แล้ว</span>
+            <div className="text-2xl font-bold">{isLoading ? "..." : formatPercent(closedRate)}</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatNumber(reportSummary?.totals.closedIncidents)} รายการปิดแล้ว
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">สายที่ติดต่อสำเร็จ</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? "..." : formatNumber(reportSummary?.totals.connectedCalls)}
             </div>
+            <p className="mt-1 text-sm text-muted-foreground">นับจาก call status connected</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Report Tabs */}
       <Tabs defaultValue="calls" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="calls">สถิติการโทร</TabsTrigger>
-          <TabsTrigger value="categories">ประเภทเหตุการณ์</TabsTrigger>
+          <TabsTrigger value="calls">สถิติการแจ้งเหตุ</TabsTrigger>
+          <TabsTrigger value="categories">หมวดเหตุ</TabsTrigger>
           <TabsTrigger value="locations">พื้นที่</TabsTrigger>
-          <TabsTrigger value="operators">ผู้ปฏิบัติงาน</TabsTrigger>
         </TabsList>
 
-        {/* Call Statistics */}
         <TabsContent value="calls" className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>แนวโน้มการโทรรายเดือน</CardTitle>
-                <CardDescription>
-                  เปรียบเทียบสายทั้งหมดและสายที่แก้ไขได้
-                </CardDescription>
+                <CardTitle>แนวโน้มการแจ้งเหตุ</CardTitle>
+                <CardDescription>จำนวนเหตุทั้งหมดและเคสที่ปิดแล้วรายวัน</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyCallData}>
+                    <BarChart data={trendData}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
+                      <XAxis dataKey="label" />
+                      <YAxis allowDecimals={false} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="calls" fill="var(--chart-1)" name="สายทั้งหมด" />
-                      <Bar
-                        dataKey="resolved"
-                        fill="var(--chart-3)"
-                        name="แก้ไขแล้ว"
-                      />
+                      <Bar dataKey="count" fill="var(--chart-1)" name="เหตุทั้งหมด" />
+                      <Bar dataKey="closedCount" fill="var(--chart-3)" name="ปิดเคสแล้ว" />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -285,39 +290,35 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>ปริมาณการโทรตามช่วงเวลา</CardTitle>
-                <CardDescription>แสดงช่วงเวลาที่มีการโทรเข้ามากที่สุด</CardDescription>
+                <CardTitle>สถานะปัจจุบัน</CardTitle>
+                <CardDescription>จำนวนเหตุแยกตามสถานะล่าสุด</CardDescription>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={hourlyData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="hour" />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line
-                        type="monotone"
-                        dataKey="calls"
-                        stroke="var(--chart-1)"
-                        strokeWidth={2}
-                        dot={{ fill: "var(--chart-1)" }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </ChartContainer>
+                <div className="space-y-3">
+                  {(reportSummary?.byStatus ?? []).map(item => (
+                    <div key={item.status} className="flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <div className="font-medium">{statusLabels[item.status] ?? item.status}</div>
+                        <div className="text-sm text-muted-foreground">{item.status}</div>
+                      </div>
+                      <Badge variant="secondary">{formatNumber(item.count)}</Badge>
+                    </div>
+                  ))}
+                  {!isLoading && (reportSummary?.byStatus.length ?? 0) === 0 && (
+                    <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูลในช่วงเวลานี้</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* Category Statistics */}
         <TabsContent value="categories" className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>สัดส่วนประเภทเหตุการณ์</CardTitle>
-                <CardDescription>แบ่งตามประเภทของเหตุฉุกเฉิน</CardDescription>
+                <CardTitle>สัดส่วนหมวดเหตุ</CardTitle>
+                <CardDescription>แบ่งตามหมวดเหตุจาก incident category</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
@@ -330,11 +331,11 @@ export default function ReportsPage() {
                         innerRadius={60}
                         outerRadius={100}
                         paddingAngle={2}
-                        dataKey="value"
-                        label={({ name, value }) => `${name} ${value}%`}
+                        dataKey="count"
+                        nameKey="name"
                       >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        {categoryData.map(item => (
+                          <Cell key={item.category} fill={item.color} />
                         ))}
                       </Pie>
                       <ChartTooltip content={<ChartTooltipContent />} />
@@ -346,43 +347,43 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>รายละเอียดตามประเภท</CardTitle>
-                <CardDescription>สถิติโดยละเอียดของแต่ละประเภท</CardDescription>
+                <CardTitle>รายละเอียดหมวดเหตุ</CardTitle>
+                <CardDescription>เรียงตามจำนวนเหตุสูงสุด</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {categoryData.map((cat) => (
-                    <div key={cat.name} className="flex items-center gap-4">
-                      <div
-                        className="h-3 w-3 rounded-full"
-                        style={{ backgroundColor: cat.color }}
-                      />
+                  {categoryData.map(item => (
+                    <div key={item.category} className="flex items-center gap-4">
+                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{cat.name}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {cat.value}%
-                          </span>
+                          <span className="text-sm font-medium">{item.name}</span>
+                          <span className="text-sm text-muted-foreground">{formatNumber(item.count)}</span>
                         </div>
                         <div className="mt-1 h-2 w-full rounded-full bg-muted">
                           <div
                             className="h-2 rounded-full"
                             style={{
-                              width: `${cat.value}%`,
-                              backgroundColor: cat.color,
+                              width:
+                                (reportSummary?.totals.totalIncidents ?? 0) > 0
+                                  ? Math.max(4, (item.count / (reportSummary?.totals.totalIncidents ?? 1)) * 100) + "%"
+                                  : "0%",
+                              backgroundColor: item.color,
                             }}
                           />
                         </div>
                       </div>
                     </div>
                   ))}
+                  {!isLoading && categoryData.length === 0 && (
+                    <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูลหมวดเหตุในช่วงเวลานี้</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
         </TabsContent>
 
-        {/* Location Statistics */}
         <TabsContent value="locations" className="space-y-4">
           <Card>
             <CardHeader>
@@ -390,7 +391,7 @@ export default function ReportsPage() {
                 <MapPin className="h-5 w-5" />
                 พื้นที่ที่มีเหตุการณ์มากที่สุด
               </CardTitle>
-              <CardDescription>จัดอันดับตามจำนวนการแจ้งเหตุ</CardDescription>
+              <CardDescription>จัดอันดับจาก province/district ที่บันทึกใน incidents</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -398,77 +399,26 @@ export default function ReportsPage() {
                   <TableRow>
                     <TableHead>อันดับ</TableHead>
                     <TableHead>พื้นที่</TableHead>
-                    <TableHead className="text-right">จำนวนสาย</TableHead>
-                    <TableHead className="text-right">เทียบเดือนก่อน</TableHead>
+                    <TableHead className="text-right">จำนวนเหตุ</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {topLocations.map((loc, index) => (
-                    <TableRow key={loc.area}>
+                  {(reportSummary?.byArea ?? []).map((area, index) => (
+                    <TableRow key={area.areaName}>
                       <TableCell>
                         <Badge variant="outline">{index + 1}</Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{loc.area}</TableCell>
-                      <TableCell className="text-right">{loc.calls}</TableCell>
-                      <TableCell className="text-right">
-                        <div
-                          className={`flex items-center justify-end gap-1 ${
-                            loc.change > 0 ? "text-destructive" : "text-success"
-                          }`}
-                        >
-                          {loc.change > 0 ? (
-                            <TrendingUp className="h-4 w-4" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4" />
-                          )}
-                          {Math.abs(loc.change)}%
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium">{area.areaName}</TableCell>
+                      <TableCell className="text-right">{formatNumber(area.count)}</TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Operator Performance */}
-        <TabsContent value="operators" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                ประสิทธิภาพผู้ปฏิบัติงาน
-              </CardTitle>
-              <CardDescription>
-                วัดผลประสิทธิภาพของเจ้าหน้าที่รับสาย
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ชื่อ</TableHead>
-                    <TableHead className="text-right">จำนวนสาย</TableHead>
-                    <TableHead className="text-right">เวลาเฉลี่ย</TableHead>
-                    <TableHead className="text-right">ความพึงพอใจ</TableHead>
-                    <TableHead className="text-right">อัตราแก้ไข</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {operatorPerformance.map((op) => (
-                    <TableRow key={op.name}>
-                      <TableCell className="font-medium">{op.name}</TableCell>
-                      <TableCell className="text-right">{op.calls}</TableCell>
-                      <TableCell className="text-right">{op.avgTime}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge className="bg-success text-success-foreground">
-                          {op.satisfaction}/5
-                        </Badge>
+                  {!isLoading && (reportSummary?.byArea.length ?? 0) === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center text-muted-foreground">
+                        ยังไม่มีข้อมูลพื้นที่ในช่วงเวลานี้
                       </TableCell>
-                      <TableCell className="text-right">{op.resolved}%</TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

@@ -1516,3 +1516,85 @@ test("PUT /api/incidents/:id/call updates incident even when agency contact is m
     (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
   }
 });
+
+
+test("GET /api/reports/summary returns DB-backed report summary for super admin", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+
+  await registerIncidentRoutes(app as any);
+  const handler = app.getHandlers.get("/api/reports/summary");
+  assert.ok(handler);
+
+  (pool.query as any) = async (sql: string, values: unknown[] = []) => {
+    calls.push({ sql, values });
+    if (sql.includes("COUNT(*)::int AS total_incidents")) {
+      return { rowCount: 1, rows: [{ total_incidents: 3, active_incidents: 2, closed_incidents: 1, connected_calls: 2 }] };
+    }
+    if (sql.includes("GROUP BY i.status")) {
+      return { rowCount: 1, rows: [{ status: "reported", count: 2 }] };
+    }
+    if (sql.includes("GROUP BY i.category")) {
+      return { rowCount: 1, rows: [{ category: "medical", count: 3 }] };
+    }
+    if (sql.includes("area_name")) {
+      return { rowCount: 1, rows: [{ area_name: "Mueang Phitsanulok Phitsanulok", count: 3 }] };
+    }
+    return { rowCount: 1, rows: [{ bucket: "2026-06-27", count: 3, closed_count: 1 }] };
+  };
+
+  try {
+    const result = await handler?.(
+      {
+        headers: { "x-admin-role": "super_admin" },
+        query: { range: "month" },
+      }
+    ) as any;
+
+    assert.equal(result.range, "month");
+    assert.deepEqual(result.totals, {
+      totalIncidents: 3,
+      activeIncidents: 2,
+      closedIncidents: 1,
+      connectedCalls: 2,
+    });
+    assert.deepEqual(result.byCategory, [{ category: "medical", count: 3 }]);
+    assert.equal(calls.length, 5);
+    assert.equal(calls[0]?.values[0], "30 days");
+  } finally {
+    (pool.query as any) = originalQuery;
+  }
+});
+
+test("GET /api/reports/summary scopes agency admin reports to their category", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+
+  await registerIncidentRoutes(app as any);
+  const handler = app.getHandlers.get("/api/reports/summary");
+  assert.ok(handler);
+
+  (pool.query as any) = async (sql: string, values: unknown[] = []) => {
+    calls.push({ sql, values });
+    if (sql.includes("COUNT(*)::int AS total_incidents")) {
+      return { rowCount: 1, rows: [{ total_incidents: 1, active_incidents: 1, closed_incidents: 0, connected_calls: 1 }] };
+    }
+    return { rowCount: 0, rows: [] };
+  };
+
+  try {
+    await handler?.(
+      {
+        headers: { "x-admin-role": "agency_admin", "x-admin-category": "medical" },
+        query: { range: "week" },
+      }
+    );
+
+    assert.match(calls[0]?.sql ?? "", /i\.category = \$2/);
+    assert.deepEqual(calls[0]?.values, ["7 days", "medical"]);
+  } finally {
+    (pool.query as any) = originalQuery;
+  }
+});

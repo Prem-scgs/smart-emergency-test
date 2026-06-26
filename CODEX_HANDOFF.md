@@ -1,121 +1,107 @@
 # Codex Handoff
 
-อัปเดตล่าสุด: 2026-06-24
+อัปเดตล่าสุด: 2026-06-27
 
 ## Project State
 
 - Repository: `https://github.com/SCGS7788/smart-emergency.git`
 - Workspace: `D:\testwork_Fullstack(SCSG)\smart-emergency`
 - Branch: `Prem(scgs)-emergencyV0` (ห้ามแตะ `main`)
-- Latest commit: `1f64c27 feat: ตัดหน้าแชร์ location มารวมไว้ใน หน้าติดตามสถานะ`
-- Working tree: ยังมีไฟล์แก้ไข/ไฟล์ใหม่หลายชุดที่ยังไม่ commit รวมถึง Docker local stack, Admin SSE/Alert, Dashboard, Share Location, Contacts role scope
-- ห้าม commit, push, reset, checkout, switch account หรือแก้ production state จนกว่าเปรมยืนยัน
+- Latest commit before this publish: `e840577 feat: ปรับระบบแอดมิน contacts และ Docker local stack`
+- Working tree before commit:
 
-## Current Objective
-
-เตรียมระบบให้เป็น checkpoint ที่ปลอดภัย: Contacts page/API พร้อมใช้ตาม role แล้ว ขั้นถัดไปควรตรวจ changed files แยก scope ก่อน commit/push หรือเลือกทำงานค้างถัดไปทีละเรื่อง
+```text
+M CODEX_HANDOFF.md
+ M app/admin/(dashboard)/reports/page.tsx
+ M app/admin/(dashboard)/settings/page.tsx
+ M services/emergency-api/src/modules/incidents/routes.test.ts
+ M services/emergency-api/src/modules/incidents/routes.ts
+?? lib/reports-page-wiring.test.mjs
+?? lib/settings-page-wiring.test.mjs
+```
 
 ## Completed Recently
 
-- Admin realtime ใช้ SSE ทางเดียว; ลบ legacy `use-websocket`, เปลี่ยน type/comment/doc ให้ชัดว่าเป็น SSE
-- Admin alert/detail flow:
-  - เก็บ popup แบบใหม่ไว้ตัวเดียว
-  - ปุ่ม “ดูรายละเอียด” เปิด `IncidentDetailPanel`
-  - แก้การสลับเคสแล้วรายละเอียดไม่ครบ/อัปเดตสถานะไม่ได้
-  - Notification drawer เปิดรายละเอียดเคสได้
-- Dashboard:
-  - แก้ runtime `Input is not defined`
-  - เปลี่ยนช่องค้นหาพื้นที่และ tabs ให้ใช้ shadcn style
-- Mobile/API/Share Location:
-  - Mobile ใช้ API จริงผ่าน `/emergency-api`
-  - Incident Tracking มีการ์ด Share Location: LINE/SMS/WhatsApp, copy fallback, snapshot location จาก incident
-  - LINE desktop เปิด OA และให้คัดลอกข้อความเอง; mobile deep link ยังคงเป็น user-send flow
-  - mkcert และ Cloudflare Tunnel ถูกลบออกแล้ว
-- Docker local full stack:
-  - เพิ่ม `Dockerfile.web`, `Dockerfile.api`, `docker-compose.local.yml`
-  - ใช้ `docker compose -f docker-compose.yml -f docker-compose.local.yml ...`
-  - เครื่อง Windows ของเปรมไม่มี `make` เป็นค่าเริ่มต้น ให้ใช้ docker compose command ตรง ๆ
-- Contacts page/API เสร็จล่าสุด:
-  - `/admin/contacts` เปลี่ยน UI เป็นภาษาไทย
-  - ส่ง `buildAdminApiHeaders(user)` กับ `GET/POST/PUT/DELETE /api/contacts`
-  - `super_admin` จัดการได้ทุกหน่วยงาน
-  - `agency_admin` จัดการได้เฉพาะ category/หน่วยงานตัวเอง
-  - ฟอร์มของ `agency_admin` lock category เป็นหน่วยงานตัวเอง
-  - Backend enforce scope จริงและตอบ `403 CONTACT_FORBIDDEN` เมื่อข้ามสิทธิ์
-  - `agency_admin` permissions ใน mock auth เพิ่ม `contacts.create/edit/delete` แล้ว แต่ backend ยังเป็นตัวล็อก scope หลัก
+- ปรับหน้า Settings โดยคงโครงเดิม แต่ตัด mock/setting หลอกออก
+- Settings ใช้ preference จริงสำหรับเสียง Alert, เลือกเสียง, ทดสอบเสียง, โหมดมืด, ลดแอนิเมชัน และภาษา
+- Settings แยก role:
+  - `agency_admin` เห็นเฉพาะการตั้งค่าส่วนตัว
+  - `super_admin` เห็นช่องทางศูนย์และสถานะระบบด้วย
+- Settings ดึงสถานะ LINE/SMS/WhatsApp จาก `/api/reference/share-channels`
+- Settings ดึง API/DB health จาก `/health` และรับ SSE status จาก event หลัก ไม่เปิด SSE ซ้ำ
+- ทำ Reports จาก DB จริงแล้ว
+- เพิ่ม `GET /api/reports/summary`
+  - ดึงจาก `incidents`
+  - รองรับ `week | month | quarter | year`
+  - เคารพ role scope: `super_admin` เห็นทั้งหมด, `agency_admin` เห็นเฉพาะ category ตัวเอง
+- หน้า Reports ตัด mock data และแท็บผู้ปฏิบัติงานออก
+- หน้า Reports แสดง KPI, trend, หมวดเหตุ และพื้นที่จาก API จริง
+- Rebuild Docker images `api` และ `web` แล้ว และ recreate containers แล้ว
 
-## Verification Evidence
+## Verification ล่าสุด
 
-- `node --import tsx --test src/modules/contacts/routes.test.ts` ผ่าน 5/5
-- `pnpm test:api` ผ่าน 72/72
-- `pnpm build` ผ่าน
-- `pnpm build:api` ผ่าน
-- Docker build `api web` ผ่าน และ restart containers แล้ว
-- Health/API checks:
-  - `GET http://localhost:4000/health` ได้ `ok: true`
-  - `GET http://localhost:3000/admin/contacts` ได้ 200
-  - `GET http://localhost:4000/api/contacts` พร้อม `x-admin-role: agency_admin`, `x-admin-category: medical` ได้ 200
+```powershell
+rtk proxy node --test lib/reports-page-wiring.test.mjs lib/settings-page-wiring.test.mjs
+rtk proxy pnpm --filter emergency-api test
+rtk proxy pnpm build:api
+rtk proxy pnpm build
+rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml build api web
+rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d api web
+```
+
+ผลที่ได้:
+- Frontend wiring tests ผ่าน 5/5
+- API tests ผ่าน 74/74
+- API build ผ่าน
+- Next build ผ่าน
+- Docker API/Web rebuild และ recreate แล้ว
+- `GET http://localhost:4000/api/reports/summary?range=month` ตอบ `200` พร้อมข้อมูลจริงจาก DB
+- `GET http://localhost:3000/admin/reports` ตอบ `200`
+
+## Changed Files In Current Publish
+
+- `app/admin/(dashboard)/settings/page.tsx`
+- `app/admin/(dashboard)/reports/page.tsx`
+- `services/emergency-api/src/modules/incidents/routes.ts`
+- `services/emergency-api/src/modules/incidents/routes.test.ts`
+- `lib/settings-page-wiring.test.mjs`
+- `lib/reports-page-wiring.test.mjs`
+- `CODEX_HANDOFF.md`
 
 ## Exact Next Task
 
-1. ถ้าจะขึ้น Git: ตรวจ changed-file list และแยก commit scope ก่อนเสมอ
-   - ห้าม stage `.env`, logs, certs, local secrets หรือไฟล์ obsolete โดยไม่ถามเปรม
-   - เสนอ commit text เป็นภาษาไทยให้เปรมเลือกก่อน
-2. ถ้าจะทำฟีเจอร์ต่อ:
-   - ตรวจ UI หน้า `/admin/contacts` สดใน browser ว่าหน้าตา/role flow ถูกใจเปรมหรือไม่
-   - ทดสอบ role `super_admin` และ `agency_admin` ผ่านหน้า login mock
-   - เลือกงานถัดไปจาก Pending Work ด้านล่าง
+แนะนำทำหน้า GIS ต่อแบบไม่รื้อใหญ่:
+
+1. ตรวจหน้า `app/admin/(dashboard)/gis/page.tsx` ว่ายังมี mock/ส่วนวาด polygon ที่ควรตัดออกหรือไม่
+2. คงเป้าหมาย GIS เป็น “ดูพื้นที่และขอบเขตจากข้อมูลจริง” ไม่ใช่ “วาดแก้ polygon”
+3. ดึงข้อมูลพื้นที่/จังหวัด/อำเภอจาก reference/areas ที่มีอยู่
+4. เคารพ role scope เหมือน Dashboard/Reports
+5. เพิ่ม loading/error/empty state
+6. ทำ regression tests ก่อนแก้
 
 ## Pending Work
 
-- ทดสอบ provider จริงบน mobile HTTPS: LINE, SMS, WhatsApp
-- `POST /api/incidents/:id/locations` สำหรับ location update ถ้าจะทำ tracking location เพิ่ม
-- Dashboard queue grouping/unread
-- Production deploy decision: Docker Compose บน VPS + Caddy/HTTPS ยังไม่เริ่ม
-- Auth จริงเป็นงานทีมเปรม; รักษา integration boundary
-- ตัดสินใจ legacy `components/mobile/location-sharing-screen.tsx` และ helper/tests เก่าก่อนลบ
-- FSD/feature-sliced structure migration เป็นงานแยก ควรรอหลัง checkpoint Git หรือหลัง Docker เสถียร
-
-## Relevant Files
-
-- Contacts UI: `app/admin/(dashboard)/contacts/page.tsx`
-- Contacts API/tests: `services/emergency-api/src/modules/contacts/routes.ts`, `services/emergency-api/src/modules/contacts/routes.test.ts`
-- Mock role permissions: `lib/types.ts`
-- Admin API scope helper: `lib/admin-api.ts`
-- Dashboard UI: `app/admin/(dashboard)/dashboard/page.tsx`
-- Alert/detail: `components/admin/alert-display.tsx`, `components/admin/incident-detail-panel.tsx`, `components/admin/notification-center.tsx`
-- Share card: `components/mobile/incident-location-share-card.tsx`
-- Share API/helper/tests: `services/emergency-api/src/location-share.ts`, `services/emergency-api/src/location-share.test.ts`, `services/emergency-api/src/modules/incidents/routes.ts`
-- Docker local: `Dockerfile.web`, `Dockerfile.api`, `docker-compose.local.yml`
-
-## Commands
-
-```powershell
-rtk proxy git status --short --branch
-rtk proxy git log -1 --oneline
-rtk proxy pnpm test:api
-rtk proxy pnpm build
-rtk proxy pnpm build:api
-rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml build api web
-rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d api web
-rtk proxy powershell -NoProfile -Command "(Invoke-WebRequest -UseBasicParsing 'http://localhost:3000/admin/contacts').StatusCode"
-```
+- Reports export ยัง disabled อยู่
+- Settings organization/timezone ยังไม่ได้ผูก DB เพราะต้องออกแบบ migration/API เพิ่ม
+- Auto dispatch และ escalation ยังเป็น read-only note ยังไม่เปิดใช้จริง
+- GIS ยังต้องปรับต่อ
+- Production HTTPS/iPhone GPS ยังต้องทำในรอบ deploy/demo ถัดไป
+- FSD/feature-sliced structure migration รอหลัง flow หลักนิ่ง
 
 ## Safety Rules
 
 - เรียกผู้ใช้ว่า “เปรม” และถามเป็นภาษาไทย
 - อ่าน/เขียนไทยด้วย UTF-8
-- อ่าน `C:\Users\User\.codex\RTK.md`; prefix shell commands ด้วย `rtk`
-- Repo จริงอยู่ที่ `D:\testwork_Fullstack(SCSG)\smart-emergency`; บาง session cwd อาจเป็น `C:\Users\User\Documents\smart-emergency`
+- prefix shell commands ด้วย `rtk`
 - ห้ามแตะ `main`
-- ห้าม commit/push จนกว่าเปรมยืนยัน
-- อย่าลบ/ย้ายไฟล์ที่ไม่อยู่ใน scope หรือ commit งานปนกัน
-- ไม่เปิดเผย `.env`, token, phone, session ID หรือพิกัดผู้ใช้
+- ห้าม reset/checkout/revert งานผู้ใช้โดยไม่ขอ
 - Realtime ใช้ SSE เท่านั้น ห้ามเพิ่ม WebSocket โดยไม่ปรึกษา
+- ห้ามเปิดเผย `.env`, token, phone จริง, session ID หรือพิกัดผู้ใช้
+- ก่อน commit/push ต้องเช็คไฟล์ที่จะขึ้น git ทุกครั้ง
 
 ## Suggested Skills
 
-- `$token-lean-workflow` สำหรับทำงานต่อแบบประหยัด context
-- `$brainstorming` ก่อน Docker production/FSD/ฟีเจอร์ใหม่
-- `$verification-before-completion` ก่อนรายงานผลหรือ commit
-- `$handoff` เมื่อสลับบัญชีหรือ compact context
+- `$brainstorming` ก่อนปรับ GIS/Reports/Settings เพิ่ม
+- `$test-driven-development` ก่อนแก้ behavior
+- `$verification-before-completion` ก่อนสรุปว่าเสร็จหรือก่อน commit/push
+- `$handoff` เมื่อ compact หรือสลับบัญชี
