@@ -7,73 +7,82 @@
 - Repository: `https://github.com/SCGS7788/smart-emergency.git`
 - Workspace: `D:\testwork_Fullstack(SCSG)\smart-emergency`
 - Branch: `Prem(scgs)-emergencyV0` (ห้ามแตะ `main`)
-- Latest commit before this publish: `0b0e9a5 feat: เชื่อมหน้า Settings และ Reports กับข้อมูลจริง`
-- Working tree before commit:
-
-```text
- M app/admin/(dashboard)/contacts/page.tsx
- M app/admin/(dashboard)/gis/page.tsx
-?? lib/contacts-location-select-wiring.test.mjs
-?? lib/gis-page-wiring.test.mjs
-```
+- Latest commit before this publish: `80d9eb9 feat: ปรับหน้า GIS และแก้ select แสดงชื่อไทย`
+- Current focus: หน้า Reports export จากข้อมูล DB จริง
 
 ## Completed Recently
 
-- ปรับหน้า GIS เป็น read-only GIS viewer จาก DB จริง ไม่ใช่หน้าแก้หรือวาด polygon
-- หน้า GIS ใช้ `/api/areas`, `/api/areas/:id/contacts`, `/api/areas/:id/incidents`
-- ปรับข้อความหน้า GIS เป็นไทย และลดคำที่ทำให้เข้าใจว่าเป็นหน้าจัดการ polygon
-- แก้ select จังหวัดในหน้า GIS ให้แสดงชื่อจังหวัดภาษาไทยแทน `provinceCode` เช่น `บึงกาฬ` แทน `38`
-- แก้ layout การ์ด “พื้นที่บริการ” ใน GIS ไม่ให้ stretch สูงเท่าคอลัมน์ขวาแล้วเหลือช่องว่างดำด้านล่าง
-- เพิ่ม list scroll ใน GIS จาก `420px` เป็น `520px`
-- แก้ select จังหวัด/อำเภอในหน้า Contacts ให้แสดงชื่อไทยแทน code ด้วยวิธี render label ใน trigger โดยตรง
-- เพิ่ม regression tests:
-  - `lib/gis-page-wiring.test.mjs`
-  - `lib/contacts-location-select-wiring.test.mjs`
-- Rebuild และ recreate Docker `web` หลังแก้ UI แล้ว
+- ปรับหน้า Reports ให้ export ได้จริงจากข้อมูล `/api/reports/summary`
+- เพิ่มเมนู `ส่งออก` แบบ shadcn dropdown:
+  - `ส่งออก CSV`
+  - `ส่งออก PDF`
+- CSV export:
+  - ใช้ข้อมูล report summary ปัจจุบัน
+  - ใส่ UTF-8 BOM เพื่อให้ Excel เปิดภาษาไทยได้ดีขึ้น
+- PDF export:
+  - เพิ่ม dependency `html2canvas` และ `jspdf`
+  - ไม่ capture หน้า admin shell โดยตรง เพราะเสี่ยง CSS/chart ทำให้ export พัง
+  - สร้าง PDF snapshot แบบ inline style สีพื้นฐานก่อน capture
+  - แก้ pagination ไม่ให้ตัดกลางตาราง โดยแบ่ง PDF เป็นหลายหน้า:
+    - หน้า 1: สรุป + แนวโน้ม
+    - หน้า 2: สถานะ + หมวดเหตุ
+    - หน้าถัดไป: พื้นที่ แบ่งแถวเป็น chunk
+- เพิ่ม error logging สำหรับ PDF export:
+  - `console.error("Report PDF export failed", error)`
+- เพิ่ม/ปรับ regression tests ใน `lib/reports-page-wiring.test.mjs`
+- ตั้ง `pnpm-workspace.yaml` ให้ `core-js: false` ใน `allowBuilds` เพื่อลด warning จาก pnpm หลังเพิ่ม dependency
+- Rebuild และ recreate Docker `web` แล้ว
 
 ## Verification ล่าสุด
 
 ```powershell
-rtk proxy node --test lib/gis-page-wiring.test.mjs
-rtk proxy node --test lib/contacts-location-select-wiring.test.mjs lib/reports-page-wiring.test.mjs lib/settings-page-wiring.test.mjs
+rtk proxy node --test lib/reports-page-wiring.test.mjs
+rtk proxy node --test lib/reports-page-wiring.test.mjs lib/settings-page-wiring.test.mjs lib/gis-page-wiring.test.mjs lib/contacts-location-select-wiring.test.mjs
 rtk proxy pnpm build
 rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml build web
 rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d web
+rtk proxy powershell -NoProfile -Command "(Invoke-WebRequest -UseBasicParsing http://localhost:3000/admin/reports).StatusCode"
 ```
 
 ผลที่ได้:
-- GIS wiring tests ผ่าน 4/4
-- Contacts/Reports/Settings wiring tests ผ่าน 6/6
+- Reports wiring tests ผ่าน 7/7
+- Wiring tests รวมผ่าน 15/15
 - Next build ผ่าน
-- Docker `web` rebuild และ recreate แล้ว
+- Docker `web` rebuild/recreate แล้ว
+- `/admin/reports` ตอบ `200`
 
 ## Changed Files In Current Publish
 
-- `app/admin/(dashboard)/gis/page.tsx`
-- `app/admin/(dashboard)/contacts/page.tsx`
-- `lib/gis-page-wiring.test.mjs`
-- `lib/contacts-location-select-wiring.test.mjs`
+- `app/admin/(dashboard)/reports/page.tsx`
+- `lib/reports-page-wiring.test.mjs`
+- `package.json`
+- `pnpm-lock.yaml`
+- `pnpm-workspace.yaml`
 - `CODEX_HANDOFF.md`
 
 ## Exact Next Task
 
-แนะนำทำหน้า Reports/GIS polish ต่อแบบเล็กและปลอดภัย:
+หลัง publish รอบนี้ แนะนำให้เปรมเปิดหน้า `http://localhost:3000/admin/reports` แล้วตรวจแบบ manual:
 
-1. เปิดดูหน้า `admin/gis` จริงหลัง Docker rebuild แล้วเช็ค visual ว่า:
-   - select จังหวัดเป็นชื่อไทย
-   - การ์ด “พื้นที่บริการ” ไม่เหลือช่องว่างดำยาว
-   - map/list/detail อ่านง่ายบนจอเล็ก
-2. ถ้า visual ผ่าน ให้เริ่มหน้า Reports ต่อ:
-   - เพิ่ม empty/error/loading state ให้ละเอียดขึ้น
-   - ออกแบบ export รายงานจริง หรือคง disabled พร้อมเหตุผลชัด
-3. ก่อนแก้ behavior เพิ่ม test ก่อนเสมอ
+1. กด `ส่งออก > ส่งออก CSV`
+   - ได้ไฟล์ `.csv`
+   - เปิดแล้วภาษาไทยอ่านได้
+2. กด `ส่งออก > ส่งออก PDF`
+   - ได้ไฟล์ `.pdf`
+   - ตารางไม่ถูกตัดกลางหน้า
+   - หน้า PDF อ่านง่ายพอสำหรับ demo
+3. ถ้า PDF ยังยาว/แน่นเกินไป ให้ปรับ layout PDF snapshot ต่อ:
+   - ลดจำนวนแถวต่อหน้า
+   - เพิ่มหัวตารางซ้ำทุกหน้า
+   - เพิ่มเลขหน้า
 
 ## Pending Work
 
-- Reports export ยัง disabled อยู่
+- Reports PDF ยังเป็น snapshot/image-based ไม่ใช่ PDF text selectable
+- ยังไม่มี export Excel จริง แค่ CSV
 - Settings organization/timezone ยังไม่ได้ผูก DB เพราะต้องออกแบบ migration/API เพิ่ม
 - Auto dispatch และ escalation ยังเป็น read-only note ยังไม่เปิดใช้จริง
-- GIS ยังเป็น read-only viewer; backend ยังมี `POST/PUT/DELETE /api/areas` legacy อยู่ แต่ UI ไม่ใช้แล้ว
+- GIS เป็น read-only viewer; backend ยังมี `POST/PUT/DELETE /api/areas` legacy อยู่ แต่ UI ไม่ใช้แล้ว
 - Production HTTPS/iPhone GPS ยังต้องทำในรอบ deploy/demo ถัดไป
 - FSD/feature-sliced structure migration รอหลัง flow หลักนิ่ง
 

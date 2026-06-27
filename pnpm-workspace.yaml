@@ -3,6 +3,7 @@ packages:
   - "services/*"
 
 allowBuilds:
+  core-js: false
   esbuild: true
   msw: true
   sharp: true
