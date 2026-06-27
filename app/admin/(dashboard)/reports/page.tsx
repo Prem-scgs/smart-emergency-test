@@ -11,6 +11,7 @@ import {
   FileText,
   MapPin,
   Phone,
+  Printer,
   RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -285,6 +286,17 @@ function buildPdfReportPages(report: ReportSummary, rangeLabel: string, scopeLab
   return pages
 }
 
+function buildPrintableReportHtml(report: ReportSummary, rangeLabel: string, scopeLabel: string) {
+  const pages = buildPdfReportPages(report, rangeLabel, scopeLabel)
+  return pages
+    .map(page => {
+      const content = page.innerHTML
+      page.remove()
+      return `<main class="report-page">${content}</main>`
+    })
+    .join("")
+}
+
 export default function ReportsPage() {
   const { user, canViewAllAgencies, getUserAgency } = useAuth()
   const [dateRange, setDateRange] = useState<ReportRange>("month")
@@ -292,6 +304,7 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState("")
   const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [printReportHtml, setPrintReportHtml] = useState("")
 
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
@@ -432,12 +445,64 @@ export default function ReportsPage() {
     }
   }, [dateRange, reportSummary, scopeLabel])
 
+  const printReport = useCallback(() => {
+    if (!reportSummary) {
+      toast.error("ไม่มีข้อมูลสำหรับส่งออก")
+      return
+    }
+
+    setPrintReportHtml(buildPrintableReportHtml(reportSummary, reportRangeLabels[dateRange], scopeLabel))
+    window.setTimeout(() => {
+      window.print()
+    }, 250)
+  }, [dateRange, reportSummary, scopeLabel])
+
   useEffect(() => {
     void loadReports()
   }, [loadReports])
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @media screen {
+              .print-only-report { display: none; }
+            }
+            @media print {
+              @page { size: A4; margin: 0; }
+              body * { visibility: hidden !important; }
+              .print-only-report, .print-only-report * {
+                visibility: visible !important;
+              }
+              .print-only-report {
+                display: block !important;
+                position: absolute;
+                inset: 0 auto auto 0;
+                width: 210mm;
+                background: #ffffff;
+                color: #111827;
+                font-family: Arial, Tahoma, sans-serif;
+              }
+              .print-only-report .report-page {
+                width: 210mm;
+                min-height: 297mm;
+                margin: 0;
+                padding: 32px;
+                background: #ffffff;
+                page-break-after: always;
+              }
+              .print-only-report .report-page:last-child {
+                page-break-after: auto;
+              }
+            }
+          `,
+        }}
+      />
+      <div
+        className="print-only-report"
+        dangerouslySetInnerHTML={{ __html: printReportHtml }}
+      />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">รายงานและสถิติ</h1>
@@ -485,6 +550,10 @@ export default function ReportsPage() {
               <DropdownMenuItem onClick={() => void exportReportPdf()}>
                 <FileText className="mr-2 h-4 w-4" />
                 ส่งออก PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={printReport}>
+                <Printer className="mr-2 h-4 w-4" />
+                พิมพ์รายงาน
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
