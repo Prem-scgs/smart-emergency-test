@@ -45,10 +45,13 @@ export function getLocationDisplayName(
   item:
     | { nameTh?: string | null; nameEn?: string | null; name: string }
     | null
-    | undefined
+    | undefined,
+  preferThai = true
 ) {
   if (!item) return ''
-  return item.nameTh ?? item.nameEn ?? item.name
+  return preferThai
+    ? item.nameTh ?? item.nameEn ?? item.name
+    : item.nameEn ?? item.nameTh ?? item.name
 }
 
 export function getLocationCanonicalName(

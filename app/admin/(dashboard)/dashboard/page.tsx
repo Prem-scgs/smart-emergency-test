@@ -33,12 +33,14 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { buildAdminApiHeaders } from '@/lib/admin-api'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAdminI18n } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { useReferenceCategories } from '@/lib/reference-categories'
 import {
   getLocationDisplayName,
+  useLocationLookupMaps,
   useReferenceLocations,
   type ReferenceDistrict,
   type ReferenceProvince,
@@ -49,8 +51,6 @@ import { cn } from '@/lib/utils'
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
 const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
-const OUTSIDE_AREA_LABEL = 'นอกพื้นที่ที่จัดการ'
-
 type DashboardIncident = IncidentMapPoint & {
   provinceCode?: string | null
   province?: string | null
@@ -148,10 +148,11 @@ function percent(part: number, total: number) {
 
 function buildLocationOptions(
   provinces: ReferenceProvince[],
-  districts: ReferenceDistrict[]
+  districts: ReferenceDistrict[],
+  preferThai: boolean
 ): MasterLocationOption[] {
   const provinceOptions = provinces.map(province => {
-    const provinceName = getLocationDisplayName(province)
+    const provinceName = getLocationDisplayName(province, preferThai)
     return {
       key: `province-${province.provinceCode ?? province.id}`,
       areaType: 'province' as const,
@@ -168,8 +169,12 @@ function buildLocationOptions(
 
   const districtOptions = districts.map(district => {
     const provinceName =
-      district.provinceNameTh ?? district.provinceNameEn ?? district.provinceCode ?? '-'
-    const districtName = getLocationDisplayName(district)
+      (preferThai
+        ? district.provinceNameTh ?? district.provinceNameEn
+        : district.provinceNameEn ?? district.provinceNameTh) ??
+      district.provinceCode ??
+      '-'
+    const districtName = getLocationDisplayName(district, preferThai)
 
     return {
       key: `district-${district.districtCode ?? district.id}-${district.provinceCode ?? 'na'}`,
@@ -197,9 +202,15 @@ function buildLocationOptions(
 
 export default function DashboardPage() {
   const { user, canViewAllAgencies, getFilteredCategories, getUserAgency } = useAuth()
+  const { language, t } = useAdminI18n()
+  const preferThai = language !== 'en'
   const { categories: referenceCategories } = useReferenceCategories()
   const { provinces, districts, isLoadingProvinces, isLoadingDistricts } = useReferenceLocations({ autoSelectFirstProvince: false })
-  const { labelMap: categoryLabelMap } = useMemo(() => buildAdminCategoryCollections(referenceCategories), [referenceCategories])
+  const { provinceByCode, districtByCode } = useLocationLookupMaps()
+  const { labelMap: categoryLabelMap } = useMemo(
+    () => buildAdminCategoryCollections(referenceCategories, preferThai),
+    [preferThai, referenceCategories]
+  )
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
   const allowedCategories = useMemo(() => getFilteredCategories(), [getFilteredCategories])
@@ -231,17 +242,17 @@ export default function DashboardPage() {
         fetch(`${API_BASE_URL}/api/contacts`, { headers }),
       ])
 
-      if (!incidentResponse.ok) throw new Error('โหลดข้อมูลเหตุการณ์ไม่สำเร็จ')
-      if (!contactResponse.ok) throw new Error('โหลดข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+      if (!incidentResponse.ok) throw new Error(t('dashboardLoadIncidentsError'))
+      if (!contactResponse.ok) throw new Error(t('dashboardLoadContactsError'))
 
       setIncidents((await incidentResponse.json()) as DashboardIncident[])
       setContacts((await contactResponse.json()) as DashboardContact[])
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'โหลดข้อมูลแดชบอร์ดไม่สำเร็จ')
+      setError(loadError instanceof Error ? loadError.message : t('dashboardLoadError'))
     } finally {
       setIsLoading(false)
     }
-  }, [user])
+  }, [t, user])
 
 
   useEffect(() => {
@@ -348,7 +359,10 @@ export default function DashboardPage() {
     }
   }, [agencyFilters, categoryFilter])
 
-  const locationOptions = useMemo(() => buildLocationOptions(provinces, districts), [districts, provinces])
+  const locationOptions = useMemo(
+    () => buildLocationOptions(provinces, districts, preferThai),
+    [districts, preferThai, provinces]
+  )
   const isLocationLoading = isLoadingProvinces || isLoadingDistricts
 
   const normalizedLocationQuery = normalizeText(locationQuery)
@@ -402,14 +416,38 @@ export default function DashboardPage() {
     })
   }, [categoryFilter, normalizedLocationQuery, roleIncidents, selectedLocation])
 
-  const openIncidents = visibleIncidents.filter(incident => incident.status !== 'closed')
-  const closedIncidents = visibleIncidents.filter(incident => incident.status === 'closed')
-  const activeContacts = roleContacts.filter(contact => contact.active)
-  const criticalIncidents = visibleIncidents.filter(incident => incident.severity === 'critical')
+  const localizedVisibleIncidents = useMemo(() => {
+    return visibleIncidents.map(incident => {
+      const provinceFromMaster = incident.provinceCode
+        ? getLocationDisplayName(provinceByCode[incident.provinceCode], preferThai)
+        : ''
+      const districtFromMaster = incident.districtCode
+        ? getLocationDisplayName(districtByCode[incident.districtCode], preferThai)
+        : ''
+      const province = provinceFromMaster || incident.province
+      const district = districtFromMaster || incident.district
+      const areaName =
+        [district, province].filter(Boolean).join(' ') ||
+        incident.areaName ||
+        t('dashboardOutsideArea')
 
-  const agencyDisplayName = agency ? categoryLabelMap[agency.category] ?? agency.name : 'หน่วยงานนี้'
-  const roleName = isSuperAdmin ? 'super_admin' : user?.role ?? 'agency'
-  const roleLabel = isSuperAdmin ? 'ทุกหน่วยงาน' : agencyDisplayName
+      return {
+        ...incident,
+        province,
+        district,
+        areaName,
+      }
+    })
+  }, [districtByCode, preferThai, provinceByCode, t, visibleIncidents])
+
+  const openIncidents = localizedVisibleIncidents.filter(incident => incident.status !== 'closed')
+  const closedIncidents = localizedVisibleIncidents.filter(incident => incident.status === 'closed')
+  const activeContacts = roleContacts.filter(contact => contact.active)
+  const criticalIncidents = localizedVisibleIncidents.filter(incident => incident.severity === 'critical')
+
+  const agencyDisplayName = agency ? categoryLabelMap[agency.category] ?? agency.name : t('dashboardThisAgencyFallback')
+  const roleName = isSuperAdmin ? t('roleSuperAdmin') : user?.role === 'agency_admin' ? t('roleAgencyAdmin') : user?.role ?? 'agency'
+  const roleLabel = isSuperAdmin ? t('dashboardAllAgenciesScope') : agencyDisplayName
 
   const sseStatusLabel =
     sseStatus === 'connected'
@@ -426,37 +464,37 @@ export default function DashboardPage() {
 
   const kpis = [
     {
-      title: 'เหตุทั้งหมด',
-      value: visibleIncidents.length.toLocaleString(),
-      description: isSuperAdmin ? 'ทุกหน่วยงานตามตัวกรอง' : `เฉพาะ ${agencyDisplayName}`,
+      title: t('dashboardKpiTotalIncidents'),
+      value: localizedVisibleIncidents.length.toLocaleString(),
+      description: isSuperAdmin ? t('dashboardKpiAllAgenciesFiltered') : `${t('scopeOwnAgency')}${agencyDisplayName}`,
       icon: Phone,
       tone: 'bg-primary/10 text-primary',
     },
     {
-      title: 'เหตุที่ยังเปิดอยู่',
+      title: t('dashboardKpiOpenIncidents'),
       value: openIncidents.length.toLocaleString(),
-      description: criticalIncidents.length > 0 ? `${criticalIncidents.length} เหตุวิกฤต` : 'ไม่มีเหตุวิกฤต',
+      description: criticalIncidents.length > 0 ? `${criticalIncidents.length}${t('dashboardKpiCriticalSuffix')}` : t('dashboardKpiNoCritical'),
       icon: AlertTriangle,
       tone: 'bg-warning/10 text-warning',
     },
     {
-      title: 'เบอร์พร้อมใช้งาน',
+      title: t('dashboardKpiActiveContacts'),
       value: activeContacts.length.toLocaleString(),
-      description: `จากทั้งหมด ${roleContacts.length.toLocaleString()} เบอร์`,
+      description: `${t('dashboardKpiContactsPrefix')}${roleContacts.length.toLocaleString()}${t('dashboardKpiContactsSuffix')}`,
       icon: Building2,
       tone: 'bg-secondary/10 text-secondary',
     },
     {
-      title: 'อัตราปิดเรื่อง',
-      value: `${percent(closedIncidents.length, visibleIncidents.length)}%`,
-      description: `${closedIncidents.length.toLocaleString()} รายการปิดแล้ว`,
+      title: t('dashboardKpiClosureRate'),
+      value: `${percent(closedIncidents.length, localizedVisibleIncidents.length)}%`,
+      description: `${closedIncidents.length.toLocaleString()}${t('dashboardKpiClosedSuffix')}`,
       icon: CheckCircle2,
       tone: 'bg-success/10 text-success',
     },
   ]
 
   const categoryChartData = useMemo(() => {
-    const counts = visibleIncidents.reduce<Record<string, number>>((acc, incident) => {
+    const counts = localizedVisibleIncidents.reduce<Record<string, number>>((acc, incident) => {
       acc[incident.category] = (acc[incident.category] ?? 0) + 1
       return acc
     }, {})
@@ -467,11 +505,11 @@ export default function DashboardPage() {
         calls,
       }))
       .sort((a, b) => b.calls - a.calls)
-  }, [visibleIncidents])
+  }, [categoryLabelMap, localizedVisibleIncidents])
 
   const areaChartData = useMemo(() => {
-    const counts = visibleIncidents.reduce<Record<string, number>>((acc, incident) => {
-      const area = incident.areaName ?? OUTSIDE_AREA_LABEL
+    const counts = localizedVisibleIncidents.reduce<Record<string, number>>((acc, incident) => {
+      const area = incident.areaName ?? t('dashboardOutsideArea')
       acc[area] = (acc[area] ?? 0) + 1
       return acc
     }, {})
@@ -480,13 +518,13 @@ export default function DashboardPage() {
       .map(([area, calls]) => ({ area, calls }))
       .sort((a, b) => b.calls - a.calls)
       .slice(0, 6)
-  }, [visibleIncidents])
+  }, [localizedVisibleIncidents, t])
 
   const hourlyData = useMemo(() => {
     const buckets = ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00']
     const counts = Object.fromEntries(buckets.map(hour => [hour, 0])) as Record<string, number>
 
-    visibleIncidents.forEach(incident => {
+    localizedVisibleIncidents.forEach(incident => {
       const hour = new Date(incident.createdAt).getHours()
       const bucket = Math.floor(hour / 4) * 4
       const key = `${bucket.toString().padStart(2, '0')}:00`
@@ -494,11 +532,11 @@ export default function DashboardPage() {
     })
 
     return buckets.map(hour => ({ hour, calls: counts[hour] ?? 0 }))
-  }, [visibleIncidents])
+  }, [localizedVisibleIncidents])
 
   const scopeDescription = isSuperAdmin
-    ? 'แสดงเหตุการณ์และเบอร์ฉุกเฉินทุกประเภทจากฐานข้อมูล'
-    : `แสดงเฉพาะข้อมูลประเภท ${allowedCategories.map(category => categoryLabelMap[category] ?? category).join(', ')}`
+    ? t('dashboardScopeAllData')
+    : `${t('dashboardScopeCategoryPrefix')}${allowedCategories.map(category => categoryLabelMap[category] ?? category).join(', ')}`
 
   function handleLocationInputChange(value: string) {
     setLocationQuery(value)
@@ -550,9 +588,9 @@ export default function DashboardPage() {
       <Card className="border-dashed border-primary/30 bg-background/80">
         <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-medium">Realtime Debug</p>
+            <p className="text-sm font-medium">{t('dashboardRealtimeDebug')}</p>
             <p className="text-xs text-muted-foreground">
-              ใช้ดูว่า SSE เชื่อมต่อและรับ event เข้าหน้า dashboard หรือยัง
+              {t('dashboardRealtimeDebugDescription')}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -579,7 +617,7 @@ export default function DashboardPage() {
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-semibold">
-                    {isSuperAdmin ? 'ศูนย์บัญชาการภาพรวม' : agencyDisplayName}
+                    {isSuperAdmin ? t('dashboardAllAgenciesCommand') : agencyDisplayName}
                   </h1>
                   <Badge variant={isSuperAdmin ? 'default' : 'outline'}>{roleName}</Badge>
                 </div>
@@ -588,7 +626,7 @@ export default function DashboardPage() {
             </div>
             <Button variant="outline" onClick={loadDashboardData} disabled={isLoading}>
               <RefreshCw className="mr-2 h-4 w-4" />
-              โหลดใหม่
+              {t('dashboardReload')}
             </Button>
           </div>
         </CardContent>
@@ -624,10 +662,10 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPinned className="h-4 w-4" />
-              แผนที่เหตุการณ์ตามสิทธิ์
+              {t('dashboardMapTitle')}
             </CardTitle>
             <CardDescription>
-              แสดงข้อมูลเหตุการณ์ตามหน่วยงานและพื้นที่ที่ต้องการ
+              {t('dashboardMapDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -636,7 +674,7 @@ export default function DashboardPage() {
                 <div className="inline-flex w-full flex-wrap items-center gap-1 rounded-2xl bg-muted p-1 lg:w-auto">
                   {agencyFilters.map(filter => {
                     const isActive = categoryFilter === filter
-                    const label = filter === 'all' ? 'ทั้งหมด' : categoryLabelMap[filter] ?? filter
+                    const label = filter === 'all' ? t('dashboardFilterAll') : categoryLabelMap[filter] ?? filter
 
                     return (
                       <button
@@ -662,7 +700,7 @@ export default function DashboardPage() {
                     value={locationQuery}
                     onChange={event => handleLocationInputChange(event.target.value)}
                     onFocus={() => setIsLocationMenuOpen(true)}
-                    placeholder="ค้นหาพื้นที่..."
+                    placeholder={t('dashboardSearchAreaPlaceholder')}
                     className="h-10 rounded-full bg-background pl-9 pr-10"
                   />
                   {(locationQuery.length > 0 || selectedLocation) && (
@@ -672,7 +710,7 @@ export default function DashboardPage() {
                       size="icon-sm"
                       onClick={clearLocationSelection}
                       className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full"
-                      aria-label="ล้างคำค้นหา"
+                      aria-label={t('dashboardClearSearch')}
                     >
                       <X data-icon="inline-start" />
                     </Button>
@@ -683,7 +721,7 @@ export default function DashboardPage() {
                       <div className="max-h-[320px] overflow-y-auto py-2">
                         {isLocationLoading ? (
                           <div className="px-4 py-3 text-sm text-muted-foreground">
-                            กำลังโหลด master location...
+                            {t('dashboardLoadingLocations')}
                           </div>
                         ) : filteredLocationOptions.length > 0 ? (
                           filteredLocationOptions.map(option => (
@@ -700,14 +738,14 @@ export default function DashboardPage() {
                               <div className="min-w-0">
                                 <p className="truncate font-medium">{option.label}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {option.areaType === 'province' ? 'จังหวัด' : 'อำเภอ / เขต'}
+                                  {option.areaType === 'province' ? t('dashboardProvince') : t('dashboardDistrict')}
                                 </p>
                               </div>
                             </button>
                           ))
                         ) : (
                           <div className="px-4 py-3 text-sm text-muted-foreground">
-                            ไม่พบพื้นที่ที่ตรงกับคำค้นหา
+                            {t('dashboardNoMatchingArea')}
                           </div>
                         )}
                       </div>
@@ -719,14 +757,17 @@ export default function DashboardPage() {
 
             <div className="relative h-[460px] overflow-hidden">
               <IncidentMap
-                incidents={visibleIncidents}
+                incidents={localizedVisibleIncidents}
                 selectedIncidentId={selectedIncidentId}
+                categoryLabels={categoryLabelMap}
                 onSelectIncident={openIncidentDetail}
               />
               <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-4 py-3 text-sm shadow-sm">
-                <p className="font-medium">เหตุที่แสดง {visibleIncidents.length.toLocaleString()} รายการ</p>
+                <p className="font-medium">
+                  {t('dashboardVisibleIncidentsPrefix')}{localizedVisibleIncidents.length.toLocaleString()}{t('dashboardVisibleIncidentsSuffix')}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  จากข้อมูลใน scope นี้ {roleIncidents.length.toLocaleString()} รายการ
+                  {t('dashboardScopeTotalPrefix')}{roleIncidents.length.toLocaleString()}{t('dashboardVisibleIncidentsSuffix')}
                 </p>
               </div>
             </div>
@@ -734,7 +775,7 @@ export default function DashboardPage() {
         </Card>
 
         <IncidentQueue
-          incidents={visibleIncidents}
+          incidents={localizedVisibleIncidents}
           selectedIncidentId={selectedIncidentId}
           categoryLabels={categoryLabelMap}
           isLoading={isLoading}
@@ -755,8 +796,8 @@ export default function DashboardPage() {
         <CardHeader className="gap-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle className="text-base">มุมมองเพิ่มเติม</CardTitle>
-              <CardDescription>สลับดูภาพรวมเชิงลึกโดยไม่ต้องยืดหน้าแดชบอร์ด</CardDescription>
+              <CardTitle className="text-base">{t('dashboardAdditionalViews')}</CardTitle>
+              <CardDescription>{t('dashboardAdditionalViewsDescription')}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -764,13 +805,13 @@ export default function DashboardPage() {
           <Tabs defaultValue="overview" className="gap-4">
             <TabsList className="w-full bg-muted">
               <TabsTrigger value="overview" className="min-w-0 flex-1">
-                ภาพรวม
+                {t('dashboardOverviewTab')}
               </TabsTrigger>
               <TabsTrigger value="trend" className="min-w-0 flex-1">
-                แนวโน้ม
+                {t('dashboardTrendTab')}
               </TabsTrigger>
               <TabsTrigger value="areas" className="min-w-0 flex-1">
-                พื้นที่
+                {t('dashboardAreasTab')}
               </TabsTrigger>
             </TabsList>
 
@@ -778,8 +819,8 @@ export default function DashboardPage() {
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_320px]">
                 <div className="rounded-xl border p-4">
                   <div className="mb-3">
-                    <h3 className="text-sm font-semibold">เหตุแยกตามประเภท</h3>
-                    <p className="text-xs text-muted-foreground">นับจากข้อมูลที่ role นี้มองเห็น</p>
+                    <h3 className="text-sm font-semibold">{t('dashboardCategoryChartTitle')}</h3>
+                    <p className="text-xs text-muted-foreground">{t('dashboardCategoryChartDescription')}</p>
                   </div>
                   <ChartContainer config={chartConfig} className="h-[260px]">
                     <BarChart data={categoryChartData} layout="vertical">
@@ -793,17 +834,17 @@ export default function DashboardPage() {
 
                 <div className="rounded-xl border p-4">
                   <div className="mb-3">
-                    <h3 className="text-sm font-semibold">สรุปพื้นที่เด่น</h3>
-                    <p className="text-xs text-muted-foreground">พื้นที่ที่มีเหตุสูงสุดตามตัวกรองปัจจุบัน</p>
+                    <h3 className="text-sm font-semibold">{t('dashboardAreaHighlightsTitle')}</h3>
+                    <p className="text-xs text-muted-foreground">{t('dashboardAreaHighlightsDescription')}</p>
                   </div>
                   <div className="space-y-3">
                     {areaChartData.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">ไม่มีข้อมูลพื้นที่</p>
+                      <p className="text-sm text-muted-foreground">{t('dashboardNoAreaData')}</p>
                     ) : (
                       areaChartData.slice(0, 4).map(item => (
                         <div key={item.area} className="flex items-center justify-between gap-4 rounded-lg border p-3">
                           <p className="min-w-0 truncate text-sm font-medium">{item.area}</p>
-                          <Badge variant="outline">{item.calls} เหตุ</Badge>
+                          <Badge variant="outline">{item.calls} {t('dashboardIncidentUnit')}</Badge>
                         </div>
                       ))
                     )}
@@ -815,8 +856,8 @@ export default function DashboardPage() {
             <TabsContent value="trend">
               <div className="rounded-xl border p-4">
                 <div className="mb-3">
-                  <h3 className="text-sm font-semibold">แนวโน้มตามช่วงเวลา</h3>
-                  <p className="text-xs text-muted-foreground">แบ่งข้อมูลเป็นช่วงละ 4 ชั่วโมง</p>
+                  <h3 className="text-sm font-semibold">{t('dashboardTrendTitle')}</h3>
+                  <p className="text-xs text-muted-foreground">{t('dashboardTrendDescription')}</p>
                 </div>
                 <ChartContainer config={chartConfig} className="h-[280px]">
                   <LineChart data={hourlyData}>
@@ -838,17 +879,17 @@ export default function DashboardPage() {
             <TabsContent value="areas">
               <div className="rounded-xl border p-4">
                 <div className="mb-3">
-                  <h3 className="text-sm font-semibold">พื้นที่ที่มีเหตุ</h3>
-                  <p className="text-xs text-muted-foreground">เรียงลำดับจากจำนวนเหตุสูงไปต่ำ</p>
+                  <h3 className="text-sm font-semibold">{t('dashboardAreasTitle')}</h3>
+                  <p className="text-xs text-muted-foreground">{t('dashboardAreasDescription')}</p>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-2">
                   {areaChartData.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">ไม่มีข้อมูลพื้นที่</p>
+                    <p className="text-sm text-muted-foreground">{t('dashboardNoAreaData')}</p>
                   ) : (
                     areaChartData.map(item => (
                       <div key={item.area} className="flex items-center justify-between gap-4 rounded-lg border p-3">
                         <p className="min-w-0 truncate text-sm font-medium">{item.area}</p>
-                        <Badge variant="outline">{item.calls} เหตุ</Badge>
+                        <Badge variant="outline">{item.calls} {t('dashboardIncidentUnit')}</Badge>
                       </div>
                     ))
                   )}

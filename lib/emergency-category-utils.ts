@@ -25,10 +25,16 @@ const emergencyCategoryThemeMap: Partial<Record<EmergencyCategory, { color: stri
   'road-accident': { color: 'text-amber-600', bgColor: 'bg-amber-100' },
 }
 
-export function buildAdminCategoryCollections(categories: ReferenceCategory[] = FALLBACK_REFERENCE_CATEGORIES) {
+export function buildAdminCategoryCollections(
+  categories: ReferenceCategory[] = FALLBACK_REFERENCE_CATEGORIES,
+  preferThai = true
+) {
   const styles = categories.map(category => ({
     id: category.id,
-    name: getCategoryDisplayLabel(category, true) || emergencyCategoryLabelsTh[category.id] || category.name,
+    name:
+      getCategoryDisplayLabel(category, preferThai) ||
+      (preferThai ? emergencyCategoryLabelsTh[category.id] : category.name) ||
+      category.id,
     color: emergencyCategoryThemeMap[category.id]?.color ?? 'text-foreground',
     bgColor: emergencyCategoryThemeMap[category.id]?.bgColor ?? 'bg-muted',
   }))

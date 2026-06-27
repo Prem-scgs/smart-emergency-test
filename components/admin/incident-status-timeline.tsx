@@ -1,6 +1,7 @@
 import { Check, Circle } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { useAdminI18n } from '@/lib/admin-i18n'
 import {
   buildIncidentTrackingSteps,
   type IncidentTrackingHistoryEntry,
@@ -14,6 +15,7 @@ interface IncidentStatusTimelineProps {
 }
 
 export function IncidentStatusTimeline({ status, history }: IncidentStatusTimelineProps) {
+  const { language, t } = useAdminI18n()
   const steps = buildIncidentTrackingSteps(status, history)
 
   return (
@@ -32,13 +34,17 @@ export function IncidentStatusTimeline({ status, history }: IncidentStatusTimeli
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">{step.labelTh}</p>
-              {step.isActive ? <Badge variant="secondary">ปัจจุบัน</Badge> : null}
+              <p className="text-sm font-medium">
+                {language === 'en' ? step.label : step.labelTh}
+              </p>
+              {step.isActive ? <Badge variant="secondary">{t('incidentTimelineCurrent')}</Badge> : null}
             </div>
-            <p className="text-xs text-muted-foreground">{step.description}</p>
+            <p className="text-xs text-muted-foreground">
+              {language === 'en' ? step.descriptionEn : step.description}
+            </p>
             {step.timestamp ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                {step.timestamp.toLocaleString('th-TH')}
+                {step.timestamp.toLocaleString(language === 'en' ? 'en-US' : 'th-TH')}
               </p>
             ) : null}
           </div>

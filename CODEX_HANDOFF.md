@@ -7,100 +7,100 @@
 - Repository: `https://github.com/SCGS7788/smart-emergency.git`
 - Workspace: `D:\testwork_Fullstack(SCSG)\smart-emergency`
 - Branch: `Prem(scgs)-emergencyV0` (ห้ามแตะ `main`)
-- Latest commit: `7e61043 feat: ปรับเสียงแจ้งเตือนในหน้า Settings`
-- Current objective: วางระบบแปลภาษา Admin แบบกลาง และทำให้หน้า Settings เปลี่ยนภาษาแบบ preview ทันทีแต่ยังไม่บันทึกจนกด `บันทึก`
-- Working tree: มี uncommitted changes 6 รายการ
+- Latest committed baseline before this handoff: `2e0daca feat: เพิ่มระบบแปลภาษาในหน้า Settings`
+- Current objective: ทำ Admin i18n ให้แยกชัดเจน ไทยคือไทย อังกฤษคืออังกฤษ โดยเริ่มจาก Dashboard และ child components
+- Current checkpoint to commit: Dashboard i18n + localized incident location display
 
 ## Completed This Session
 
-- เพิ่มระบบ i18n กลางของ Admin:
-  - `lib/admin-i18n.tsx`
-  - `AdminI18nProvider`
-  - `useAdminI18n()`
-  - dictionary `th/en`
-  - event `smart-emergency:admin-language-change`
-- ครอบ Admin tree ด้วย `AdminI18nProvider` ใน `app/admin/layout.tsx`
-- ปรับ Admin shell/sidebar/topbar ใน `components/admin/admin-layout-client.tsx` ให้ใช้ `t(...)` แทน label hardcoded
-- ปรับหน้า Settings ให้ใช้ `useAdminI18n()` สำหรับข้อความหลัก
-- ปรับ dropdown ภาษา:
-  - เลือกภาษาแล้ว UI เปลี่ยนทันที
-  - ยังไม่เขียน localStorage จนกด `บันทึก`
-  - ถ้า refresh ก่อนกดบันทึก จะกลับไปภาษาที่บันทึกไว้ล่าสุด
-- เพิ่ม/ปรับ regression tests:
-  - `lib/admin-i18n-wiring.test.mjs`
-  - `lib/settings-page-wiring.test.mjs`
-
-## Current Uncommitted Changes
-
-- `app/admin/(dashboard)/settings/page.tsx`
-  - ใช้ i18n จาก `useAdminI18n()`
-  - เพิ่ม `previewSettingsLanguage()` เพื่อ preview ภาษาโดยไม่ persist
-  - save เท่านั้นถึงบันทึก preference ลง `admin_settings_preferences`
-- `app/admin/layout.tsx`
-  - เพิ่ม `AdminI18nProvider`
-- `components/admin/admin-layout-client.tsx`
-  - ใช้ key + `t(...)` สำหรับเมนูและ shell labels
-- `lib/admin-i18n.tsx`
-  - ไฟล์ใหม่สำหรับ admin i18n provider/dictionaries
-- `lib/admin-i18n-wiring.test.mjs`
-  - ไฟล์ใหม่ guard wiring i18n
-- `lib/settings-page-wiring.test.mjs`
-  - เพิ่ม guard language preview/save behavior
+- ปรับ Dashboard ให้ใช้ `useAdminI18n()` และ dictionary กลางมากขึ้น
+- ปรับหมวดเหตุให้เลือก label ตามภาษา:
+  - Thai mode: `ดับเพลิง`, `น้ำท่วม`, `แพทย์`, `ตำรวจ`, `กู้ภัย`, `อุบัติเหตุทางถนน`
+  - English mode: ใช้ label อังกฤษจาก reference category
+- แก้ชื่อพื้นที่/จังหวัด/อำเภอที่เคยปนอังกฤษ เช่น `Mueang Phitsanulok`
+  - ใช้ `provinceCode/districtCode` ไป lookup master location
+  - Thai mode แสดง `เมืองพิษณุโลก พิษณุโลก`
+  - English mode ใช้ชื่ออังกฤษจาก master location
+- ปรับจุดแสดงผล Dashboard ที่เกี่ยวข้อง:
+  - `app/admin/(dashboard)/dashboard/page.tsx`
+  - `components/admin/incident-map.tsx`
+  - `components/admin/incident-queue.tsx`
+  - `components/admin/incident-detail-panel.tsx`
+  - `components/admin/incident-status-timeline.tsx`
+- ปรับ `getLocationDisplayName(item, preferThai)` ให้เลือกภาษาได้
+- เพิ่ม `descriptionEn` ให้ workflow status meta
+- เพิ่ม regression tests:
+  - `lib/dashboard-i18n-wiring.test.mjs`
+  - `lib/dashboard-child-i18n-wiring.test.mjs`
+- Rebuild/restart Docker `web` แล้ว
 
 ## Verification ล่าสุด
 
 รันแล้วผ่าน:
 
 ```powershell
-rtk proxy pnpm --dir "D:\testwork_Fullstack(SCSG)\smart-emergency" exec node --test lib/settings-page-wiring.test.mjs
-rtk proxy pnpm --dir "D:\testwork_Fullstack(SCSG)\smart-emergency" exec node --test lib/admin-i18n-wiring.test.mjs
-rtk proxy pnpm --dir "D:\testwork_Fullstack(SCSG)\smart-emergency" build
+rtk proxy powershell -NoProfile -Command "pnpm exec node --test lib/dashboard-i18n-wiring.test.mjs lib/dashboard-child-i18n-wiring.test.mjs lib/admin-i18n-wiring.test.mjs lib/settings-page-wiring.test.mjs"
+rtk proxy powershell -NoProfile -Command "pnpm build"
 rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-emergency" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.yml" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.local.yml" build web
 rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-emergency" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.yml" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.local.yml" up -d web
 ```
 
 ผล:
 
-- `settings-page-wiring.test.mjs` ผ่าน `7/7`
-- `admin-i18n-wiring.test.mjs` ผ่าน `3/3`
+- i18n regression tests ผ่าน `14/14`
 - `pnpm build` ผ่าน
-- Docker `web` rebuild/restart แล้ว
+- Docker `web` rebuild/restart ผ่าน
+- HTTP check `http://localhost:3000/admin/dashboard` ได้ `200`
+- Headless Chrome mock login ตรวจ Thai dashboard:
+  - ไม่พบ `Mueang Phitsanulok`
+  - ไม่พบ `Phitsanulok`
+  - พบ `เมืองพิษณุโลก`
+  - พบ `ตรวจสอบเรียลไทม์`
+  - ไม่พบ `super_admin`
+  - พบ `ผู้ดูแลระบบสูงสุด`
+
+## Changed / Relevant Files
+
+- `app/admin/(dashboard)/dashboard/page.tsx`
+- `components/admin/incident-detail-panel.tsx`
+- `components/admin/incident-map.tsx`
+- `components/admin/incident-queue.tsx`
+- `components/admin/incident-status-timeline.tsx`
+- `lib/admin-i18n.tsx`
+- `lib/emergency-category-utils.ts`
+- `lib/incident-tracking.ts`
+- `lib/reference-locations.ts`
+- `lib/dashboard-i18n-wiring.test.mjs`
+- `lib/dashboard-child-i18n-wiring.test.mjs`
+- `CODEX_HANDOFF.md`
 
 ## Exact Next Task
 
-ให้เปรม manual test ที่ `http://localhost:3000/admin/settings`:
+หลัง push checkpoint นี้แล้ว งานต่อที่เหมาะสุด:
 
-1. เปลี่ยนภาษาเป็น English แล้วหน้า Settings + Admin shell ต้องเปลี่ยนทันที
-2. ยังไม่กด `Save` แล้ว refresh หน้า ต้องกลับไปภาษาเดิมที่เคยบันทึกไว้
-3. เปลี่ยนภาษาอีกครั้งแล้วกด `Save`
-4. refresh แล้วภาษาต้องคงเป็นค่าที่บันทึกล่าสุด
-
-ถ้าผ่าน:
-
-- ถามเปรมก่อน commit/push
-- Commit message แนะนำ: `feat: เพิ่มระบบแปลภาษาในหน้า Settings`
-- ก่อน commit ต้องรัน:
-  - `rtk proxy git -C "D:\testwork_Fullstack(SCSG)\smart-emergency" status --short`
-  - `rtk proxy git -C "D:\testwork_Fullstack(SCSG)\smart-emergency" diff --name-status`
+1. Manual check หน้า `http://localhost:3000/admin/dashboard` ใน browser ของเปรม:
+   - Thai mode ต้องไม่ปน label อังกฤษในข้อมูล Dashboard หลัก
+   - English mode ต้องเปลี่ยน label UI/category/status/location เป็นอังกฤษ
+   - หมายเหตุ: ตัวอักษรบนแผนที่ OpenStreetMap เป็น tile ภายนอก ไม่ได้ถูกควบคุมด้วย i18n ของระบบ
+2. ถ้าผ่าน ค่อยทำ i18n หน้า Admin อื่นทีละหน้า:
+   - Contacts
+   - GIS
+   - Reports
+   - Call logs
+   - Users
 
 ## Pending Work
 
-- ยังไม่ได้แปลครบทุกหน้า Admin:
-  - Dashboard
-  - Contacts
-  - GIS
-  - Reports
-  - Call logs
-  - Users
-- แนะนำทำทีละหน้าเพื่อคุม token และลดโอกาส layout พัง
+- ยังไม่ได้แปลครบทุกหน้า Admin ทั้งระบบ
+- Users page ยังมี mock/legacy UI บางส่วน
 - Settings เฟส 2 ยังเหลือ polish ช่องทางศูนย์ LINE/SMS/WhatsApp
 - Settings เฟส 3 ยังเหลือ polish สถานะระบบ API/Database/SSE
 - Production readiness/FSD structure migration ยังรอหลัง flow หลักนิ่ง
 
 ## Decisions
 
-- ระบบ Admin i18n ใช้ local browser preference ก่อน จนกว่าทีม Auth จะมี user preference จริง
-- การเปลี่ยนภาษาใน Settings ต้อง preview ทันที แต่ persist เฉพาะเมื่อกด `บันทึก`
+- Admin i18n ใช้ local browser preference ก่อน จนกว่าทีม Auth จะมี user preference จริง
+- Dashboard location display ต้องยึด master location จาก `provinceCode/districtCode` ไม่ใช้ raw incident text เป็นหลัก
 - Realtime ใช้ SSE เท่านั้น ห้ามเพิ่ม WebSocket โดยไม่ถาม
 - Docker local full stack ใช้งานอยู่ เปลี่ยน frontend แล้วต้อง rebuild/restart `web`
 
@@ -118,7 +118,7 @@ rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-
 ## Suggested Skills
 
 - `$token-lean-workflow` เพื่อลด token และอ่านเฉพาะไฟล์เกี่ยวข้อง
-- `$brainstorming` ก่อนปรับ UI/flow ใหม่
+- `$debug-mantra` เมื่อเจอบั๊ก UI/runtime
 - `$test-driven-development` ก่อนแก้ behavior
 - `$verification-before-completion` ก่อนสรุปว่าเสร็จหรือก่อน commit/push
 - `$handoff` เมื่อ compact หรือสลับบัญชี

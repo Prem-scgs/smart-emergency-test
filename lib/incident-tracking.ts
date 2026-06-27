@@ -16,6 +16,7 @@ export interface IncidentTrackingStatusMeta {
   label: string
   labelTh: string
   description: string
+  descriptionEn: string
 }
 
 export interface IncidentTrackingStep extends IncidentTrackingStatusMeta {
@@ -39,31 +40,37 @@ const STATUS_META: Record<IncidentWorkflowStatus, IncidentTrackingStatusMeta> = 
     label: 'Reported',
     labelTh: 'แจ้งเหตุแล้ว',
     description: 'ระบบบันทึกเหตุและกำลังรอหน่วยงานรับเรื่อง',
+    descriptionEn: 'The incident has been recorded and is waiting for an agency response',
   },
   acknowledged: {
     label: 'Acknowledged',
     labelTh: 'รับเรื่องแล้ว',
     description: 'หน่วยงานรับทราบเหตุและกำลังตรวจสอบข้อมูล',
+    descriptionEn: 'The agency has acknowledged the incident and is reviewing the details',
   },
   coordinating: {
     label: 'Coordinating',
     labelTh: 'กำลังประสานงาน',
     description: 'ศูนย์กำลังประสานทีมและเตรียมการช่วยเหลือ',
+    descriptionEn: 'The center is coordinating teams and preparing assistance',
   },
   dispatched: {
     label: 'Dispatched',
     labelTh: 'ส่งเจ้าหน้าที่แล้ว',
     description: 'เจ้าหน้าที่ถูกส่งออกจากศูนย์และกำลังเข้าพื้นที่',
+    descriptionEn: 'Responders have been dispatched and are heading to the area',
   },
   on_scene: {
     label: 'On Scene',
     labelTh: 'ถึงที่เกิดเหตุ',
     description: 'เจ้าหน้าที่อยู่หน้างานและกำลังดำเนินการ',
+    descriptionEn: 'Responders are on scene and handling the incident',
   },
   closed: {
     label: 'Closed',
     labelTh: 'ปิดเหตุ',
     description: 'เคสนี้ปิดเรียบร้อยแล้ว',
+    descriptionEn: 'This case has been closed',
   },
 }
 
