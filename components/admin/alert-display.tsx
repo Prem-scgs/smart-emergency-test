@@ -26,7 +26,7 @@ import {
 import { useNotifications } from '@/lib/notification-context'
 import { cn } from '@/lib/utils'
 
-function playAlertTone(severity: string, preset: AlertTonePreset) {
+function playAlertTone(preset: AlertTonePreset) {
   if (typeof window === 'undefined') return
 
   const AudioContextClass =
@@ -48,34 +48,24 @@ function playAlertTone(severity: string, preset: AlertTonePreset) {
 
   const pattern =
     preset === 'siren-pulse'
-      ? severity === 'critical'
-        ? [
-            { frequency: 920, duration: 0.18, delay: 0, gain: 0.18, type: 'sawtooth' as const },
-            { frequency: 680, duration: 0.18, delay: 0.22, gain: 0.18, type: 'sawtooth' as const },
-            { frequency: 920, duration: 0.2, delay: 0.48, gain: 0.18, type: 'sawtooth' as const },
-          ]
-        : [
-            { frequency: 840, duration: 0.14, delay: 0, gain: 0.14, type: 'triangle' as const },
-            { frequency: 620, duration: 0.14, delay: 0.2, gain: 0.14, type: 'triangle' as const },
-          ]
+      ? [
+          { frequency: 1040, duration: 0.11, delay: 0, gain: 0.18, type: 'sawtooth' as const },
+          { frequency: 720, duration: 0.11, delay: 0.14, gain: 0.18, type: 'sawtooth' as const },
+          { frequency: 1040, duration: 0.11, delay: 0.28, gain: 0.18, type: 'sawtooth' as const },
+          { frequency: 720, duration: 0.14, delay: 0.42, gain: 0.18, type: 'sawtooth' as const },
+        ]
       : preset === 'soft-chime'
         ? [
-            { frequency: 740, duration: 0.12, delay: 0, gain: 0.1, type: 'sine' as const },
-            { frequency: 988, duration: 0.16, delay: 0.18, gain: 0.08, type: 'sine' as const },
+            { frequency: 660, duration: 0.18, delay: 0, gain: 0.08, type: 'sine' as const },
+            { frequency: 880, duration: 0.22, delay: 0.24, gain: 0.06, type: 'sine' as const },
           ]
-        : severity === 'critical'
-          ? [
-              { frequency: 940, duration: 0.12, delay: 0, gain: 0.16, type: 'triangle' as const },
-              { frequency: 760, duration: 0.12, delay: 0.16, gain: 0.16, type: 'triangle' as const },
-              { frequency: 940, duration: 0.14, delay: 0.34, gain: 0.16, type: 'triangle' as const },
-            ]
-          : [
-              { frequency: 820, duration: 0.1, delay: 0, gain: 0.13, type: 'triangle' as const },
-              { frequency: 620, duration: 0.12, delay: 0.16, gain: 0.13, type: 'triangle' as const },
-            ]
+        : [
+            { frequency: 880, duration: 0.12, delay: 0, gain: 0.14, type: 'square' as const },
+            { frequency: 880, duration: 0.12, delay: 0.24, gain: 0.14, type: 'square' as const },
+          ]
 
   masterGain.gain.setValueAtTime(
-    preset === 'soft-chime' ? 0.26 : preset === 'siren-pulse' ? 0.46 : 0.34,
+    preset === 'soft-chime' ? 0.22 : preset === 'siren-pulse' ? 0.5 : 0.34,
     now
   )
   masterGain.connect(compressor)
@@ -176,8 +166,8 @@ export function AlertDisplay() {
 
   useEffect(() => {
     if (!currentAlert || !preferences.enabled) return
-    playAlertTone(currentAlert.severity, preferences.tone)
-  }, [currentAlert?.id, currentAlert?.severity, preferences.enabled, preferences.tone])
+    playAlertTone(preferences.tone)
+  }, [currentAlert?.id, preferences.enabled, preferences.tone])
 
   useEffect(() => {
     if (activeAlertIndex >= alerts.length) {

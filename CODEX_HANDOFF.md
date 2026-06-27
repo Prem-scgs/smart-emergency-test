@@ -7,84 +7,122 @@
 - Repository: `https://github.com/SCGS7788/smart-emergency.git`
 - Workspace: `D:\testwork_Fullstack(SCSG)\smart-emergency`
 - Branch: `Prem(scgs)-emergencyV0` (ห้ามแตะ `main`)
-- Latest commit before this publish: `80d9eb9 feat: ปรับหน้า GIS และแก้ select แสดงชื่อไทย`
-- Current focus: หน้า Reports export จากข้อมูล DB จริง
+- Latest pushed commit: `af826b3 feat: เพิ่มปุ่มพิมพ์รายงาน`
+- Current focus: หน้า Settings เฟสตั้งค่าส่วนตัวของ Admin โดยเฉพาะเสียง Alert และ reduced motion
+- Working tree: มี uncommitted changes 4 ไฟล์
 
 ## Completed Recently
 
-- ปรับหน้า Reports ให้ export ได้จริงจากข้อมูล `/api/reports/summary`
-- เพิ่มเมนู `ส่งออก` แบบ shadcn dropdown:
-  - `ส่งออก CSV`
-  - `ส่งออก PDF`
-- CSV export:
-  - ใช้ข้อมูล report summary ปัจจุบัน
-  - ใส่ UTF-8 BOM เพื่อให้ Excel เปิดภาษาไทยได้ดีขึ้น
-- PDF export:
-  - เพิ่ม dependency `html2canvas` และ `jspdf`
-  - ไม่ capture หน้า admin shell โดยตรง เพราะเสี่ยง CSS/chart ทำให้ export พัง
-  - สร้าง PDF snapshot แบบ inline style สีพื้นฐานก่อน capture
-  - แก้ pagination ไม่ให้ตัดกลางตาราง โดยแบ่ง PDF เป็นหลายหน้า:
-    - หน้า 1: สรุป + แนวโน้ม
-    - หน้า 2: สถานะ + หมวดเหตุ
-    - หน้าถัดไป: พื้นที่ แบ่งแถวเป็น chunk
-- เพิ่ม error logging สำหรับ PDF export:
-  - `console.error("Report PDF export failed", error)`
-- เพิ่ม/ปรับ regression tests ใน `lib/reports-page-wiring.test.mjs`
-- ตั้ง `pnpm-workspace.yaml` ให้ `core-js: false` ใน `allowBuilds` เพื่อลด warning จาก pnpm หลังเพิ่ม dependency
-- Rebuild และ recreate Docker `web` แล้ว
+- Reports:
+  - เพิ่มปุ่ม `พิมพ์รายงาน`
+  - commit/push แล้วที่ `af826b3 feat: เพิ่มปุ่มพิมพ์รายงาน`
+- Settings personal preferences:
+  - เพิ่ม CSS `.reduce-motion` ให้ toggle `ลดแอนิเมชัน` มีผลจริงกับ animation, transition และ smooth scroll
+  - ตัด preview motion ออกแล้ว เพราะเปรมมองว่าไม่ช่วย
+  - ปรับแนวคิดเสียง Alert ให้เป็น “ความชอบของแอดมิน” ไม่ผูกกับ severity ของ incident
+  - เปลี่ยน label เสียงใน Settings เป็นภาษาไทย:
+    - `เบา`
+    - `ชัด`
+    - `เร่งจังหวะ`
+  - เพิ่มคำอธิบาย: `เลือกเสียงที่คุณได้ยินชัดที่สุดเมื่อมีเคสใหม่เข้าระบบ`
+  - ปรับ pattern เสียงให้ต่างกันชัดขึ้น:
+    - `soft-chime`: chime นุ่มกว่า
+    - `alert-beep`: beep สองจังหวะ
+    - `siren-pulse`: สูง/ต่ำถี่กว่า
+  - แก้ `components/admin/alert-display.tsx` ให้เล่นเสียงจาก `preferences.tone` เท่านั้น ไม่ใช้ `currentAlert.severity` เลือก pattern แล้ว
+  - ย้ายปุ่ม `ทดสอบเสียง` มาอยู่ใต้ dropdown เลือกเสียง ตามที่เปรมขอ
+
+## Current Uncommitted Changes
+
+ไฟล์ที่เปลี่ยนและยังไม่ได้ commit/push:
+
+- `app/admin/(dashboard)/settings/page.tsx`
+  - เปลี่ยน label เสียงเป็นไทย
+  - เพิ่มคำอธิบายเสียง Alert
+  - ย้ายปุ่ม `ทดสอบเสียง` มาอยู่ใต้ dropdown
+  - ปรับ test tone pattern ให้ต่างกันชัดขึ้น
+- `components/admin/alert-display.tsx`
+  - ตัดการเลือกเสียงตาม severity
+  - `playAlertTone()` รับเฉพาะ `AlertTonePreset`
+  - alert popup ใช้เสียงตาม preference ของ admin เท่านั้น
+- `app/globals.css`
+  - เพิ่ม `.reduce-motion` ลด animation/transition/scroll จริง
+- `lib/settings-page-wiring.test.mjs`
+  - เพิ่ม guard สำหรับ label ไทย
+  - เพิ่ม guard ว่าเสียงไม่ผูกกับ severity
+  - เพิ่ม guard reduced motion CSS
+  - เพิ่ม guard layout ปุ่มทดสอบเสียงใต้ dropdown
 
 ## Verification ล่าสุด
 
+รันแล้วผ่าน:
+
 ```powershell
-rtk proxy node --test lib/reports-page-wiring.test.mjs
-rtk proxy node --test lib/reports-page-wiring.test.mjs lib/settings-page-wiring.test.mjs lib/gis-page-wiring.test.mjs lib/contacts-location-select-wiring.test.mjs
+rtk proxy node --test lib/settings-page-wiring.test.mjs
+rtk proxy node --test lib/admin-sse-wiring.test.ts
 rtk proxy pnpm build
 rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml build web
 rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d web
-rtk proxy powershell -NoProfile -Command "(Invoke-WebRequest -UseBasicParsing http://localhost:3000/admin/reports).StatusCode"
+rtk proxy powershell -NoProfile -Command "(Invoke-WebRequest -UseBasicParsing 'http://localhost:3000/admin/settings').StatusCode"
 ```
 
-ผลที่ได้:
-- Reports wiring tests ผ่าน 7/7
-- Wiring tests รวมผ่าน 15/15
-- Next build ผ่าน
-- Docker `web` rebuild/recreate แล้ว
-- `/admin/reports` ตอบ `200`
+ผลล่าสุด:
 
-## Changed Files In Current Publish
-
-- `app/admin/(dashboard)/reports/page.tsx`
-- `lib/reports-page-wiring.test.mjs`
-- `package.json`
-- `pnpm-lock.yaml`
-- `pnpm-workspace.yaml`
-- `CODEX_HANDOFF.md`
+- `settings-page-wiring.test.mjs` ผ่าน `6/6`
+- `admin-sse-wiring.test.ts` ผ่าน `8/8`
+- `pnpm build` ผ่าน
+- Docker `web` rebuild/restart แล้ว
+- `/admin/settings` ตอบ `200`
 
 ## Exact Next Task
 
-หลัง publish รอบนี้ แนะนำให้เปรมเปิดหน้า `http://localhost:3000/admin/reports` แล้วตรวจแบบ manual:
+ให้เปรมเปิด `http://localhost:3000/admin/settings` แล้วตรวจ manual:
 
-1. กด `ส่งออก > ส่งออก CSV`
-   - ได้ไฟล์ `.csv`
-   - เปิดแล้วภาษาไทยอ่านได้
-2. กด `ส่งออก > ส่งออก PDF`
-   - ได้ไฟล์ `.pdf`
-   - ตารางไม่ถูกตัดกลางหน้า
-   - หน้า PDF อ่านง่ายพอสำหรับ demo
-3. ถ้า PDF ยังยาว/แน่นเกินไป ให้ปรับ layout PDF snapshot ต่อ:
-   - ลดจำนวนแถวต่อหน้า
-   - เพิ่มหัวตารางซ้ำทุกหน้า
-   - เพิ่มเลขหน้า
+1. Dropdown เสียงต้องแสดงชื่อไทย:
+   - `เบา`
+   - `ชัด`
+   - `เร่งจังหวะ`
+2. ปุ่ม `ทดสอบเสียง` ต้องอยู่ใต้ dropdown ไม่อยู่ขวาสุด
+3. กดทดสอบทั้ง 3 เสียงแล้วต้องรู้สึกต่างกันชัดขึ้น
+4. สร้าง incident ใหม่หรือ trigger alert แล้ว popup alert ต้องเล่นเสียงตาม preference ที่ admin เลือก ไม่ใช่ตาม severity
+
+ถ้าเปรมยืนยันว่าโอเค:
+
+- แนะนำ commit:
+  - `feat: ปรับเสียงแจ้งเตือนในหน้า Settings`
+- ก่อน commit ต้องเช็คไฟล์ด้วย:
+  - `rtk proxy git status -sb`
+  - `rtk proxy git diff --name-status`
+- Stage เฉพาะ 4 ไฟล์ด้านบน เว้นแต่เปรมสั่งรวม `CODEX_HANDOFF.md` ด้วย
 
 ## Pending Work
 
-- Reports PDF ยังเป็น snapshot/image-based ไม่ใช่ PDF text selectable
-- ยังไม่มี export Excel จริง แค่ CSV
-- Settings organization/timezone ยังไม่ได้ผูก DB เพราะต้องออกแบบ migration/API เพิ่ม
-- Auto dispatch และ escalation ยังเป็น read-only note ยังไม่เปิดใช้จริง
-- GIS เป็น read-only viewer; backend ยังมี `POST/PUT/DELETE /api/areas` legacy อยู่ แต่ UI ไม่ใช้แล้ว
-- Production HTTPS/iPhone GPS ยังต้องทำในรอบ deploy/demo ถัดไป
-- FSD/feature-sliced structure migration รอหลัง flow หลักนิ่ง
+- Settings เฟส 2:
+  - polish ส่วน `ช่องทางศูนย์` LINE / SMS / WhatsApp
+  - แสดงว่าเป็นช่องทางให้ประชาชนแชร์ location กลับศูนย์ ไม่ใช่ระบบส่ง notification หา admin
+  - เฉพาะ `super_admin` เห็น
+  - ห้ามแสดง secret หรือค่า `.env` เต็ม
+- Settings เฟส 3:
+  - polish สถานะระบบ API / Database / SSE แบบ read-only สำหรับ `super_admin`
+- Reports:
+  - CSV/PDF/Print ผ่านและ pushed แล้ว
+  - PDF ยังเป็น image snapshot ไม่ใช่ selectable text
+- GIS:
+  - ผ่านแล้วตามเปรม
+- Contacts:
+  - role flow ผ่านแล้วตามเปรม
+- Production readiness:
+  - Docker local full stack มีแล้ว
+  - HTTPS/iPhone GPS ยังเป็นงาน deploy/demo รอบถัดไป
+  - FSD/feature-sliced structure migration รอหลัง flow หลักนิ่ง
+
+## Decisions
+
+- เสียง Alert เป็น preference ของแอดมิน ไม่ใช่ระดับความรุนแรงของเคส
+- ทุก incident.created ใช้เสียงที่ admin เลือกเหมือนกัน
+- Severity ยังใช้สำหรับสี, badge, filter, จัดลำดับ, dashboard summary ได้ แต่ไม่ใช้เลือกเสียงตอน alert เข้า
+- Realtime ใช้ SSE เท่านั้น ห้ามเพิ่ม WebSocket โดยไม่ปรึกษา
+- ไม่เพิ่มไฟล์เสียงจริงตอนนี้ ใช้ Web Audio API ต่อไปก่อน
 
 ## Safety Rules
 
@@ -93,9 +131,9 @@ rtk proxy powershell -NoProfile -Command "(Invoke-WebRequest -UseBasicParsing ht
 - prefix shell commands ด้วย `rtk`
 - ห้ามแตะ `main`
 - ห้าม reset/checkout/revert งานผู้ใช้โดยไม่ขอ
-- Realtime ใช้ SSE เท่านั้น ห้ามเพิ่ม WebSocket โดยไม่ปรึกษา
-- ห้ามเปิดเผย `.env`, token, phone จริง, session ID หรือพิกัดผู้ใช้
+- ห้าม commit/push จนกว่าเปรมยืนยัน
 - ก่อน commit/push ต้องเช็คไฟล์ที่จะขึ้น git ทุกครั้ง
+- ห้ามเปิดเผย `.env`, token, phone จริง, session ID หรือพิกัดผู้ใช้
 
 ## Suggested Skills
 

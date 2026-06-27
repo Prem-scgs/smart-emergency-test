@@ -122,20 +122,25 @@ function testAlertTone(preset: AlertTonePreset) {
   const pattern =
     preset === "soft-chime"
       ? [
-          { frequency: 740, delay: 0, duration: 0.12, gain: 0.1, type: "sine" as OscillatorType },
-          { frequency: 988, delay: 0.18, duration: 0.16, gain: 0.08, type: "sine" as OscillatorType },
+          { frequency: 660, delay: 0, duration: 0.18, gain: 0.08, type: "sine" as OscillatorType },
+          { frequency: 880, delay: 0.24, duration: 0.22, gain: 0.06, type: "sine" as OscillatorType },
         ]
       : preset === "siren-pulse"
         ? [
-            { frequency: 840, delay: 0, duration: 0.14, gain: 0.14, type: "triangle" as OscillatorType },
-            { frequency: 620, delay: 0.2, duration: 0.14, gain: 0.14, type: "triangle" as OscillatorType },
+            { frequency: 1040, delay: 0, duration: 0.11, gain: 0.18, type: "sawtooth" as OscillatorType },
+            { frequency: 720, delay: 0.14, duration: 0.11, gain: 0.18, type: "sawtooth" as OscillatorType },
+            { frequency: 1040, delay: 0.28, duration: 0.11, gain: 0.18, type: "sawtooth" as OscillatorType },
+            { frequency: 720, delay: 0.42, duration: 0.14, gain: 0.18, type: "sawtooth" as OscillatorType },
           ]
         : [
-            { frequency: 820, delay: 0, duration: 0.1, gain: 0.13, type: "triangle" as OscillatorType },
-            { frequency: 620, delay: 0.16, duration: 0.12, gain: 0.13, type: "triangle" as OscillatorType },
+            { frequency: 880, delay: 0, duration: 0.12, gain: 0.14, type: "square" as OscillatorType },
+            { frequency: 880, delay: 0.24, duration: 0.12, gain: 0.14, type: "square" as OscillatorType },
           ]
 
-  masterGain.gain.setValueAtTime(0.28, now)
+  masterGain.gain.setValueAtTime(
+    preset === "soft-chime" ? 0.22 : preset === "siren-pulse" ? 0.5 : 0.34,
+    now
+  )
   masterGain.connect(context.destination)
 
   pattern.forEach(note => {
@@ -435,9 +440,12 @@ export default function SettingsPage() {
                 />
               </div>
               <Separator />
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div className="flex flex-col gap-3">
                 <div className="space-y-2">
                   <Label>รูปแบบเสียงแจ้งเตือน</Label>
+                  <p className="text-sm text-muted-foreground">
+                    เลือกเสียงที่คุณได้ยินชัดที่สุดเมื่อมีเคสใหม่เข้าระบบ
+                  </p>
                   <Select
                     value={alertPreferences.tone}
                     onValueChange={(value) =>
@@ -451,15 +459,16 @@ export default function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="soft-chime">Soft chime</SelectItem>
-                      <SelectItem value="alert-beep">Alert beep</SelectItem>
-                      <SelectItem value="siren-pulse">Siren pulse</SelectItem>
+                      <SelectItem value="soft-chime">เบา</SelectItem>
+                      <SelectItem value="alert-beep">ชัด</SelectItem>
+                      <SelectItem value="siren-pulse">เร่งจังหวะ</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <Button
                   type="button"
                   variant="outline"
+                  className="w-fit"
                   disabled={!alertPreferences.enabled}
                   onClick={() => testAlertTone(alertPreferences.tone)}
                 >
@@ -498,7 +507,7 @@ export default function SettingsPage() {
                 <div className="space-y-0.5">
                   <Label>ลดแอนิเมชัน</Label>
                   <p className="text-sm text-muted-foreground">
-                    บันทึก preference เพื่อให้ UI ลด motion ในรอบต่อไป
+                    ลดเอฟเฟกต์การเคลื่อนไหวของ UI เช่น alert, dialog, hover และ scroll
                   </p>
                 </div>
                 <Switch
