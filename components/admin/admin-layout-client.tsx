@@ -32,18 +32,19 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { useAdminI18n, type AdminI18nKey } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 
 import { NotificationBell } from './notification-bell'
 
 const sidebarItems = [
-  { href: '/admin/dashboard', label: 'แดชบอร์ด', icon: LayoutDashboard, permission: 'dashboard.view' },
-  { href: '/admin/contacts', label: 'ข้อมูลการติดต่อฉุกเฉิน', icon: Phone, permission: 'contacts.view' },
-  { href: '/admin/call-logs', label: 'บันทึกการโทร', icon: FileText, permission: 'call-logs.view' },
-  { href: '/admin/gis', label: 'จัดการ GIS', icon: MapPin, permission: 'gis.view' },
-  { href: '/admin/reports', label: 'รายงานและสถิติ', icon: BarChart3, permission: 'reports.view' },
-  { href: '/admin/settings', label: 'ตั้งค่าระบบ', icon: Settings, permission: 'settings.view' },
+  { href: '/admin/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+  { href: '/admin/contacts', labelKey: 'contacts', icon: Phone, permission: 'contacts.view' },
+  { href: '/admin/call-logs', labelKey: 'callLogs', icon: FileText, permission: 'call-logs.view' },
+  { href: '/admin/gis', labelKey: 'gis', icon: MapPin, permission: 'gis.view' },
+  { href: '/admin/reports', labelKey: 'reports', icon: BarChart3, permission: 'reports.view' },
+  { href: '/admin/settings', labelKey: 'settingsTitle', icon: Settings, permission: 'settings.view' },
 ] as const
 
 interface AdminLayoutClientProps {
@@ -54,6 +55,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
+  const { t } = useAdminI18n()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const { user, isAuthenticated, isLoading, hasPermission, logout, canViewAllAgencies } = useAuth()
@@ -76,7 +78,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Checking admin access...
+        {t('checkingAdminAccess')}
       </div>
     )
   }
@@ -88,11 +90,11 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const getRoleBadge = () => {
     if (!user) return null
 
-    const roleLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
-      super_admin: { label: 'ผู้ดูแลระบบสูงสุด', variant: 'default' },
-      agency_admin: { label: 'ผู้ดูแลหน่วยงาน', variant: 'secondary' },
-      operator: { label: 'เจ้าหน้าที่ปฏิบัติการ', variant: 'outline' },
-      viewer: { label: 'ผู้ดูข้อมูล', variant: 'outline' },
+    const roleLabels: Record<string, { labelKey: AdminI18nKey; variant: 'default' | 'secondary' | 'outline' }> = {
+      super_admin: { labelKey: 'roleSuperAdmin', variant: 'default' },
+      agency_admin: { labelKey: 'roleAgencyAdmin', variant: 'secondary' },
+      operator: { labelKey: 'roleOperator', variant: 'outline' },
+      viewer: { labelKey: 'roleViewer', variant: 'outline' },
     }
 
     const roleInfo = roleLabels[user.role]
@@ -100,7 +102,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
 
     return (
       <Badge variant={roleInfo.variant} className="text-xs">
-        {roleInfo.label}
+        {t(roleInfo.labelKey)}
       </Badge>
     )
   }
@@ -120,7 +122,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
           <div className="flex flex-col">
             <span className="font-semibold text-foreground">Smart Emergency</span>
             <span className="text-xs text-muted-foreground">
-              {canViewAllAgencies() ? 'ศูนย์บัญชาการกลาง' : user?.agency?.nameTh || 'ระบบแอดมิน'}
+              {canViewAllAgencies() ? t('commandCenter') : user?.agency?.nameTh || t('adminSystem')}
             </span>
           </div>
         )}
@@ -156,7 +158,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
                 )}
               >
                 <item.icon className="h-5 w-5 shrink-0" />
-                {(!sidebarCollapsed || mobile) && <span>{item.label}</span>}
+                {(!sidebarCollapsed || mobile) && <span>{t(item.labelKey)}</span>}
               </Link>
             )
           })}
@@ -197,10 +199,10 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
               render={<Button variant="ghost" size="icon" type="button" />}
             >
                 <Menu className="h-5 w-5" />
-                <span className="sr-only">เปิดเมนู</span>
+                <span className="sr-only">{t('openMenu')}</span>
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
-              <SheetTitle className="sr-only">เมนูแอดมิน</SheetTitle>
+              <SheetTitle className="sr-only">{t('adminMenu')}</SheetTitle>
               <SidebarContent mobile />
             </SheetContent>
           </Sheet>
@@ -208,7 +210,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold text-foreground">
-                {visibleMenuItems.find(item => item.href === pathname)?.label || 'แอดมิน'}
+                {t(visibleMenuItems.find(item => item.href === pathname)?.labelKey ?? 'admin')}
               </h1>
               {!canViewAllAgencies() && user?.agency && (
                 <Badge variant="outline" className="text-xs">
@@ -229,7 +231,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
             >
               <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">สลับธีม</span>
+              <span className="sr-only">{t('toggleTheme')}</span>
             </Button>
 
             <DropdownMenu>
@@ -239,7 +241,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
                 }
               >
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src="/avatars/admin.png" alt={user?.name || 'แอดมิน'} />
+                    <AvatarImage src="/avatars/admin.png" alt={user?.name || t('admin')} />
                     <AvatarFallback className="bg-primary text-primary-foreground">
                       {user?.name?.charAt(0) || 'A'}
                     </AvatarFallback>
@@ -248,11 +250,11 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
               <DropdownMenuContent className="w-64" align="end">
                 <div className="flex flex-col space-y-2 px-1.5 py-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium leading-none">{user?.name || 'ผู้ดูแลระบบ'}</p>
+                    <p className="text-sm font-medium leading-none">{user?.name || t('adminFallbackName')}</p>
                     {getRoleBadge()}
                   </div>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email || 'ไม่ได้ระบุอีเมล'}
+                    {user?.email || t('noEmail')}
                   </p>
                   {user?.agency && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -268,12 +270,12 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
                   }}
                 >
                   <Settings className="mr-2 h-4 w-4" />
-                  ตั้งค่าระบบ
+                  {t('settingsTitle')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  ออกจากระบบ
+                  {t('logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

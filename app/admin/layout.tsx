@@ -1,4 +1,5 @@
 import { AuthProvider } from '@/lib/auth-context'
+import { AdminI18nProvider } from '@/lib/admin-i18n'
 import { NotificationProvider } from '@/lib/notification-context'
 
 export const dynamic = 'force-dynamic'
@@ -10,9 +11,11 @@ export default function AdminRootLayout({
 }) {
   return (
     <AuthProvider>
-      <NotificationProvider>
-        {children}
-      </NotificationProvider>
+      <AdminI18nProvider>
+        <NotificationProvider>
+          {children}
+        </NotificationProvider>
+      </AdminI18nProvider>
     </AuthProvider>
   )
 }

@@ -41,11 +41,15 @@ import {
   saveAdminAlertPreferences,
   type AlertTonePreset,
 } from "@/lib/admin-alert-preferences"
+import {
+  ADMIN_LANGUAGE_CHANGE_EVENT,
+  ADMIN_SETTINGS_PREFERENCES_KEY,
+  useAdminI18n,
+} from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
 import { getEmergencyApiBaseUrl } from "@/lib/emergency-api-url"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
-const ADMIN_SETTINGS_PREFERENCES_KEY = "admin_settings_preferences"
 
 type LanguagePreference = "th" | "en"
 type HealthStatus = "checking" | "online" | "offline"
@@ -102,6 +106,22 @@ function saveSettingsPreferences(preferences: AdminSettingsPreferences) {
   )
   document.documentElement.lang = preferences.language
   document.documentElement.classList.toggle("reduce-motion", preferences.reducedMotion)
+  window.dispatchEvent(
+    new CustomEvent(ADMIN_LANGUAGE_CHANGE_EVENT, {
+      detail: { language: preferences.language },
+    })
+  )
+}
+
+function previewSettingsLanguage(language: LanguagePreference) {
+  if (typeof window === "undefined") return
+
+  document.documentElement.lang = language
+  window.dispatchEvent(
+    new CustomEvent(ADMIN_LANGUAGE_CHANGE_EVENT, {
+      detail: { language },
+    })
+  )
 }
 
 function testAlertTone(preset: AlertTonePreset) {
@@ -164,28 +184,29 @@ function testAlertTone(preset: AlertTonePreset) {
   }, 900)
 }
 
-function statusBadge(status: HealthStatus | SseStatus) {
+function statusBadge(status: HealthStatus | SseStatus, t: ReturnType<typeof useAdminI18n>["t"]) {
   if (status === "online" || status === "connected") {
-    return <Badge className="bg-success text-success-foreground">พร้อมใช้งาน</Badge>
+    return <Badge className="bg-success text-success-foreground">{t("statusReady")}</Badge>
   }
 
   if (status === "checking" || status === "connecting" || status === "unknown") {
-    return <Badge variant="secondary">กำลังตรวจสอบ</Badge>
+    return <Badge variant="secondary">{t("checking")}</Badge>
   }
 
-  return <Badge variant="destructive">ไม่พร้อมใช้งาน</Badge>
+  return <Badge variant="destructive">{t("statusUnavailable")}</Badge>
 }
 
-function channelBadge(enabled: boolean) {
+function channelBadge(enabled: boolean, t: ReturnType<typeof useAdminI18n>["t"]) {
   return enabled ? (
-    <Badge className="bg-success text-success-foreground">เปิดใช้งาน</Badge>
+    <Badge className="bg-success text-success-foreground">{t("channelOn")}</Badge>
   ) : (
-    <Badge variant="secondary">ยังไม่เปิดใช้งาน</Badge>
+    <Badge variant="secondary">{t("channelOff")}</Badge>
   )
 }
 
 export default function SettingsPage() {
   const { user, canViewAllAgencies } = useAuth()
+  const { t } = useAdminI18n()
   const { theme, resolvedTheme, setTheme } = useTheme()
   const [alertPreferences, setAlertPreferences] = useState(DEFAULT_ADMIN_ALERT_PREFERENCES)
   const [settingsPreferences, setSettingsPreferences] = useState(DEFAULT_SETTINGS_PREFERENCES)
@@ -205,12 +226,17 @@ export default function SettingsPage() {
   const isSuperAdmin = canViewAllAgencies()
   const isDarkMode = theme === "dark" || (theme === "system" && resolvedTheme === "dark")
   const roleLabel = isSuperAdmin
-    ? "สิทธิ์: ผู้ดูแลสูงสุด"
-    : "สิทธิ์: " + (user?.agency?.nameTh ?? user?.agency?.name ?? "หน่วยงานของฉัน")
+    ? t("scopeSuperAdmin")
+    : t("scopeOwnAgency") + (user?.agency?.nameTh ?? user?.agency?.name ?? "หน่วยงานของฉัน")
 
   const enabledChannels = useMemo(() => {
     return Object.values(shareChannelStatus).filter(channel => channel.enabled).length
   }, [shareChannelStatus])
+  const alertToneLabels = useMemo<Record<AlertTonePreset, string>>(() => ({
+    "soft-chime": t("toneSoft"),
+    "alert-beep": t("toneClear"),
+    "siren-pulse": t("toneUrgent"),
+  }), [t])
 
   useEffect(() => {
     const storedAlert = getStoredAdminAlertPreferences()
@@ -286,19 +312,21 @@ export default function SettingsPage() {
   const handleAlertPreferencesChange = (next: Partial<typeof alertPreferences>) => {
     const updated = { ...alertPreferences, ...next }
     setAlertPreferences(updated)
-    saveAdminAlertPreferences(updated)
   }
 
   const handleSettingsPreferencesChange = (next: Partial<AdminSettingsPreferences>) => {
     const updated = { ...settingsPreferences, ...next }
     setSettingsPreferences(updated)
-    saveSettingsPreferences(updated)
+
+    if (next.language) {
+      previewSettingsLanguage(updated.language)
+    }
   }
 
   const handleSave = () => {
     saveAdminAlertPreferences(alertPreferences)
     saveSettingsPreferences(settingsPreferences)
-    toast.success("บันทึกการตั้งค่าสำเร็จ")
+    toast.success(t("settingsSaved"))
   }
 
   const handleReset = () => {
@@ -307,26 +335,29 @@ export default function SettingsPage() {
     saveAdminAlertPreferences(DEFAULT_ADMIN_ALERT_PREFERENCES)
     saveSettingsPreferences(DEFAULT_SETTINGS_PREFERENCES)
     setTheme("system")
-    toast.info("รีเซ็ตการตั้งค่าเป็นค่าเริ่มต้น")
+    toast.info(t("settingsReset"))
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">ตั้งค่าระบบ</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("settingsTitle")}</h1>
           <p className="text-muted-foreground">
-            จัดการค่าที่ใช้งานจริงของแอดมินและตรวจสถานะระบบตามสิทธิ์ role
+            {t("settingsDescription")}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t("settingsDraftHint")}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleReset}>
             <RotateCcw className="mr-2 h-4 w-4" />
-            รีเซ็ต
+            {t("reset")}
           </Button>
           <Button onClick={handleSave}>
             <Save className="mr-2 h-4 w-4" />
-            บันทึก
+            {t("saveSettings")}
           </Button>
         </div>
       </div>
@@ -334,27 +365,27 @@ export default function SettingsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">มุมมองของคุณ</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("myView")}</CardTitle>
             <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="font-semibold">{roleLabel}</div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isSuperAdmin ? "เห็นการตั้งค่าทั้งระบบ" : "เห็นเฉพาะการตั้งค่าส่วนตัว"}
+              {isSuperAdmin ? t("canSeeSystemSettings") : t("canSeePersonalSettings")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">เสียง Alert</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("alertSound")}</CardTitle>
             <Volume2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="font-semibold">
-              {alertPreferences.enabled ? "เปิดใช้งาน" : "ปิดเสียง"}
+              {alertPreferences.enabled ? t("enabled") : t("soundOff")}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{alertPreferences.tone}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{alertToneLabels[alertPreferences.tone]}</p>
           </CardContent>
         </Card>
 
@@ -362,32 +393,32 @@ export default function SettingsPage() {
           <>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">ช่องทางศูนย์</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("centerChannels")}</CardTitle>
                 <Share2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="font-semibold">{enabledChannels} ช่องทางเปิดใช้งาน</div>
+                <div className="font-semibold">{enabledChannels} {t("channelsEnabled")}</div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  LINE / SMS / WhatsApp จาก backend
+                  {t("channelsFromBackend")}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">สถานะระบบ</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("systemStatus")}</CardTitle>
                 <Server className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="font-semibold">
                   {systemHealth.api === "online" && systemHealth.database === "online"
-                    ? "ระบบพร้อมใช้งาน"
+                    ? t("systemReady")
                     : systemHealth.api === "checking"
-                      ? "กำลังตรวจสอบ"
-                      : "ต้องตรวจสอบระบบ"}
+                      ? t("checking")
+                      : t("systemNeedsCheck")}
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  API / Database / SSE
+                  {t("apiDatabaseSse")}
                 </p>
               </CardContent>
             </Card>
@@ -399,17 +430,17 @@ export default function SettingsPage() {
         <TabsList className={isSuperAdmin ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
           <TabsTrigger value="personal" className="gap-2">
             <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">การตั้งค่าของฉัน</span>
+            <span className="hidden sm:inline">{t("personalSettingsTab")}</span>
           </TabsTrigger>
           {isSuperAdmin && (
             <>
               <TabsTrigger value="channels" className="gap-2">
                 <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline">ช่องทางศูนย์</span>
+                <span className="hidden sm:inline">{t("channelsTab")}</span>
               </TabsTrigger>
               <TabsTrigger value="health" className="gap-2">
                 <Server className="h-4 w-4" />
-                <span className="hidden sm:inline">สถานะระบบ</span>
+                <span className="hidden sm:inline">{t("healthTab")}</span>
               </TabsTrigger>
             </>
           )}
@@ -420,18 +451,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
-                การแจ้งเตือนของฉัน
+                {t("myNotifications")}
               </CardTitle>
               <CardDescription>
-                ตั้งค่าเสียงและรูปแบบการทำงานเฉพาะเบราว์เซอร์ของผู้ใช้คนนี้
+                {t("myNotificationsDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label>เปิดเสียง Alert</Label>
+                  <Label>{t("enableAlertSound")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    ให้ popup แจ้งเหตุบนแดชบอร์ดเล่นเสียงเมื่อมีเคสใหม่
+                    {t("enableAlertSoundDescription")}
                   </p>
                 </div>
                 <Switch
@@ -442,9 +473,9 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex flex-col gap-3">
                 <div className="space-y-2">
-                  <Label>รูปแบบเสียงแจ้งเตือน</Label>
+                  <Label>{t("alertToneLabel")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    เลือกเสียงที่คุณได้ยินชัดที่สุดเมื่อมีเคสใหม่เข้าระบบ
+                    {t("alertToneDescription")}
                   </p>
                   <Select
                     value={alertPreferences.tone}
@@ -456,12 +487,12 @@ export default function SettingsPage() {
                     disabled={!alertPreferences.enabled}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue>{alertToneLabels[alertPreferences.tone]}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="soft-chime">เบา</SelectItem>
-                      <SelectItem value="alert-beep">ชัด</SelectItem>
-                      <SelectItem value="siren-pulse">เร่งจังหวะ</SelectItem>
+                      <SelectItem value="soft-chime">{t("toneSoft")}</SelectItem>
+                      <SelectItem value="alert-beep">{t("toneClear")}</SelectItem>
+                      <SelectItem value="siren-pulse">{t("toneUrgent")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -473,7 +504,7 @@ export default function SettingsPage() {
                   onClick={() => testAlertTone(alertPreferences.tone)}
                 >
                   <Volume2 className="mr-2 h-4 w-4" />
-                  ทดสอบเสียง
+                  {t("testSound")}
                 </Button>
               </div>
             </CardContent>
@@ -483,18 +514,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Moon className="h-5 w-5" />
-                การแสดงผล
+                {t("display")}
               </CardTitle>
               <CardDescription>
-                ตั้งค่าการแสดงผลเฉพาะเครื่องที่กำลังใช้งาน
+                {t("displayDescription")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label>โหมดมืด</Label>
+                  <Label>{t("darkMode")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    สลับธีมของหน้า Admin ด้วย next-themes
+                    {t("darkModeDescription")}
                   </p>
                 </div>
                 <Switch
@@ -505,9 +536,9 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-0.5">
-                  <Label>ลดแอนิเมชัน</Label>
+                  <Label>{t("reducedMotion")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    ลดเอฟเฟกต์การเคลื่อนไหวของ UI เช่น alert, dialog, hover และ scroll
+                    {t("reducedMotionDescription")}
                   </p>
                 </div>
                 <Switch
@@ -519,7 +550,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Languages className="h-4 w-4" />
-                  ภาษา
+                  {t("languageAssistiveLabel")}
                 </Label>
                 <Select
                   value={settingsPreferences.language}
@@ -530,15 +561,17 @@ export default function SettingsPage() {
                   }
                 >
                   <SelectTrigger className="w-full sm:w-[220px]">
-                    <SelectValue />
+                    <SelectValue>
+                      {settingsPreferences.language === "th" ? t("thai") : t("english")}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="th">ไทย</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="th">{t("thai")}</SelectItem>
+                    <SelectItem value="en">{t("english")}</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
-                  ตอนนี้ใช้สำหรับ preference และ lang attribute ก่อน ยังไม่แปลทั้งระบบ
+                  {t("languageAssistiveDescription")}
                 </p>
               </div>
             </CardContent>
@@ -551,10 +584,10 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Share2 className="h-5 w-5" />
-                  ช่องทางศูนย์
+                  {t("centerChannels")}
                 </CardTitle>
                 <CardDescription>
-                  ช่องทางที่ประชาชนใช้เปิดแอปภายนอกเพื่อแชร์จุดเกิดเหตุกลับศูนย์
+                  {t("channelCenterDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -562,33 +595,33 @@ export default function SettingsPage() {
                   <div className="rounded-lg border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-medium">LINE OA</div>
-                      {channelBadge(shareChannelStatus.line.enabled)}
+                      {channelBadge(shareChannelStatus.line.enabled, t)}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      เปิดผ่านค่า LINE_OA_ID ใน API environment
+                      {t("lineEnvDescription")}
                     </p>
                   </div>
                   <div className="rounded-lg border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-medium">SMS Center</div>
-                      {channelBadge(shareChannelStatus.sms.enabled)}
+                      {channelBadge(shareChannelStatus.sms.enabled, t)}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      เปิดผ่านค่า SMS_CENTER_PHONE ใน API environment
+                      {t("smsEnvDescription")}
                     </p>
                   </div>
                   <div className="rounded-lg border p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div className="font-medium">WhatsApp Center</div>
-                      {channelBadge(shareChannelStatus.whatsapp.enabled)}
+                      {channelBadge(shareChannelStatus.whatsapp.enabled, t)}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      เปิดผ่านค่า WHATSAPP_CENTER_PHONE ใน API environment
+                      {t("whatsappEnvDescription")}
                     </p>
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  หน้านี้แสดงสถานะเท่านั้น ไม่แสดงหรือแก้ไข credential จริงจาก .env
+                  {t("noSecretsShown")}
                 </p>
               </CardContent>
             </Card>
@@ -601,10 +634,10 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Server className="h-5 w-5" />
-                  สถานะระบบ
+                  {t("systemStatus")}
                 </CardTitle>
                 <CardDescription>
-                  ข้อมูลจริงแบบอ่านอย่างเดียวสำหรับตรวจความพร้อมของระบบ
+                  {t("healthDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -615,10 +648,10 @@ export default function SettingsPage() {
                         <Globe className="h-4 w-4" />
                         API
                       </div>
-                      {statusBadge(systemHealth.api)}
+                      {statusBadge(systemHealth.api, t)}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      ตรวจจาก endpoint /health
+                      {t("healthApiHint")}
                     </p>
                   </div>
                   <div className="rounded-lg border p-4">
@@ -627,10 +660,10 @@ export default function SettingsPage() {
                         <Database className="h-4 w-4" />
                         Database
                       </div>
-                      {statusBadge(systemHealth.database)}
+                      {statusBadge(systemHealth.database, t)}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      {systemHealth.dbTime ? "เช็ค DB ล่าสุด: " + systemHealth.dbTime : "รอผลจาก API health"}
+                      {systemHealth.dbTime ? t("healthDbCheckedPrefix") + systemHealth.dbTime : t("healthDbPending")}
                     </p>
                   </div>
                   <div className="rounded-lg border p-4">
@@ -639,10 +672,10 @@ export default function SettingsPage() {
                         <Radio className="h-4 w-4" />
                         SSE
                       </div>
-                      {statusBadge(systemHealth.sse)}
+                      {statusBadge(systemHealth.sse, t)}
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      ฟังสถานะจาก SSE connection หลัก ไม่เปิด connection ซ้ำ
+                      {t("healthSseHint")}
                     </p>
                   </div>
                 </div>
@@ -653,10 +686,10 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="h-5 w-5" />
-                  งานระบบที่ยังรอออกแบบ
+                  {t("pendingSystemWork")}
                 </CardTitle>
                 <CardDescription>
-                  แสดงเป็นสถานะอ่านอย่างเดียวเพื่อไม่ให้มี toggle หลอกในระบบ
+                  {t("pendingSystemWorkDescription")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-2">
@@ -666,7 +699,7 @@ export default function SettingsPage() {
                     Auto dispatch
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    อยู่ใน scope แต่ต้องออกแบบ DB/API ก่อนเปิดใช้งานจริง
+                    {t("autoDispatchPending")}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
@@ -675,7 +708,7 @@ export default function SettingsPage() {
                     Escalation
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    อยู่ใน scope แต่ยังไม่เพิ่ม migration ในรอบนี้
+                    {t("escalationPending")}
                   </p>
                 </div>
               </CardContent>
