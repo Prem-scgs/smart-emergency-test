@@ -7,84 +7,73 @@
 - Repository: `https://github.com/SCGS7788/smart-emergency.git`
 - Workspace: `D:\testwork_Fullstack(SCSG)\smart-emergency`
 - Branch: `Prem(scgs)-emergencyV0` (ห้ามแตะ `main`)
-- Latest commit before this publish: `e840577 feat: ปรับระบบแอดมิน contacts และ Docker local stack`
+- Latest commit before this publish: `0b0e9a5 feat: เชื่อมหน้า Settings และ Reports กับข้อมูลจริง`
 - Working tree before commit:
 
 ```text
-M CODEX_HANDOFF.md
- M app/admin/(dashboard)/reports/page.tsx
- M app/admin/(dashboard)/settings/page.tsx
- M services/emergency-api/src/modules/incidents/routes.test.ts
- M services/emergency-api/src/modules/incidents/routes.ts
-?? lib/reports-page-wiring.test.mjs
-?? lib/settings-page-wiring.test.mjs
+ M app/admin/(dashboard)/contacts/page.tsx
+ M app/admin/(dashboard)/gis/page.tsx
+?? lib/contacts-location-select-wiring.test.mjs
+?? lib/gis-page-wiring.test.mjs
 ```
 
 ## Completed Recently
 
-- ปรับหน้า Settings โดยคงโครงเดิม แต่ตัด mock/setting หลอกออก
-- Settings ใช้ preference จริงสำหรับเสียง Alert, เลือกเสียง, ทดสอบเสียง, โหมดมืด, ลดแอนิเมชัน และภาษา
-- Settings แยก role:
-  - `agency_admin` เห็นเฉพาะการตั้งค่าส่วนตัว
-  - `super_admin` เห็นช่องทางศูนย์และสถานะระบบด้วย
-- Settings ดึงสถานะ LINE/SMS/WhatsApp จาก `/api/reference/share-channels`
-- Settings ดึง API/DB health จาก `/health` และรับ SSE status จาก event หลัก ไม่เปิด SSE ซ้ำ
-- ทำ Reports จาก DB จริงแล้ว
-- เพิ่ม `GET /api/reports/summary`
-  - ดึงจาก `incidents`
-  - รองรับ `week | month | quarter | year`
-  - เคารพ role scope: `super_admin` เห็นทั้งหมด, `agency_admin` เห็นเฉพาะ category ตัวเอง
-- หน้า Reports ตัด mock data และแท็บผู้ปฏิบัติงานออก
-- หน้า Reports แสดง KPI, trend, หมวดเหตุ และพื้นที่จาก API จริง
-- Rebuild Docker images `api` และ `web` แล้ว และ recreate containers แล้ว
+- ปรับหน้า GIS เป็น read-only GIS viewer จาก DB จริง ไม่ใช่หน้าแก้หรือวาด polygon
+- หน้า GIS ใช้ `/api/areas`, `/api/areas/:id/contacts`, `/api/areas/:id/incidents`
+- ปรับข้อความหน้า GIS เป็นไทย และลดคำที่ทำให้เข้าใจว่าเป็นหน้าจัดการ polygon
+- แก้ select จังหวัดในหน้า GIS ให้แสดงชื่อจังหวัดภาษาไทยแทน `provinceCode` เช่น `บึงกาฬ` แทน `38`
+- แก้ layout การ์ด “พื้นที่บริการ” ใน GIS ไม่ให้ stretch สูงเท่าคอลัมน์ขวาแล้วเหลือช่องว่างดำด้านล่าง
+- เพิ่ม list scroll ใน GIS จาก `420px` เป็น `520px`
+- แก้ select จังหวัด/อำเภอในหน้า Contacts ให้แสดงชื่อไทยแทน code ด้วยวิธี render label ใน trigger โดยตรง
+- เพิ่ม regression tests:
+  - `lib/gis-page-wiring.test.mjs`
+  - `lib/contacts-location-select-wiring.test.mjs`
+- Rebuild และ recreate Docker `web` หลังแก้ UI แล้ว
 
 ## Verification ล่าสุด
 
 ```powershell
-rtk proxy node --test lib/reports-page-wiring.test.mjs lib/settings-page-wiring.test.mjs
-rtk proxy pnpm --filter emergency-api test
-rtk proxy pnpm build:api
+rtk proxy node --test lib/gis-page-wiring.test.mjs
+rtk proxy node --test lib/contacts-location-select-wiring.test.mjs lib/reports-page-wiring.test.mjs lib/settings-page-wiring.test.mjs
 rtk proxy pnpm build
-rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml build api web
-rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d api web
+rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml build web
+rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d web
 ```
 
 ผลที่ได้:
-- Frontend wiring tests ผ่าน 5/5
-- API tests ผ่าน 74/74
-- API build ผ่าน
+- GIS wiring tests ผ่าน 4/4
+- Contacts/Reports/Settings wiring tests ผ่าน 6/6
 - Next build ผ่าน
-- Docker API/Web rebuild และ recreate แล้ว
-- `GET http://localhost:4000/api/reports/summary?range=month` ตอบ `200` พร้อมข้อมูลจริงจาก DB
-- `GET http://localhost:3000/admin/reports` ตอบ `200`
+- Docker `web` rebuild และ recreate แล้ว
 
 ## Changed Files In Current Publish
 
-- `app/admin/(dashboard)/settings/page.tsx`
-- `app/admin/(dashboard)/reports/page.tsx`
-- `services/emergency-api/src/modules/incidents/routes.ts`
-- `services/emergency-api/src/modules/incidents/routes.test.ts`
-- `lib/settings-page-wiring.test.mjs`
-- `lib/reports-page-wiring.test.mjs`
+- `app/admin/(dashboard)/gis/page.tsx`
+- `app/admin/(dashboard)/contacts/page.tsx`
+- `lib/gis-page-wiring.test.mjs`
+- `lib/contacts-location-select-wiring.test.mjs`
 - `CODEX_HANDOFF.md`
 
 ## Exact Next Task
 
-แนะนำทำหน้า GIS ต่อแบบไม่รื้อใหญ่:
+แนะนำทำหน้า Reports/GIS polish ต่อแบบเล็กและปลอดภัย:
 
-1. ตรวจหน้า `app/admin/(dashboard)/gis/page.tsx` ว่ายังมี mock/ส่วนวาด polygon ที่ควรตัดออกหรือไม่
-2. คงเป้าหมาย GIS เป็น “ดูพื้นที่และขอบเขตจากข้อมูลจริง” ไม่ใช่ “วาดแก้ polygon”
-3. ดึงข้อมูลพื้นที่/จังหวัด/อำเภอจาก reference/areas ที่มีอยู่
-4. เคารพ role scope เหมือน Dashboard/Reports
-5. เพิ่ม loading/error/empty state
-6. ทำ regression tests ก่อนแก้
+1. เปิดดูหน้า `admin/gis` จริงหลัง Docker rebuild แล้วเช็ค visual ว่า:
+   - select จังหวัดเป็นชื่อไทย
+   - การ์ด “พื้นที่บริการ” ไม่เหลือช่องว่างดำยาว
+   - map/list/detail อ่านง่ายบนจอเล็ก
+2. ถ้า visual ผ่าน ให้เริ่มหน้า Reports ต่อ:
+   - เพิ่ม empty/error/loading state ให้ละเอียดขึ้น
+   - ออกแบบ export รายงานจริง หรือคง disabled พร้อมเหตุผลชัด
+3. ก่อนแก้ behavior เพิ่ม test ก่อนเสมอ
 
 ## Pending Work
 
 - Reports export ยัง disabled อยู่
 - Settings organization/timezone ยังไม่ได้ผูก DB เพราะต้องออกแบบ migration/API เพิ่ม
 - Auto dispatch และ escalation ยังเป็น read-only note ยังไม่เปิดใช้จริง
-- GIS ยังต้องปรับต่อ
+- GIS ยังเป็น read-only viewer; backend ยังมี `POST/PUT/DELETE /api/areas` legacy อยู่ แต่ UI ไม่ใช้แล้ว
 - Production HTTPS/iPhone GPS ยังต้องทำในรอบ deploy/demo ถัดไป
 - FSD/feature-sliced structure migration รอหลัง flow หลักนิ่ง
 
@@ -101,7 +90,7 @@ rtk proxy docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
 
 ## Suggested Skills
 
-- `$brainstorming` ก่อนปรับ GIS/Reports/Settings เพิ่ม
+- `$brainstorming` ก่อนปรับ UI/flow เพิ่ม
 - `$test-driven-development` ก่อนแก้ behavior
 - `$verification-before-completion` ก่อนสรุปว่าเสร็จหรือก่อน commit/push
 - `$handoff` เมื่อ compact หรือสลับบัญชี

@@ -182,6 +182,21 @@ export default function ContactsPage() {
   const inactiveCount = contacts.length - activeCount
   const selectedProvince = provinceMap[selectedProvinceCode]
   const availableDistricts = useMemo(() => districts, [districts])
+  const selectedProvinceLabel = selectedProvince
+    ? getLocationDisplayName(selectedProvince)
+    : isLoadingProvinces
+      ? 'กำลังโหลดจังหวัด...'
+      : 'เลือกจังหวัด'
+  const selectedDistrict = availableDistricts.find(
+    district => (district.districtCode ?? district.id) === selectedDistrictCode
+  )
+  const selectedDistrictLabel = selectedDistrict
+    ? getLocationDisplayName(selectedDistrict)
+    : !selectedProvinceCode
+      ? 'เลือกจังหวัดก่อน'
+      : isLoadingDistricts
+        ? 'กำลังโหลดอำเภอ / เขต...'
+        : 'เลือกอำเภอ / เขต'
 
   function canManageContact(contact: Contact) {
     if (isSuperAdmin) return true
@@ -635,18 +650,7 @@ export default function ContactsPage() {
                       disabled={isLoadingProvinces}
                     >
                       <SelectTrigger id="province" className="w-full">
-                        <SelectValue>
-                          {value => {
-                            const province = provinces.find(
-                              item => (item.provinceCode ?? item.id) === value
-                            )
-                            return province
-                              ? getLocationDisplayName(province)
-                              : isLoadingProvinces
-                                ? 'กำลังโหลดจังหวัด...'
-                                : 'เลือกจังหวัด'
-                          }}
-                        </SelectValue>
+                        <span className="truncate">{selectedProvinceLabel}</span>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -670,16 +674,7 @@ export default function ContactsPage() {
                       disabled={!selectedProvinceCode || isLoadingDistricts}
                     >
                       <SelectTrigger id="district" className="w-full">
-                        <SelectValue>
-                          {value => {
-                            const district = availableDistricts.find(
-                              item => (item.districtCode ?? item.id) === value
-                            )
-                            if (district) return getLocationDisplayName(district)
-                            if (!selectedProvinceCode) return 'เลือกจังหวัดก่อน'
-                            return isLoadingDistricts ? 'กำลังโหลดอำเภอ / เขต...' : 'เลือกอำเภอ / เขต'
-                          }}
-                        </SelectValue>
+                        <span className="truncate">{selectedDistrictLabel}</span>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>

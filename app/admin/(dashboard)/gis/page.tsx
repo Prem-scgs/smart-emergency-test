@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import type { GisBoundary } from '@/components/admin/gis-boundary-map'
 import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
@@ -24,7 +24,7 @@ const GisBoundaryMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-[520px] items-center justify-center bg-muted text-sm text-muted-foreground">
-        Loading map...
+        กำลังโหลดแผนที่...
       </div>
     ),
   }
@@ -138,7 +138,7 @@ export default function GISPage() {
       const response = await fetch(
         `${API_BASE_URL}/api/areas?areaType=province&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=false`
       )
-      if (!response.ok) throw new Error('Failed to load provinces')
+      if (!response.ok) throw new Error('โหลดข้อมูลจังหวัดไม่สำเร็จ')
       const data = (await response.json()) as GisBoundary[]
       setProvinces(data)
 
@@ -148,7 +148,7 @@ export default function GISPage() {
         setSelectedProvinceCode(defaultProvince.provinceCode)
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load provinces')
+      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลจังหวัดไม่สำเร็จ')
     } finally {
       setIsProvinceLoading(false)
     }
@@ -166,12 +166,12 @@ export default function GISPage() {
       const response = await fetch(
         `${API_BASE_URL}/api/areas?areaType=district&provinceCode=${encodeURIComponent(provinceCode)}&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=true`
       )
-      if (!response.ok) throw new Error('Failed to load districts')
+      if (!response.ok) throw new Error('โหลดข้อมูลอำเภอ/เขตไม่สำเร็จ')
       const data = (await response.json()) as GisBoundary[]
       setDistricts(data)
       setSelectedArea(data[0] ?? null)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load districts')
+      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลอำเภอ/เขตไม่สำเร็จ')
     } finally {
       setIsDistrictLoading(false)
     }
@@ -187,13 +187,13 @@ export default function GISPage() {
         fetch(`${API_BASE_URL}/api/areas/${area.id}/incidents`),
       ])
 
-      if (!contactsResponse.ok) throw new Error('Failed to load contacts in area')
-      if (!incidentsResponse.ok) throw new Error('Failed to load incidents in area')
+      if (!contactsResponse.ok) throw new Error('โหลดเบอร์ในพื้นที่ไม่สำเร็จ')
+      if (!incidentsResponse.ok) throw new Error('โหลดเหตุการณ์ในพื้นที่ไม่สำเร็จ')
 
       setAreaContacts((await contactsResponse.json()) as AreaContact[])
       setAreaIncidents((await incidentsResponse.json()) as AreaIncident[])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load area details')
+      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลพื้นที่ไม่สำเร็จ')
     } finally {
       setIsDetailLoading(false)
     }
@@ -215,6 +215,11 @@ export default function GISPage() {
     () => provinces.find(area => area.provinceCode === selectedProvinceCode) ?? null,
     [provinces, selectedProvinceCode]
   )
+  const selectedProvinceLabel = selectedProvince
+    ? provinceDisplay(selectedProvince)
+    : isProvinceLoading
+      ? 'กำลังโหลดจังหวัด...'
+      : 'เลือกจังหวัด'
 
   const filteredDistricts = useMemo(() => {
     const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
@@ -244,9 +249,9 @@ export default function GISPage() {
     <div className="space-y-6 p-4 lg:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-xl font-semibold">จัดการพื้นที่ GIS</h1>
+          <h1 className="text-xl font-semibold">พื้นที่ GIS</h1>
           <p className="text-sm text-muted-foreground">
-            จัดการขอบเขตจังหวัดและอำเภอสำหรับตรวจสอบพิกัดด้วย PostGIS
+            ดูขอบเขตจังหวัดและอำเภอจากฐานข้อมูล เพื่อใช้ตรวจพิกัดเหตุฉุกเฉินด้วย PostGIS
           </p>
         </div>
         <Button
@@ -265,13 +270,13 @@ export default function GISPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">ขอบเขตจังหวัด</p>
+            <p className="text-sm text-muted-foreground">จังหวัดในฐานข้อมูล</p>
             <p className="mt-2 text-3xl font-semibold">{provinces.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">อำเภอ/เขตที่โหลด</p>
+            <p className="text-sm text-muted-foreground">อำเภอ/เขตที่แสดง</p>
             <p className="mt-2 text-3xl font-semibold">{districts.length}</p>
           </CardContent>
         </Card>
@@ -290,10 +295,10 @@ export default function GISPage() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
-        <Card>
+        <Card className="self-start">
           <CardHeader>
-            <CardTitle className="text-base">รายการขอบเขตพื้นที่</CardTitle>
-            <CardDescription>โหลดทีละจังหวัดเพื่อให้แผนที่ทำงานเร็ว</CardDescription>
+            <CardTitle className="text-base">พื้นที่บริการ</CardTitle>
+            <CardDescription>เลือกจังหวัดและอำเภอ/เขตเพื่อดูข้อมูลในพื้นที่</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -304,7 +309,7 @@ export default function GISPage() {
                 disabled={isProvinceLoading}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือกจังหวัด" />
+                  <span className="truncate">{selectedProvinceLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {provinces.map(province => (
@@ -335,7 +340,7 @@ export default function GISPage() {
               </Button>
             )}
 
-            <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+            <div className="max-h-[520px] space-y-2 overflow-auto pr-1">
               {isDistrictLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -415,11 +420,11 @@ export default function GISPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {selectedArea ? areaLabel(selectedArea) : 'Selected Area'}
+                  {selectedArea ? areaLabel(selectedArea) : 'พื้นที่ที่เลือก'}
                 </CardTitle>
                 <CardDescription>
                   {selectedArea
-                    ? `${geometryPointCount(selectedArea).toLocaleString()} geometry points`
+                    ? `${geometryPointCount(selectedArea).toLocaleString()} จุดพิกัดของขอบเขต`
                     : 'เลือกอำเภอ/เขตจากแผนที่หรือรายการ'}
                 </CardDescription>
               </CardHeader>
@@ -506,7 +511,7 @@ export default function GISPage() {
                         <div>
                           <p className="text-sm font-medium">{categoryLabel(incident.category)}</p>
                           <p className="text-xs text-muted-foreground">
-                            {incident.description ?? 'No description'}
+                            {incident.description ?? 'ไม่มีรายละเอียดเพิ่มเติม'}
                           </p>
                         </div>
                         <Badge variant="outline">{statusLabel(incident.status)}</Badge>
