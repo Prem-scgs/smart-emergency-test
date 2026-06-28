@@ -7,31 +7,32 @@
 - Repository: `https://github.com/SCGS7788/smart-emergency.git`
 - Workspace: `D:\testwork_Fullstack(SCSG)\smart-emergency`
 - Branch: `Prem(scgs)-emergencyV0` (ห้ามแตะ `main`)
-- Latest committed baseline before this handoff: `2e0daca feat: เพิ่มระบบแปลภาษาในหน้า Settings`
-- Current objective: ทำ Admin i18n ให้แยกชัดเจน ไทยคือไทย อังกฤษคืออังกฤษ โดยเริ่มจาก Dashboard และ child components
-- Current checkpoint to commit: Dashboard i18n + localized incident location display
+- Latest committed baseline before this handoff: `431cfb1 feat: แยกภาษา Dashboard ไทยอังกฤษให้ชัดเจน`
+- Current objective: ทำ Admin i18n ให้แยกชัดเจน ไทยคือไทย อังกฤษคืออังกฤษ ทีละหน้า
+- Current checkpoint to commit: Contacts i18n + localized location/category labels
 
 ## Completed This Session
 
-- ปรับ Dashboard ให้ใช้ `useAdminI18n()` และ dictionary กลางมากขึ้น
-- ปรับหมวดเหตุให้เลือก label ตามภาษา:
-  - Thai mode: `ดับเพลิง`, `น้ำท่วม`, `แพทย์`, `ตำรวจ`, `กู้ภัย`, `อุบัติเหตุทางถนน`
-  - English mode: ใช้ label อังกฤษจาก reference category
-- แก้ชื่อพื้นที่/จังหวัด/อำเภอที่เคยปนอังกฤษ เช่น `Mueang Phitsanulok`
-  - ใช้ `provinceCode/districtCode` ไป lookup master location
-  - Thai mode แสดง `เมืองพิษณุโลก พิษณุโลก`
-  - English mode ใช้ชื่ออังกฤษจาก master location
-- ปรับจุดแสดงผล Dashboard ที่เกี่ยวข้อง:
-  - `app/admin/(dashboard)/dashboard/page.tsx`
-  - `components/admin/incident-map.tsx`
-  - `components/admin/incident-queue.tsx`
-  - `components/admin/incident-detail-panel.tsx`
-  - `components/admin/incident-status-timeline.tsx`
-- ปรับ `getLocationDisplayName(item, preferThai)` ให้เลือกภาษาได้
-- เพิ่ม `descriptionEn` ให้ workflow status meta
-- เพิ่ม regression tests:
-  - `lib/dashboard-i18n-wiring.test.mjs`
-  - `lib/dashboard-child-i18n-wiring.test.mjs`
+- ปรับหน้า `Contacts` ให้ใช้ `useAdminI18n()`
+- เพิ่ม dictionary keys สำหรับ Contacts ทั้ง Thai/English ใน `lib/admin-i18n.tsx`
+- ปรับ Contacts labels ให้เปลี่ยนตามภาษา:
+  - page title/description
+  - scope badge
+  - reload/add buttons
+  - KPI cards
+  - search/filter
+  - table headers
+  - active/inactive/24h badges
+  - create/edit dialog
+  - coverage selector
+  - province/district selector
+  - delete confirmation
+  - toast/error messages
+- ปรับ category label ให้ใช้ `buildAdminCategoryCollections(referenceCategories, preferThai)`
+- ปรับ province/district display ให้ใช้ `getLocationDisplayName(item, preferThai)`
+- เพิ่ม lookup จาก `useLocationLookupMaps()` เพื่อแสดงพื้นที่ของ contact จาก `provinceCode/districtCode`
+- เพิ่ม regression test:
+  - `lib/contacts-i18n-wiring.test.mjs`
 - Rebuild/restart Docker `web` แล้ว
 
 ## Verification ล่าสุด
@@ -39,7 +40,7 @@
 รันแล้วผ่าน:
 
 ```powershell
-rtk proxy powershell -NoProfile -Command "pnpm exec node --test lib/dashboard-i18n-wiring.test.mjs lib/dashboard-child-i18n-wiring.test.mjs lib/admin-i18n-wiring.test.mjs lib/settings-page-wiring.test.mjs"
+rtk proxy powershell -NoProfile -Command "pnpm exec node --test lib/contacts-i18n-wiring.test.mjs lib/dashboard-i18n-wiring.test.mjs lib/dashboard-child-i18n-wiring.test.mjs lib/admin-i18n-wiring.test.mjs lib/settings-page-wiring.test.mjs"
 rtk proxy powershell -NoProfile -Command "pnpm build"
 rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-emergency" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.yml" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.local.yml" build web
 rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-emergency" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.yml" -f "D:\testwork_Fullstack(SCSG)\smart-emergency\docker-compose.local.yml" up -d web
@@ -47,52 +48,52 @@ rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-
 
 ผล:
 
-- i18n regression tests ผ่าน `14/14`
+- i18n regression tests ผ่าน `16/16`
 - `pnpm build` ผ่าน
 - Docker `web` rebuild/restart ผ่าน
-- HTTP check `http://localhost:3000/admin/dashboard` ได้ `200`
-- Headless Chrome mock login ตรวจ Thai dashboard:
-  - ไม่พบ `Mueang Phitsanulok`
-  - ไม่พบ `Phitsanulok`
-  - พบ `เมืองพิษณุโลก`
-  - พบ `ตรวจสอบเรียลไทม์`
-  - ไม่พบ `super_admin`
-  - พบ `ผู้ดูแลระบบสูงสุด`
+- HTTP check `http://localhost:3000/admin/contacts` ได้ `200`
+- Headless Chrome mock login ตรวจ Contacts:
+  - Thai mode เห็น `จัดการเบอร์ฉุกเฉิน`
+  - English mode เห็น `Emergency contacts`
+  - category/coverage/table labels เปลี่ยนตามภาษา
 
 ## Changed / Relevant Files
 
-- `app/admin/(dashboard)/dashboard/page.tsx`
-- `components/admin/incident-detail-panel.tsx`
-- `components/admin/incident-map.tsx`
-- `components/admin/incident-queue.tsx`
-- `components/admin/incident-status-timeline.tsx`
+- `app/admin/(dashboard)/contacts/page.tsx`
 - `lib/admin-i18n.tsx`
-- `lib/emergency-category-utils.ts`
-- `lib/incident-tracking.ts`
-- `lib/reference-locations.ts`
-- `lib/dashboard-i18n-wiring.test.mjs`
-- `lib/dashboard-child-i18n-wiring.test.mjs`
+- `lib/contacts-i18n-wiring.test.mjs`
 - `CODEX_HANDOFF.md`
+
+## Important Caveat
+
+- ชื่อหน่วยงานในตาราง Contacts เช่น `Emergency Medical Services` เป็นข้อมูลจริงจาก DB field `contacts.name`
+- ตอนนี้ schema ยังไม่มี `name_th/name_en`
+- ดังนั้น UI labels แปลครบแล้ว แต่ชื่อหน่วยงานที่เป็น data จะยังแสดงตามที่ DB เก็บไว้
+- ถ้าต้องการแยกไทย/อังกฤษสำหรับชื่อหน่วยงานจริง ต้องทำงาน DB/schema เพิ่มในรอบถัดไป
 
 ## Exact Next Task
 
-หลัง push checkpoint นี้แล้ว งานต่อที่เหมาะสุด:
+หลัง push checkpoint นี้แล้ว งานต่อที่แนะนำคือหน้า `GIS`:
 
-1. Manual check หน้า `http://localhost:3000/admin/dashboard` ใน browser ของเปรม:
-   - Thai mode ต้องไม่ปน label อังกฤษในข้อมูล Dashboard หลัก
-   - English mode ต้องเปลี่ยน label UI/category/status/location เป็นอังกฤษ
-   - หมายเหตุ: ตัวอักษรบนแผนที่ OpenStreetMap เป็น tile ภายนอก ไม่ได้ถูกควบคุมด้วย i18n ของระบบ
-2. ถ้าผ่าน ค่อยทำ i18n หน้า Admin อื่นทีละหน้า:
-   - Contacts
-   - GIS
-   - Reports
-   - Call logs
-   - Users
+Acceptance criteria:
+
+1. หน้า GIS ใช้ `useAdminI18n()`
+2. Label UI แยก Thai/English ชัดเจน
+3. จังหวัด/อำเภอใช้ `getLocationDisplayName(item, preferThai)`
+4. Search/filter/list/map popup ไม่ปนภาษา UI
+5. ระวัง map tile จาก OpenStreetMap ไม่อยู่ใน scope i18n ของระบบ
+6. เพิ่ม regression test สำหรับ GIS i18n wiring
+7. รัน tests + `pnpm build`
+8. ถ้าใช้ Docker ให้ rebuild/restart `web`
 
 ## Pending Work
 
-- ยังไม่ได้แปลครบทุกหน้า Admin ทั้งระบบ
-- Users page ยังมี mock/legacy UI บางส่วน
+- ยังไม่ได้ทำ i18n/polish หน้า:
+  - GIS
+  - Reports
+  - Call logs
+  - Users
+- Users page ยังเป็น mock/legacy เยอะสุด อาจรอทีม Auth
 - Settings เฟส 2 ยังเหลือ polish ช่องทางศูนย์ LINE/SMS/WhatsApp
 - Settings เฟส 3 ยังเหลือ polish สถานะระบบ API/Database/SSE
 - Production readiness/FSD structure migration ยังรอหลัง flow หลักนิ่ง
@@ -100,7 +101,7 @@ rtk proxy docker compose --project-directory "D:\testwork_Fullstack(SCSG)\smart-
 ## Decisions
 
 - Admin i18n ใช้ local browser preference ก่อน จนกว่าทีม Auth จะมี user preference จริง
-- Dashboard location display ต้องยึด master location จาก `provinceCode/districtCode` ไม่ใช้ raw incident text เป็นหลัก
+- Dashboard/Contacts location display ต้องยึด master location จาก `provinceCode/districtCode` เมื่อมี code
 - Realtime ใช้ SSE เท่านั้น ห้ามเพิ่ม WebSocket โดยไม่ถาม
 - Docker local full stack ใช้งานอยู่ เปลี่ยน frontend แล้วต้อง rebuild/restart `web`
 

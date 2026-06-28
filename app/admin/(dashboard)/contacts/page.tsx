@@ -26,7 +26,6 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { buildAdminApiHeaders } from '@/lib/admin-api'
 import {
-  CONTACT_COVERAGE_OPTIONS,
   getContactCoverageFromValues,
   getContactCoverageState,
   getContactRole,
@@ -35,16 +34,17 @@ import {
   normalizeContactPhone,
   type ContactCoverage,
 } from '@/lib/contact-coverage'
+import { useAdminI18n } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
-import { buildAdminCategoryCollections, getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { useReferenceCategories } from '@/lib/reference-categories'
 import {
   getLocationCanonicalName,
   getLocationDisplayName,
+  useLocationLookupMaps,
   useReferenceLocations,
 } from '@/lib/reference-locations'
-import type { EmergencyCategory } from '@/lib/types'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 
@@ -80,17 +80,6 @@ const emptyForm: ContactFormState = {
   active: true,
 }
 
-function getCategoryLabel(category: string | null | undefined) {
-  if (!category) return 'ไม่ระบุหน่วยงาน'
-  return getEmergencyCategoryLabel(category, category)
-}
-
-function getCoverageLabel(contact: Contact) {
-  if (contact.districtCode || contact.district) return 'อำเภอ / เขต'
-  if (contact.provinceCode || contact.province) return 'จังหวัด'
-  return 'ส่วนกลาง'
-}
-
 function toForm(contact: Contact): ContactFormState {
   return {
     name: contact.name,
@@ -103,6 +92,8 @@ function toForm(contact: Contact): ContactFormState {
 
 export default function ContactsPage() {
   const { user, hasPermission, canViewAllAgencies, getUserAgency } = useAuth()
+  const { language, t } = useAdminI18n()
+  const preferThai = language !== 'en'
   const { categories: referenceCategories } = useReferenceCategories()
   const {
     provinces,
@@ -113,14 +104,23 @@ export default function ContactsPage() {
     isLoadingProvinces,
     isLoadingDistricts,
   } = useReferenceLocations({ autoSelectFirstProvince: false })
+  const { provinceByCode, districtByCode } = useLocationLookupMaps()
 
   const userAgency = getUserAgency()
   const agencyCategory = userAgency?.category
   const isSuperAdmin = canViewAllAgencies()
   const canCreateContact = isSuperAdmin || user?.role === 'agency_admin' || hasPermission('contacts.create')
   const contactCategories = useMemo(
-    () => buildAdminCategoryCollections(referenceCategories).options,
-    [referenceCategories]
+    () => buildAdminCategoryCollections(referenceCategories, preferThai).options,
+    [preferThai, referenceCategories]
+  )
+  const coverageOptions = useMemo(
+    () => [
+      { value: 'central' as const, label: t('contactsCoverageCentral'), description: t('contactsCoverageCentralDescription') },
+      { value: 'province' as const, label: t('contactsCoverageProvinceLevel'), description: t('contactsCoverageProvinceDescription') },
+      { value: 'district' as const, label: t('contactsCoverageDistrictLevel'), description: t('contactsCoverageDistrictDescription') },
+    ],
+    [t]
   )
 
   const [contacts, setContacts] = useState<Contact[]>([])
@@ -136,9 +136,34 @@ export default function ContactsPage() {
   const [contactPendingDelete, setContactPendingDelete] = useState<Contact | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const roleScopeLabel = isSuperAdmin
-    ? 'สิทธิ์: ทุกหน่วยงาน'
-    : 'สิทธิ์: ' + (userAgency?.nameTh ?? userAgency?.name ?? 'หน่วยงานของฉัน')
+  const roleScopeName =
+    (preferThai
+      ? userAgency?.nameTh ?? userAgency?.name
+      : userAgency?.name ?? userAgency?.nameTh) ?? t('contactsOwnAgencyFallback')
+  const roleScopeLabel = isSuperAdmin ? t('contactsScopeAll') : t('contactsScopePrefix') + roleScopeName
+
+  function getContactCategoryLabel(category: string | null | undefined) {
+    if (!category) return t('contactsUnspecifiedAgency')
+    return contactCategories.find(option => option.value === category)?.label ?? category
+  }
+
+  function getContactCoverageLabel(contact: Contact) {
+    if (contact.districtCode || contact.district) return t('contactsCoverageDistrict')
+    if (contact.provinceCode || contact.province) return t('contactsCoverageProvince')
+    return t('contactsCoverageCentral')
+  }
+
+  function getContactAreaLabel(contact: Contact) {
+    const provinceFromMaster = contact.provinceCode
+      ? getLocationDisplayName(provinceByCode[contact.provinceCode], preferThai)
+      : ''
+    const districtFromMaster = contact.districtCode
+      ? getLocationDisplayName(districtByCode[contact.districtCode], preferThai)
+      : ''
+    const province = provinceFromMaster || contact.province
+    const district = districtFromMaster || contact.district
+    return [district, province].filter(Boolean).join(', ') || t('contactsCoverageCentral')
+  }
 
   const loadContacts = useCallback(async () => {
     try {
@@ -147,16 +172,16 @@ export default function ContactsPage() {
         headers: buildAdminApiHeaders(user),
       })
       if (!response.ok) {
-        throw new Error('โหลดข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+        throw new Error(t('contactsLoadError'))
       }
       const data = (await response.json()) as Contact[]
       setContacts(data)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+      toast.error(error instanceof Error ? error.message : t('contactsLoadError'))
     } finally {
       setIsLoading(false)
     }
-  }, [user])
+  }, [t, user])
 
   useEffect(() => {
     void loadContacts()
@@ -165,38 +190,40 @@ export default function ContactsPage() {
   const filteredContacts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase()
     return contacts.filter(contact => {
-      const categoryLabel = getCategoryLabel(contact.category).toLowerCase()
+      const categoryLabel = getContactCategoryLabel(contact.category).toLowerCase()
+      const areaLabel = getContactAreaLabel(contact).toLowerCase()
       const matchesSearch =
         !keyword ||
         contact.name.toLowerCase().includes(keyword) ||
         contact.phone.toLowerCase().includes(keyword) ||
         categoryLabel.includes(keyword) ||
+        areaLabel.includes(keyword) ||
         (contact.province ?? '').toLowerCase().includes(keyword) ||
         (contact.district ?? '').toLowerCase().includes(keyword)
       const matchesCategory = categoryFilter === 'all' || contact.category === categoryFilter
       return matchesSearch && matchesCategory
     })
-  }, [categoryFilter, contacts, searchTerm])
+  }, [categoryFilter, contacts, searchTerm, contactCategories, districtByCode, preferThai, provinceByCode, t])
 
   const activeCount = contacts.filter(contact => contact.active).length
   const inactiveCount = contacts.length - activeCount
   const selectedProvince = provinceMap[selectedProvinceCode]
   const availableDistricts = useMemo(() => districts, [districts])
   const selectedProvinceLabel = selectedProvince
-    ? getLocationDisplayName(selectedProvince)
+    ? getLocationDisplayName(selectedProvince, preferThai)
     : isLoadingProvinces
-      ? 'กำลังโหลดจังหวัด...'
-      : 'เลือกจังหวัด'
+      ? t('contactsProvinceLoading')
+      : t('contactsSelectProvince')
   const selectedDistrict = availableDistricts.find(
     district => (district.districtCode ?? district.id) === selectedDistrictCode
   )
   const selectedDistrictLabel = selectedDistrict
-    ? getLocationDisplayName(selectedDistrict)
+    ? getLocationDisplayName(selectedDistrict, preferThai)
     : !selectedProvinceCode
-      ? 'เลือกจังหวัดก่อน'
+      ? t('contactsSelectProvinceFirst')
       : isLoadingDistricts
-        ? 'กำลังโหลดอำเภอ / เขต...'
-        : 'เลือกอำเภอ / เขต'
+        ? t('contactsDistrictLoading')
+        : t('contactsSelectDistrict')
 
   function canManageContact(contact: Contact) {
     if (isSuperAdmin) return true
@@ -212,7 +239,7 @@ export default function ContactsPage() {
 
   function openCreateDialog() {
     if (!canCreateContact) {
-      toast.error('บัญชีนี้ไม่มีสิทธิ์เพิ่มเบอร์ฉุกเฉิน')
+      toast.error(t('contactsNoCreatePermission'))
       return
     }
 
@@ -226,7 +253,7 @@ export default function ContactsPage() {
 
   function openEditDialog(contact: Contact) {
     if (!canManageContact(contact)) {
-      toast.error('แก้ไขได้เฉพาะเบอร์ในหน่วยงานของคุณ')
+      toast.error(t('contactsEditOwnAgencyOnly'))
       return
     }
 
@@ -253,23 +280,23 @@ export default function ContactsPage() {
 
   async function saveContact() {
     if (!form.name.trim() || !form.phone.trim()) {
-      toast.error('กรุณากรอกชื่อหน่วยงานและเบอร์โทร')
+      toast.error(t('contactsRequiredError'))
       return
     }
 
     if (!isValidContactPhone(form.phone)) {
-      toast.error('กรุณากรอกเบอร์ฉุกเฉิน เช่น 199, 1669 หรือเบอร์ไทย 9-10 หลัก')
+      toast.error(t('contactsPhoneInvalidError'))
       return
     }
 
     const effectiveCategory = isSuperAdmin ? form.category : agencyCategory
     if (!effectiveCategory) {
-      toast.error('ไม่พบหน่วยงานของบัญชีนี้')
+      toast.error(t('contactsNoAgencyError'))
       return
     }
 
     if (editingContact && !canManageContact(editingContact)) {
-      toast.error('แก้ไขได้เฉพาะเบอร์ในหน่วยงานของคุณ')
+      toast.error(t('contactsEditOwnAgencyOnly'))
       return
     }
 
@@ -312,14 +339,14 @@ export default function ContactsPage() {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
-        throw new Error(payload?.message ?? payload?.error ?? 'บันทึกข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+        throw new Error(payload?.message ?? payload?.error ?? t('contactsSaveError'))
       }
 
-      toast.success(editingContact ? 'แก้ไขเบอร์ฉุกเฉินแล้ว' : 'เพิ่มเบอร์ฉุกเฉินแล้ว')
+      toast.success(editingContact ? t('contactsSaveEditSuccess') : t('contactsSaveCreateSuccess'))
       setIsDialogOpen(false)
       await loadContacts()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'บันทึกข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+      toast.error(error instanceof Error ? error.message : t('contactsSaveError'))
     } finally {
       setIsSaving(false)
     }
@@ -327,7 +354,7 @@ export default function ContactsPage() {
 
   function requestDeleteContact(contact: Contact) {
     if (!canManageContact(contact)) {
-      toast.error('ลบได้เฉพาะเบอร์ในหน่วยงานของคุณ')
+      toast.error(t('contactsDeleteOwnAgencyOnly'))
       return
     }
 
@@ -349,13 +376,13 @@ export default function ContactsPage() {
       })
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
-        throw new Error(payload?.message ?? payload?.error ?? 'ลบข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+        throw new Error(payload?.message ?? payload?.error ?? t('contactsDeleteError'))
       }
-      toast.success('ลบเบอร์ฉุกเฉินแล้ว')
+      toast.success(t('contactsDeleteSuccess'))
       setContactPendingDelete(null)
       await loadContacts()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'ลบข้อมูลเบอร์ฉุกเฉินไม่สำเร็จ')
+      toast.error(error instanceof Error ? error.message : t('contactsDeleteError'))
     } finally {
       setIsDeleting(false)
     }
@@ -365,9 +392,9 @@ export default function ContactsPage() {
     <div className="space-y-6 p-4 lg:p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">จัดการเบอร์ฉุกเฉิน</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t('contactsPageTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            จัดการเบอร์ที่ mobile ใช้ค้นหาตามพิกัดและหมวดเหตุ
+            {t('contactsPageDescription')}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -376,12 +403,12 @@ export default function ContactsPage() {
           </Badge>
           <Button variant="outline" onClick={loadContacts} disabled={isLoading}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            โหลดใหม่
+            {t('contactsReload')}
           </Button>
           {canCreateContact && (
             <Button onClick={openCreateDialog}>
               <Plus className="mr-2 h-4 w-4" />
-              เพิ่มเบอร์
+              {t('contactsAddShort')}
             </Button>
           )}
         </div>
@@ -391,27 +418,27 @@ export default function ContactsPage() {
         <Card>
           <CardContent className="p-6">
             <p className="text-2xl font-bold">{contacts.length}</p>
-            <p className="text-sm text-muted-foreground">เบอร์ทั้งหมดตามสิทธิ์</p>
+            <p className="text-sm text-muted-foreground">{t('contactsTotal')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-2xl font-bold text-success">{activeCount}</p>
-            <p className="text-sm text-muted-foreground">เปิดใช้งาน</p>
+            <p className="text-sm text-muted-foreground">{t('contactsActive')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
             <p className="text-2xl font-bold text-muted-foreground">{inactiveCount}</p>
-            <p className="text-sm text-muted-foreground">ปิดใช้งาน</p>
+            <p className="text-sm text-muted-foreground">{t('contactsInactive')}</p>
           </CardContent>
         </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>รายการเบอร์ฉุกเฉิน</CardTitle>
-          <CardDescription>ค้นหาและจัดการเบอร์ผ่าน API จริง โดยจำกัดข้อมูลตาม role</CardDescription>
+          <CardTitle>{t('contactsListTitle')}</CardTitle>
+          <CardDescription>{t('contactsListDescription')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-[1fr_220px]">
@@ -420,7 +447,7 @@ export default function ContactsPage() {
               <Input
                 value={searchTerm}
                 onChange={event => setSearchTerm(event.target.value)}
-                placeholder="ค้นหาชื่อ เบอร์ หน่วยงาน จังหวัด หรืออำเภอ"
+                placeholder={t('contactsSearchPlaceholder')}
                 className="pl-9"
               />
             </div>
@@ -429,16 +456,16 @@ export default function ContactsPage() {
                 <SelectValue>
                   {value =>
                     getSelectOptionLabel(
-                      [{ value: 'all', label: 'ทุกหน่วยงาน' }, ...contactCategories],
+                      [{ value: 'all', label: t('contactsAllAgencies') }, ...contactCategories],
                       value as string | null,
-                      'หน่วยงาน'
+                      t('contactsAgencyFallback')
                     )
                   }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="all">ทุกหน่วยงาน</SelectItem>
+                  <SelectItem value="all">{t('contactsAllAgencies')}</SelectItem>
                   {contactCategories.map(category => (
                     <SelectItem key={category.value} value={category.value}>
                       {category.label}
@@ -453,12 +480,12 @@ export default function ContactsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>หน่วยงาน</TableHead>
-                  <TableHead>หมวดเหตุ</TableHead>
-                  <TableHead>เบอร์โทร</TableHead>
-                  <TableHead>พื้นที่</TableHead>
-                  <TableHead>สถานะ</TableHead>
-                  <TableHead className="w-28 text-right">จัดการ</TableHead>
+                  <TableHead>{t('contactsTableAgency')}</TableHead>
+                  <TableHead>{t('contactsTableCategory')}</TableHead>
+                  <TableHead>{t('contactsTablePhone')}</TableHead>
+                  <TableHead>{t('contactsTableArea')}</TableHead>
+                  <TableHead>{t('contactsTableStatus')}</TableHead>
+                  <TableHead className="w-28 text-right">{t('contactsTableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -466,13 +493,13 @@ export default function ContactsPage() {
                   <TableRow>
                     <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                       <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
-                      กำลังโหลดเบอร์ฉุกเฉิน...
+                      {t('contactsLoading')}
                     </TableCell>
                   </TableRow>
                 ) : filteredContacts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
-                      ไม่พบเบอร์ฉุกเฉิน
+                      {t('contactsEmpty')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -483,21 +510,21 @@ export default function ContactsPage() {
                         <TableCell>
                           <p className="font-medium">{contact.name}</p>
                         </TableCell>
-                        <TableCell>{getCategoryLabel(contact.category)}</TableCell>
+                        <TableCell>{getContactCategoryLabel(contact.category)}</TableCell>
                         <TableCell>{contact.phone}</TableCell>
                         <TableCell>
                           <div>
-                            <p>{[contact.district, contact.province].filter(Boolean).join(', ') || 'ส่วนกลาง'}</p>
-                            <p className="text-xs text-muted-foreground">{getCoverageLabel(contact)}</p>
+                            <p>{getContactAreaLabel(contact)}</p>
+                            <p className="text-xs text-muted-foreground">{getContactCoverageLabel(contact)}</p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant={contact.active ? 'default' : 'secondary'}>
-                            {contact.active ? 'ใช้งาน' : 'ไม่ใช้งาน'}
+                            {contact.active ? t('contactsStatusActive') : t('contactsStatusInactive')}
                           </Badge>
                           {contact.is24Hours && (
                             <Badge variant="outline" className="ml-2">
-                              24 ชม.
+                              {t('contacts24Hours')}
                             </Badge>
                           )}
                         </TableCell>
@@ -507,7 +534,7 @@ export default function ContactsPage() {
                             size="icon"
                             onClick={() => openEditDialog(contact)}
                             disabled={!canManage}
-                            aria-label="แก้ไขเบอร์"
+                            aria-label={t('contactsEditAria')}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -516,7 +543,7 @@ export default function ContactsPage() {
                             size="icon"
                             onClick={() => requestDeleteContact(contact)}
                             disabled={!canManage}
-                            aria-label="ลบเบอร์"
+                            aria-label={t('contactsDeleteAria')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -535,37 +562,37 @@ export default function ContactsPage() {
         <DialogContent className="max-h-[calc(100vh-2rem)] overflow-y-auto sm:max-w-[620px]">
           <DialogHeader className="gap-2">
             <div className="flex items-center gap-2">
-              <DialogTitle>{editingContact ? 'แก้ไขเบอร์ฉุกเฉิน' : 'เพิ่มเบอร์ฉุกเฉิน'}</DialogTitle>
-              <Badge variant="outline">{editingContact ? 'กำลังแก้ไข' : 'รายการใหม่'}</Badge>
+              <DialogTitle>{editingContact ? t('contactsEditTitle') : t('contactsCreateTitle')}</DialogTitle>
+              <Badge variant="outline">{editingContact ? t('contactsEditingBadge') : t('contactsNewBadge')}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              ระบุหน่วยงานและขอบเขตที่ mobile จะใช้ค้นหาเบอร์ในเหตุฉุกเฉิน
+              {t('contactsDialogDescription')}
             </p>
           </DialogHeader>
 
           <div className="flex flex-col gap-5 py-2">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="name">ชื่อหน่วยงาน</Label>
+                <Label htmlFor="name">{t('contactsNameLabel')}</Label>
                 <Input
                   id="name"
                   value={form.name}
                   onChange={event => setForm(prev => ({ ...prev, name: event.target.value }))}
-                  placeholder="เช่น สถานีดับเพลิงเมืองพิษณุโลก"
+                  placeholder={t('contactsNamePlaceholder')}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="phone">เบอร์โทร</Label>
+                <Label htmlFor="phone">{t('contactsPhoneLabel')}</Label>
                 <Input
                   id="phone"
                   inputMode="tel"
                   value={form.phone}
                   onChange={event => setForm(prev => ({ ...prev, phone: event.target.value }))}
-                  placeholder="เช่น 199, 1669 หรือ 0812345678"
+                  placeholder={t('contactsPhonePlaceholder')}
                 />
               </div>
               <div className="grid gap-2">
-                <Label>หน่วยงาน / หมวดเหตุ</Label>
+                <Label>{t('contactsCategoryLabel')}</Label>
                 {isSuperAdmin ? (
                   <Select
                     value={form.category}
@@ -574,7 +601,7 @@ export default function ContactsPage() {
                     <SelectTrigger className="w-full">
                       <SelectValue>
                         {value =>
-                          getSelectOptionLabel(contactCategories, value as string | null, 'เลือกหน่วยงาน')
+                          getSelectOptionLabel(contactCategories, value as string | null, t('contactsSelectAgency'))
                         }
                       </SelectValue>
                     </SelectTrigger>
@@ -589,19 +616,19 @@ export default function ContactsPage() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input value={getCategoryLabel(agencyCategory)} disabled />
+                  <Input value={getContactCategoryLabel(agencyCategory)} disabled />
                 )}
               </div>
             </div>
 
             <div className="flex flex-col gap-4 border-t pt-5">
               <div>
-                <p className="text-sm font-medium">ขอบเขตบริการ</p>
-                <p className="text-xs text-muted-foreground">กำหนดว่าหมายเลขนี้ควรถูกพบเมื่อใด</p>
+                <p className="text-sm font-medium">{t('contactsCoverageTitle')}</p>
+                <p className="text-xs text-muted-foreground">{t('contactsCoverageDescription')}</p>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="coverage">ระดับพื้นที่</Label>
+                  <Label htmlFor="coverage">{t('contactsCoverageLevelLabel')}</Label>
                   <Select
                     value={coverage}
                     onValueChange={value => {
@@ -619,16 +646,16 @@ export default function ContactsPage() {
                       <SelectValue>
                         {value =>
                           getSelectOptionLabel(
-                            CONTACT_COVERAGE_OPTIONS,
+                            coverageOptions,
                             value as string | null,
-                            'เลือกระดับพื้นที่'
+                            t('contactsSelectCoverage')
                           )
                         }
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {CONTACT_COVERAGE_OPTIONS.map(option => (
+                        {coverageOptions.map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -640,7 +667,7 @@ export default function ContactsPage() {
 
                 {coverage !== 'central' && (
                   <div className="grid gap-2">
-                    <Label htmlFor="province">จังหวัด</Label>
+                    <Label htmlFor="province">{t('contactsProvinceLabel')}</Label>
                     <Select
                       value={selectedProvinceCode || null}
                       onValueChange={value => {
@@ -656,7 +683,7 @@ export default function ContactsPage() {
                         <SelectGroup>
                           {provinces.map(province => (
                             <SelectItem key={province.provinceCode ?? province.id} value={province.provinceCode ?? province.id}>
-                              {getLocationDisplayName(province)}
+                              {getLocationDisplayName(province, preferThai)}
                             </SelectItem>
                           ))}
                         </SelectGroup>
@@ -667,7 +694,7 @@ export default function ContactsPage() {
 
                 {coverage === 'district' && (
                   <div className="grid gap-2 md:col-span-2">
-                    <Label htmlFor="district">อำเภอ / เขต</Label>
+                    <Label htmlFor="district">{t('contactsDistrictLabel')}</Label>
                     <Select
                       value={selectedDistrictCode || null}
                       onValueChange={value => setSelectedDistrictCode(value ?? '')}
@@ -680,7 +707,7 @@ export default function ContactsPage() {
                         <SelectGroup>
                           {availableDistricts.map(district => (
                             <SelectItem key={district.districtCode ?? district.id} value={district.districtCode ?? district.id}>
-                              {getLocationDisplayName(district)}
+                              {getLocationDisplayName(district, preferThai)}
                             </SelectItem>
                           ))}
                         </SelectGroup>
@@ -692,18 +719,18 @@ export default function ContactsPage() {
             </div>
 
             <div className="flex flex-col gap-3 border-t pt-5">
-              <p className="text-sm font-medium">สถานะการให้บริการ</p>
+              <p className="text-sm font-medium">{t('contactsServiceStatusTitle')}</p>
               <div className="flex items-center justify-between gap-4 py-1">
                 <div>
-                  <Label htmlFor="active">เปิดใช้งาน</Label>
-                  <p className="text-xs text-muted-foreground">ให้ mobile ค้นหาและแสดงหมายเลขนี้</p>
+                  <Label htmlFor="active">{t('contactsActive')}</Label>
+                  <p className="text-xs text-muted-foreground">{t('contactsActiveDescription')}</p>
                 </div>
                 <Switch id="active" checked={form.active} onCheckedChange={checked => setForm(prev => ({ ...prev, active: checked }))} />
               </div>
               <div className="flex items-center justify-between gap-4 py-1">
                 <div>
-                  <Label htmlFor="is24Hours">ให้บริการ 24 ชั่วโมง</Label>
-                  <p className="text-xs text-muted-foreground">แสดงสถานะพร้อมให้บริการตลอดวัน</p>
+                  <Label htmlFor="is24Hours">{t('contacts24HoursLabel')}</Label>
+                  <p className="text-xs text-muted-foreground">{t('contacts24HoursDescription')}</p>
                 </div>
                 <Switch id="is24Hours" checked={form.is24Hours} onCheckedChange={checked => setForm(prev => ({ ...prev, is24Hours: checked }))} />
               </div>
@@ -712,11 +739,11 @@ export default function ContactsPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
-              ยกเลิก
+              {t('contactsCancel')}
             </Button>
             <Button onClick={saveContact} disabled={isSaving}>
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingContact ? 'บันทึกการแก้ไข' : 'เพิ่มเบอร์ฉุกเฉิน'}
+              {editingContact ? t('contactsSaveEdit') : t('contactsSaveCreate')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -734,19 +761,24 @@ export default function ContactsPage() {
               <Trash2 />
             </AlertDialogMedia>
             <div>
-              <AlertDialogTitle>ลบเบอร์ฉุกเฉิน?</AlertDialogTitle>
+              <AlertDialogTitle>{t('contactsDeleteTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
                 {contactPendingDelete
-                  ? 'คุณกำลังจะลบ ' + contactPendingDelete.name + ' (' + contactPendingDelete.phone + ') ออกจากระบบ'
+                  ? t('contactsDeleteDescriptionPrefix') +
+                    contactPendingDelete.name +
+                    ' (' +
+                    contactPendingDelete.phone +
+                    ')' +
+                    t('contactsDeleteDescriptionSuffix')
                   : ''}
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>ยกเลิก</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t('contactsCancel')}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={deleteContact} disabled={isDeleting}>
               {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              ลบเบอร์
+              {t('contactsDeleteConfirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
