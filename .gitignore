@@ -34,6 +34,8 @@ yarn-error.log*
 
 # local AI working notes
 .ai/
+CODEX_HANDOFF.md
+docs/operations/SESSION_LOG.md
 
 # vercel
 .vercel

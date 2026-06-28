@@ -171,6 +171,5 @@ Check:
 
 Before ending a work session:
 
-1. Update [CODEX_HANDOFF.md](D:\testwork_Fullstack(SCSG)\smart-emergency\CODEX_HANDOFF.md)
+1. Update local `CODEX_HANDOFF.md` if you use Codex handoff between sessions
 2. Update [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)
-3. Update [SESSION_LOG.md](SESSION_LOG.md)

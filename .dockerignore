@@ -20,6 +20,7 @@ out
 docker-compose*.yml
 README.md
 CODEX_HANDOFF.md
+docs/operations/SESSION_LOG.md
 
 # local backups
 _backup/
