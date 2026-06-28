@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useTheme } from "next-themes"
 import {
-  AlertTriangle,
   Bell,
   Database,
   Globe,
@@ -16,8 +15,6 @@ import {
   Settings,
   Share2,
   Volume2,
-  Waves,
-  Zap,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -280,6 +277,46 @@ export default function SettingsPage() {
       placeholder: t("whatsappRecipientPlaceholder"),
     },
   }), [t])
+  const systemStatusItems = useMemo(() => [
+    {
+      key: "api",
+      icon: <Globe className="h-4 w-4" />,
+      title: t("healthApiTitle"),
+      status: systemHealth.api,
+      description:
+        systemHealth.api === "online"
+          ? t("healthApiOnline")
+          : systemHealth.api === "checking"
+            ? t("checking")
+            : t("healthApiOffline"),
+    },
+    {
+      key: "database",
+      icon: <Database className="h-4 w-4" />,
+      title: t("healthDatabaseTitle"),
+      status: systemHealth.database,
+      description:
+        systemHealth.database === "online"
+          ? systemHealth.dbTime
+            ? t("healthDbCheckedPrefix") + systemHealth.dbTime
+            : t("healthDatabaseOnline")
+          : systemHealth.database === "checking"
+            ? t("healthDbPending")
+            : t("healthDatabaseOffline"),
+    },
+    {
+      key: "sse",
+      icon: <Radio className="h-4 w-4" />,
+      title: t("healthSseTitle"),
+      status: systemHealth.sse,
+      description:
+        systemHealth.sse === "connected"
+          ? t("healthSseConnected")
+          : systemHealth.sse === "connecting"
+            ? t("healthSseConnecting")
+            : t("healthSseDisconnected"),
+    },
+  ], [systemHealth, t])
 
   useEffect(() => {
     const storedAlert = getStoredAdminAlertPreferences()
@@ -780,74 +817,23 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 font-medium">
-                        <Globe className="h-4 w-4" />
-                        API
+                  {systemStatusItems.map(item => (
+                    <div key={item.key} className="rounded-lg border p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 font-medium">
+                          {item.icon}
+                          {item.title}
+                        </div>
+                        {statusBadge(item.status, t)}
                       </div>
-                      {statusBadge(systemHealth.api, t)}
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {item.description}
+                      </p>
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t("healthApiHint")}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 font-medium">
-                        <Database className="h-4 w-4" />
-                        Database
-                      </div>
-                      {statusBadge(systemHealth.database, t)}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {systemHealth.dbTime ? t("healthDbCheckedPrefix") + systemHealth.dbTime : t("healthDbPending")}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 font-medium">
-                        <Radio className="h-4 w-4" />
-                        SSE
-                      </div>
-                      {statusBadge(systemHealth.sse, t)}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t("healthSseHint")}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  {t("pendingSystemWork")}
-                </CardTitle>
-                <CardDescription>
-                  {t("pendingSystemWorkDescription")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-lg border p-4">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Zap className="h-4 w-4" />
-                    Auto dispatch
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t("autoDispatchPending")}
-                  </p>
-                </div>
-                <div className="rounded-lg border p-4">
-                  <div className="flex items-center gap-2 font-medium">
-                    <Waves className="h-4 w-4" />
-                    Escalation
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t("escalationPending")}
-                  </p>
+                <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  {t("healthReadOnlyNote")}
                 </div>
               </CardContent>
             </Card>
