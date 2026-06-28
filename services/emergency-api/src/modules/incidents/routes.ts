@@ -10,8 +10,11 @@ import {
   buildIncidentLocationShareMessage,
   buildLocationMapsUrl,
   buildLocationShareUrl,
-  getShareChannelRecipient,
 } from "../../location-share.js";
+import {
+  getResolvedShareChannelRecipient,
+  resolveShareChannels,
+} from "../../share-channel-settings.js";
 import {
   buildZodValidationErrorPayload,
   isPlausiblePhoneNumber,
@@ -545,7 +548,8 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
   app.post("/api/incidents/:id/share-attempts", async (request, reply) => {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const body = incidentShareAttemptBody.parse(request.body);
-    const recipient = getShareChannelRecipient(config.shareChannels, body.channel);
+    const shareChannels = await resolveShareChannels();
+    const recipient = getResolvedShareChannelRecipient(shareChannels, body.channel);
 
     if (!recipient) {
       reply.code(503);

@@ -12,8 +12,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import type { GisBoundary } from '@/components/admin/gis-boundary-map'
-import { getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { useAdminI18n } from '@/lib/admin-i18n'
+import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { useReferenceCategories } from '@/lib/reference-categories'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
@@ -24,7 +26,7 @@ const GisBoundaryMap = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-[520px] items-center justify-center bg-muted text-sm text-muted-foreground">
-        กำลังโหลดแผนที่...
+        <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     ),
   }
@@ -53,18 +55,29 @@ interface AreaIncident {
   createdAt: string
 }
 
-function areaLabel(area: GisBoundary) {
+function areaLabel(area: GisBoundary, preferThai: boolean) {
+  const provinceName = preferThai
+    ? area.provinceNameTh ?? area.provinceNameEn
+    : area.provinceNameEn ?? area.provinceNameTh
+  const districtName = preferThai
+    ? area.districtNameTh ?? area.districtNameEn
+    : area.districtNameEn ?? area.districtNameTh
+
   return area.areaType === 'district'
-    ? `${area.districtNameTh ?? area.name}, ${area.provinceNameTh ?? area.provinceNameEn ?? '-'}`
-    : area.provinceNameTh ?? area.name
+    ? `${districtName ?? area.name}, ${provinceName ?? '-'}`
+    : provinceName ?? area.name
 }
 
-function provinceDisplay(area: GisBoundary) {
-  return area.provinceNameTh ?? area.provinceNameEn ?? area.name
+function provinceDisplay(area: GisBoundary, preferThai: boolean) {
+  return preferThai
+    ? area.provinceNameTh ?? area.provinceNameEn ?? area.name
+    : area.provinceNameEn ?? area.provinceNameTh ?? area.name
 }
 
-function districtDisplay(area: GisBoundary) {
-  return area.districtNameTh ?? area.districtNameEn ?? area.name
+function districtDisplay(area: GisBoundary, preferThai: boolean) {
+  return preferThai
+    ? area.districtNameTh ?? area.districtNameEn ?? area.name
+    : area.districtNameEn ?? area.districtNameTh ?? area.name
 }
 
 function searchableText(area: GisBoundary) {
@@ -83,25 +96,25 @@ function searchableText(area: GisBoundary) {
     .normalize('NFC')
 }
 
-function areaTypeLabel(areaType: string) {
+function areaTypeLabel(areaType: string, t: ReturnType<typeof useAdminI18n>['t']) {
   const labels: Record<string, string> = {
-    province: 'จังหวัด',
-    district: 'อำเภอ/เขต',
-    subdistrict: 'ตำบล/แขวง',
-    'response-zone': 'เขตรับผิดชอบ',
+    province: t('gisAreaTypeProvince'),
+    district: t('gisAreaTypeDistrict'),
+    subdistrict: t('gisAreaTypeSubdistrict'),
+    'response-zone': t('gisAreaTypeResponseZone'),
   }
   return labels[areaType] ?? areaType
 }
 
-function categoryLabel(category: string | null) {
-  return getEmergencyCategoryLabel(category)
-}
-
-function statusLabel(status: string) {
+function statusLabel(status: string, t: ReturnType<typeof useAdminI18n>['t']) {
   const labels: Record<string, string> = {
-    open: 'เปิดอยู่',
-    acknowledged: 'รับเรื่องแล้ว',
-    closed: 'ปิดเรื่องแล้ว',
+    open: t('gisStatusOpen'),
+    reported: t('gisStatusReported'),
+    acknowledged: t('gisStatusAcknowledged'),
+    coordinating: t('gisStatusCoordinating'),
+    dispatched: t('gisStatusDispatched'),
+    on_scene: t('gisStatusOnScene'),
+    closed: t('gisStatusClosed'),
   }
   return labels[status] ?? status
 }
@@ -121,6 +134,13 @@ function geometryPointCount(area: GisBoundary) {
 }
 
 export default function GISPage() {
+  const { language, t } = useAdminI18n()
+  const preferThai = language !== 'en'
+  const { categories: referenceCategories } = useReferenceCategories()
+  const { labelMap: categoryLabels } = useMemo(
+    () => buildAdminCategoryCollections(referenceCategories, preferThai),
+    [preferThai, referenceCategories]
+  )
   const [provinces, setProvinces] = useState<GisBoundary[]>([])
   const [districts, setDistricts] = useState<GisBoundary[]>([])
   const [selectedProvinceCode, setSelectedProvinceCode] = useState<string>('')
@@ -138,7 +158,7 @@ export default function GISPage() {
       const response = await fetch(
         `${API_BASE_URL}/api/areas?areaType=province&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=false`
       )
-      if (!response.ok) throw new Error('โหลดข้อมูลจังหวัดไม่สำเร็จ')
+      if (!response.ok) throw new Error(t('gisLoadProvincesError'))
       const data = (await response.json()) as GisBoundary[]
       setProvinces(data)
 
@@ -148,7 +168,7 @@ export default function GISPage() {
         setSelectedProvinceCode(defaultProvince.provinceCode)
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลจังหวัดไม่สำเร็จ')
+      toast.error(error instanceof Error ? error.message : t('gisLoadProvincesError'))
     } finally {
       setIsProvinceLoading(false)
     }
@@ -166,12 +186,12 @@ export default function GISPage() {
       const response = await fetch(
         `${API_BASE_URL}/api/areas?areaType=district&provinceCode=${encodeURIComponent(provinceCode)}&source=${encodeURIComponent(OFFICIAL_SOURCE)}&includeGeometry=true`
       )
-      if (!response.ok) throw new Error('โหลดข้อมูลอำเภอ/เขตไม่สำเร็จ')
+      if (!response.ok) throw new Error(t('gisLoadDistrictsError'))
       const data = (await response.json()) as GisBoundary[]
       setDistricts(data)
       setSelectedArea(data[0] ?? null)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลอำเภอ/เขตไม่สำเร็จ')
+      toast.error(error instanceof Error ? error.message : t('gisLoadDistrictsError'))
     } finally {
       setIsDistrictLoading(false)
     }
@@ -187,13 +207,13 @@ export default function GISPage() {
         fetch(`${API_BASE_URL}/api/areas/${area.id}/incidents`),
       ])
 
-      if (!contactsResponse.ok) throw new Error('โหลดเบอร์ในพื้นที่ไม่สำเร็จ')
-      if (!incidentsResponse.ok) throw new Error('โหลดเหตุการณ์ในพื้นที่ไม่สำเร็จ')
+      if (!contactsResponse.ok) throw new Error(t('gisLoadContactsError'))
+      if (!incidentsResponse.ok) throw new Error(t('gisLoadIncidentsError'))
 
       setAreaContacts((await contactsResponse.json()) as AreaContact[])
       setAreaIncidents((await incidentsResponse.json()) as AreaIncident[])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'โหลดข้อมูลพื้นที่ไม่สำเร็จ')
+      toast.error(error instanceof Error ? error.message : t('gisLoadAreaError'))
     } finally {
       setIsDetailLoading(false)
     }
@@ -216,10 +236,10 @@ export default function GISPage() {
     [provinces, selectedProvinceCode]
   )
   const selectedProvinceLabel = selectedProvince
-    ? provinceDisplay(selectedProvince)
+    ? provinceDisplay(selectedProvince, preferThai)
     : isProvinceLoading
-      ? 'กำลังโหลดจังหวัด...'
-      : 'เลือกจังหวัด'
+      ? t('gisProvinceLoading')
+      : t('gisSelectProvince')
 
   const filteredDistricts = useMemo(() => {
     const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
@@ -249,9 +269,9 @@ export default function GISPage() {
     <div className="space-y-6 p-4 lg:p-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-xl font-semibold">พื้นที่ GIS</h1>
+          <h1 className="text-xl font-semibold">{t('gisPageTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            ดูขอบเขตจังหวัดและอำเภอจากฐานข้อมูล เพื่อใช้ตรวจพิกัดเหตุฉุกเฉินด้วย PostGIS
+            {t('gisPageDescription')}
           </p>
         </div>
         <Button
@@ -263,32 +283,32 @@ export default function GISPage() {
           disabled={isProvinceLoading || isDistrictLoading}
         >
           <RefreshCw className="mr-2 h-4 w-4" />
-          โหลดใหม่
+          {t('gisReload')}
         </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">จังหวัดในฐานข้อมูล</p>
+            <p className="text-sm text-muted-foreground">{t('gisProvinceCount')}</p>
             <p className="mt-2 text-3xl font-semibold">{provinces.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">อำเภอ/เขตที่แสดง</p>
+            <p className="text-sm text-muted-foreground">{t('gisDistrictCount')}</p>
             <p className="mt-2 text-3xl font-semibold">{districts.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">เบอร์ในพื้นที่ที่เลือก</p>
+            <p className="text-sm text-muted-foreground">{t('gisContactsInArea')}</p>
             <p className="mt-2 text-3xl font-semibold">{areaContacts.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">เหตุการณ์ในพื้นที่ที่เลือก</p>
+            <p className="text-sm text-muted-foreground">{t('gisIncidentsInArea')}</p>
             <p className="mt-2 text-3xl font-semibold">{areaIncidents.length}</p>
           </CardContent>
         </Card>
@@ -297,12 +317,12 @@ export default function GISPage() {
       <div className="grid gap-4 xl:grid-cols-[380px_1fr]">
         <Card className="self-start">
           <CardHeader>
-            <CardTitle className="text-base">พื้นที่บริการ</CardTitle>
-            <CardDescription>เลือกจังหวัดและอำเภอ/เขตเพื่อดูข้อมูลในพื้นที่</CardDescription>
+            <CardTitle className="text-base">{t('gisServiceAreasTitle')}</CardTitle>
+            <CardDescription>{t('gisServiceAreasDescription')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>จังหวัด</Label>
+              <Label>{t('gisProvinceLabel')}</Label>
               <Select
                 value={selectedProvinceCode}
                 onValueChange={setSelectedProvinceCode}
@@ -314,7 +334,7 @@ export default function GISPage() {
                 <SelectContent>
                   {provinces.map(province => (
                     <SelectItem key={province.id} value={province.provinceCode ?? province.id}>
-                      {provinceDisplay(province)}
+                      {provinceDisplay(province, preferThai)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -326,7 +346,7 @@ export default function GISPage() {
               <Input
                 value={searchTerm}
                 onChange={event => updateSearchTerm(event.target.value)}
-                placeholder="ค้นหาจังหวัด หรือ อำเภอ/เขต"
+                placeholder={t('gisSearchPlaceholder')}
                 className="pl-9"
               />
             </div>
@@ -336,7 +356,7 @@ export default function GISPage() {
                 size="sm"
                 onClick={() => setSelectedProvinceCode(matchedProvince.provinceCode ?? '')}
               >
-                ไปจังหวัด {provinceDisplay(matchedProvince)}
+                {t('gisGoProvincePrefix')}{provinceDisplay(matchedProvince, preferThai)}
               </Button>
             )}
 
@@ -344,7 +364,7 @@ export default function GISPage() {
               {isDistrictLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  กำลังโหลดอำเภอ/เขต...
+                  {t('gisDistrictLoading')}
                 </div>
               ) : filteredDistricts.length > 0 ? (
                 filteredDistricts.map(area => (
@@ -360,20 +380,20 @@ export default function GISPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">{districtDisplay(area)}</p>
+                        <p className="text-sm font-medium">{districtDisplay(area, preferThai)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {area.provinceNameTh ?? area.provinceNameEn} / {area.districtCode}
+                          {provinceDisplay(area, preferThai)} / {area.districtCode}
                         </p>
                       </div>
-                      <Badge variant="outline">{areaTypeLabel(area.areaType)}</Badge>
+                      <Badge variant="outline">{areaTypeLabel(area.areaType, t)}</Badge>
                     </div>
                   </button>
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {matchedProvince
-                    ? `กำลังแสดงอำเภอ/เขตในจังหวัด ${provinceDisplay(matchedProvince)}`
-                    : 'ไม่พบอำเภอ/เขต'}
+                    ? t('gisShowingDistrictsPrefix') + provinceDisplay(matchedProvince, preferThai)
+                    : t('gisNoDistricts')}
                 </p>
               )}
             </div>
@@ -385,10 +405,10 @@ export default function GISPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPinned className="h-4 w-4" />
-                {selectedProvince ? provinceDisplay(selectedProvince) : 'แผนที่จังหวัด'}
+                {selectedProvince ? provinceDisplay(selectedProvince, preferThai) : t('gisProvinceMapFallback')}
               </CardTitle>
               <CardDescription>
-                คลิกขอบเขตอำเภอ/เขตเพื่อดูเบอร์และเหตุการณ์ที่อยู่ในพื้นที่
+                {t('gisMapDescription')}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -399,16 +419,35 @@ export default function GISPage() {
                     selectedAreaId={selectedArea?.id ?? null}
                     contacts={areaContacts}
                     incidents={areaIncidents}
+                    preferThai={preferThai}
+                    categoryLabels={categoryLabels}
+                    contactFallbackLabel={t('gisContactPopupFallback')}
+                    areaFallbackLabel={t('gisAreaPopupFallback')}
+                    statusLabels={{
+                      open: t('gisStatusOpen'),
+                      reported: t('gisStatusReported'),
+                      acknowledged: t('gisStatusAcknowledged'),
+                      coordinating: t('gisStatusCoordinating'),
+                      dispatched: t('gisStatusDispatched'),
+                      on_scene: t('gisStatusOnScene'),
+                      closed: t('gisStatusClosed'),
+                    }}
+                    severityLabels={{
+                      critical: t('gisSeverityCritical'),
+                      high: t('gisSeverityHigh'),
+                      medium: t('gisSeverityMedium'),
+                      low: t('gisSeverityLow'),
+                    }}
                     onSelectArea={setSelectedArea}
                   />
                   <div className="pointer-events-none absolute bottom-4 left-4 rounded-md border bg-background/95 px-3 py-2 text-xs shadow-sm">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                      <span>เบอร์ฉุกเฉิน</span>
+                      <span>{t('gisLegendContact')}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full bg-red-600" />
-                      <span>เหตุการณ์</span>
+                      <span>{t('gisLegendIncident')}</span>
                     </div>
                   </div>
                 </div>
@@ -420,12 +459,12 @@ export default function GISPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {selectedArea ? areaLabel(selectedArea) : 'พื้นที่ที่เลือก'}
+                  {selectedArea ? areaLabel(selectedArea, preferThai) : t('gisSelectedAreaFallback')}
                 </CardTitle>
                 <CardDescription>
                   {selectedArea
-                    ? `${geometryPointCount(selectedArea).toLocaleString()} จุดพิกัดของขอบเขต`
-                    : 'เลือกอำเภอ/เขตจากแผนที่หรือรายการ'}
+                    ? `${geometryPointCount(selectedArea).toLocaleString()}${t('gisBoundaryPointSuffix')}`
+                    : t('gisSelectAreaHint')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -433,21 +472,21 @@ export default function GISPage() {
                   <>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <p className="text-muted-foreground">จังหวัด</p>
-                        <p className="font-medium">{selectedArea.provinceNameTh ?? selectedArea.provinceNameEn ?? '-'}</p>
+                        <p className="text-muted-foreground">{t('gisProvinceLabel')}</p>
+                        <p className="font-medium">{provinceDisplay(selectedArea, preferThai)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">รหัสอำเภอ/เขต</p>
+                        <p className="text-muted-foreground">{t('gisDistrictCode')}</p>
                         <p className="font-medium">{selectedArea.districtCode ?? '-'}</p>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{areaTypeLabel(selectedArea.areaType)}</Badge>
+                      <Badge variant="secondary">{areaTypeLabel(selectedArea.areaType, t)}</Badge>
                       <Badge variant="outline">{selectedArea.source ?? 'local'}</Badge>
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">ยังไม่ได้เลือกพื้นที่</p>
+                  <p className="text-sm text-muted-foreground">{t('gisNoSelectedArea')}</p>
                 )}
               </CardContent>
             </Card>
@@ -456,15 +495,15 @@ export default function GISPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Phone className="h-4 w-4" />
-                  เบอร์ในพื้นที่
+                  {t('gisContactsInArea')}
                 </CardTitle>
-                <CardDescription>คำนวณจาก PostGIS ST_Contains</CardDescription>
+                <CardDescription>{t('gisContactsCardDescription')}</CardDescription>
               </CardHeader>
               <CardContent>
                 {isDetailLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    กำลังโหลดข้อมูลพื้นที่...
+                    {t('gisDetailLoading')}
                   </div>
                 ) : areaContacts.length > 0 ? (
                   <div className="space-y-3">
@@ -476,14 +515,14 @@ export default function GISPage() {
                             <p className="text-xs text-muted-foreground">{contact.phone}</p>
                           </div>
                     <Badge variant={contact.active ? 'default' : 'secondary'}>
-                            {categoryLabel(contact.category)}
+                            {categoryLabels[contact.category ?? ''] ?? contact.category ?? t('gisContactPopupFallback')}
                           </Badge>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">ไม่พบเบอร์ในพื้นที่นี้</p>
+                  <p className="text-sm text-muted-foreground">{t('gisNoContacts')}</p>
                 )}
               </CardContent>
             </Card>
@@ -493,15 +532,15 @@ export default function GISPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Building2 className="h-4 w-4" />
-                  เหตุการณ์ในพื้นที่
+                  {t('gisIncidentsInArea')}
                 </CardTitle>
-              <CardDescription>ตรวจพิกัดเหตุการณ์กับขอบเขตพื้นที่ที่เลือก</CardDescription>
+              <CardDescription>{t('gisIncidentsCardDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               {isDetailLoading ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  กำลังโหลดเหตุการณ์...
+                  {t('gisIncidentsLoading')}
                 </div>
               ) : areaIncidents.length > 0 ? (
                 <div className="grid gap-3 md:grid-cols-2">
@@ -509,18 +548,18 @@ export default function GISPage() {
                     <div key={incident.id} className="rounded-md border p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-medium">{categoryLabel(incident.category)}</p>
+                          <p className="text-sm font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
                           <p className="text-xs text-muted-foreground">
-                            {incident.description ?? 'ไม่มีรายละเอียดเพิ่มเติม'}
+                            {incident.description ?? t('gisNoIncidentDescription')}
                           </p>
                         </div>
-                        <Badge variant="outline">{statusLabel(incident.status)}</Badge>
+                        <Badge variant="outline">{statusLabel(incident.status, t)}</Badge>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                  <p className="text-sm text-muted-foreground">ไม่พบเหตุการณ์ในพื้นที่นี้</p>
+                  <p className="text-sm text-muted-foreground">{t('gisNoIncidents')}</p>
               )}
             </CardContent>
           </Card>

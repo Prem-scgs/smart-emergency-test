@@ -12,8 +12,10 @@ export interface GisBoundary {
   color: string
   areaType: string
   provinceCode: string | null
+  provinceNameTh: string | null
   provinceNameEn: string | null
   districtCode: string | null
+  districtNameTh: string | null
   districtNameEn: string | null
   polygon: {
     type: 'Polygon' | 'MultiPolygon'
@@ -41,6 +43,12 @@ interface GisBoundaryMapProps {
     longitude: number
   }>
   onSelectArea: (area: GisBoundary) => void
+  preferThai?: boolean
+  categoryLabels?: Record<string, string>
+  contactFallbackLabel?: string
+  areaFallbackLabel?: string
+  statusLabels?: Record<string, string>
+  severityLabels?: Record<string, string>
 }
 
 const DEFAULT_CENTER: [number, number] = [13.7563, 100.5018]
@@ -91,14 +99,31 @@ export function GisBoundaryMap({
   contacts,
   incidents,
   onSelectArea,
+  preferThai = true,
+  categoryLabels = {},
+  contactFallbackLabel = 'contact',
+  areaFallbackLabel = 'Area',
+  statusLabels = {},
+  severityLabels = {},
 }: GisBoundaryMapProps) {
+  function getAreaName(area: GisBoundary) {
+    const districtName = preferThai
+      ? area.districtNameTh ?? area.districtNameEn
+      : area.districtNameEn ?? area.districtNameTh
+    const provinceName = preferThai
+      ? area.provinceNameTh ?? area.provinceNameEn
+      : area.provinceNameEn ?? area.provinceNameTh
+
+    return districtName ?? provinceName ?? area.name
+  }
+
   const features = areas
     .filter(area => area.polygon)
     .map(area => ({
       type: 'Feature',
       properties: {
         id: area.id,
-        name: area.districtNameTh ?? area.provinceNameTh ?? area.name,
+        name: getAreaName(area),
         color: area.color,
       },
       geometry: area.polygon,
@@ -141,7 +166,7 @@ export function GisBoundaryMap({
               onSelectArea(area)
             }
           })
-          layer.bindTooltip(String(feature.properties?.name ?? 'Area'), {
+          layer.bindTooltip(String(feature.properties?.name ?? areaFallbackLabel), {
             sticky: true,
           })
         }}
@@ -164,7 +189,7 @@ export function GisBoundaryMap({
               <div className="space-y-1">
                 <p className="font-medium">{contact.name}</p>
                 <p>{contact.phone}</p>
-                <p>{contact.category ?? 'contact'}</p>
+                <p>{categoryLabels[contact.category ?? ''] ?? contact.category ?? contactFallbackLabel}</p>
               </div>
             </Popup>
           </CircleMarker>
@@ -183,9 +208,9 @@ export function GisBoundaryMap({
         >
           <Popup>
             <div className="space-y-1">
-              <p className="font-medium">{incident.category}</p>
-              <p>{incident.status}</p>
-              <p>{incident.severity}</p>
+              <p className="font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
+              <p>{statusLabels[incident.status] ?? incident.status}</p>
+              <p>{severityLabels[incident.severity] ?? incident.severity}</p>
             </div>
           </Popup>
         </CircleMarker>

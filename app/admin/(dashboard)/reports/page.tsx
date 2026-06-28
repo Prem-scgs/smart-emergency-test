@@ -54,9 +54,11 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { buildAdminApiHeaders } from "@/lib/admin-api"
+import { useAdminI18n } from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
 import { getEmergencyApiBaseUrl } from "@/lib/emergency-api-url"
-import { getEmergencyCategoryLabel } from "@/lib/emergency-category-utils"
+import { buildAdminCategoryCollections } from "@/lib/emergency-category-utils"
+import { useReferenceCategories } from "@/lib/reference-categories"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 
@@ -76,9 +78,11 @@ interface ReportSummary {
   trend: Array<{ bucket: string; count: number; closedCount: number }>
 }
 
-const chartConfig = {
-  count: { label: "เหตุทั้งหมด", color: "var(--chart-1)" },
-  closedCount: { label: "ปิดเคสแล้ว", color: "var(--chart-3)" },
+function getChartConfig(totalLabel: string, closedLabel: string) {
+  return {
+    count: { label: totalLabel, color: "var(--chart-1)" },
+    closedCount: { label: closedLabel, color: "var(--chart-3)" },
+  }
 }
 
 const categoryColors = [
@@ -90,35 +94,18 @@ const categoryColors = [
   "#64748b",
 ]
 
-const statusLabels: Record<string, string> = {
-  open: "เปิดเคส",
-  reported: "แจ้งเหตุแล้ว",
-  acknowledged: "รับเรื่องแล้ว",
-  coordinating: "กำลังประสานงาน",
-  dispatched: "ส่งเจ้าหน้าที่แล้ว",
-  on_scene: "ถึงที่เกิดเหตุ",
-  closed: "ปิดเคส",
+function formatNumber(value: number | undefined, language: "th" | "en") {
+  return new Intl.NumberFormat(language === "en" ? "en-US" : "th-TH").format(value ?? 0)
 }
 
-const reportRangeLabels: Record<ReportRange, string> = {
-  week: "7 วันที่ผ่านมา",
-  month: "30 วันที่ผ่านมา",
-  quarter: "3 เดือนที่ผ่านมา",
-  year: "1 ปีที่ผ่านมา",
+function formatPercent(value: number, language: "th" | "en") {
+  return new Intl.NumberFormat(language === "en" ? "en-US" : "th-TH", { maximumFractionDigits: 1 }).format(value) + "%"
 }
 
-function formatNumber(value: number | undefined) {
-  return new Intl.NumberFormat("th-TH").format(value ?? 0)
-}
-
-function formatPercent(value: number) {
-  return new Intl.NumberFormat("th-TH", { maximumFractionDigits: 1 }).format(value) + "%"
-}
-
-function formatDateLabel(value: string) {
+function formatDateLabel(value: string, language: "th" | "en") {
   const date = new Date(value + "T00:00:00")
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })
+  return date.toLocaleDateString(language === "en" ? "en-US" : "th-TH", { day: "2-digit", month: "short" })
 }
 
 function escapeCsvCell(value: string | number) {
@@ -144,7 +131,7 @@ function escapeHtml(value: string | number) {
     .replaceAll("'", "&#039;")
 }
 
-function buildPdfTable(headers: string[], rows: Array<Array<string | number>>) {
+function buildPdfTable(headers: string[], rows: Array<Array<string | number>>, emptyLabel: string) {
   const headerHtml = headers
     .map(header => `<th style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:13px;color:#4b5563;">${escapeHtml(header)}</th>`)
     .join("")
@@ -160,7 +147,7 @@ function buildPdfTable(headers: string[], rows: Array<Array<string | number>>) {
   return `
     <table style="width:100%;border-collapse:collapse;margin-top:10px;">
       <thead><tr>${headerHtml}</tr></thead>
-      <tbody>${rowHtml || `<tr><td colspan="${headers.length}" style="padding:14px;color:#6b7280;">ยังไม่มีข้อมูลในช่วงเวลานี้</td></tr>`}</tbody>
+      <tbody>${rowHtml || `<tr><td colspan="${headers.length}" style="padding:14px;color:#6b7280;">${escapeHtml(emptyLabel)}</td></tr>`}</tbody>
     </table>
   `
 }
@@ -206,67 +193,98 @@ function createPdfPageElement(title: string, bodyHtml: string, footerLabel: stri
   return element
 }
 
-function buildPdfReportPages(report: ReportSummary, rangeLabel: string, scopeLabel: string) {
+interface ReportCopy {
+  pageTitle: string
+  generatedAt: string
+  totalIncidents: string
+  activeIncidents: string
+  closureRate: string
+  connectedCalls: string
+  trendTitle: string
+  date: string
+  closedCases: string
+  statusAndCategoryTitle: string
+  currentStatus: string
+  status: string
+  count: string
+  category: string
+  area: string
+  topAreasTitle: string
+  empty: string
+}
+
+function buildPdfReportPages(
+  report: ReportSummary,
+  rangeLabel: string,
+  scopeLabel: string,
+  language: "th" | "en",
+  statusLabels: Record<string, string>,
+  categoryLabelMap: Record<string, string>,
+  copy: ReportCopy
+) {
   const closedRate = report.totals.totalIncidents > 0
     ? (report.totals.closedIncidents / report.totals.totalIncidents) * 100
     : 0
-  const generatedAt = new Date().toLocaleString("th-TH", {
+  const generatedAt = new Date().toLocaleString(language === "en" ? "en-US" : "th-TH", {
     dateStyle: "medium",
     timeStyle: "short",
   })
 
-  const footerLabel = `สร้างเมื่อ ${generatedAt}`
+  const footerLabel = `${copy.generatedAt} ${generatedAt}`
   const pages: HTMLDivElement[] = []
-  const trendRows = report.trend.map(item => [formatDateLabel(item.bucket), item.count, item.closedCount])
+  const trendRows = report.trend.map(item => [formatDateLabel(item.bucket, language), item.count, item.closedCount])
   const statusRows = report.byStatus.map(item => [statusLabels[item.status] ?? item.status, item.count])
-  const categoryRows = report.byCategory.map(item => [getEmergencyCategoryLabel(item.category, item.category), item.count])
+  const categoryRows = report.byCategory.map(item => [categoryLabelMap[item.category] ?? item.category, item.count])
   const areaRows = report.byArea.map(item => [item.areaName, item.count])
 
   pages.push(createPdfPageElement(
-    "รายงานและสถิติ",
+    copy.pageTitle,
     `
       <p style="font-size:14px;color:#6b7280;margin:0;">${escapeHtml(scopeLabel)} · ${escapeHtml(rangeLabel)}</p>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px;">
         <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
-          <div style="font-size:12px;color:#6b7280;">เหตุทั้งหมด</div>
-          <div style="font-size:26px;font-weight:700;">${formatNumber(report.totals.totalIncidents)}</div>
+          <div style="font-size:12px;color:#6b7280;">${escapeHtml(copy.totalIncidents)}</div>
+          <div style="font-size:26px;font-weight:700;">${formatNumber(report.totals.totalIncidents, language)}</div>
         </div>
         <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
-          <div style="font-size:12px;color:#6b7280;">เหตุที่ยังเปิดอยู่</div>
-          <div style="font-size:26px;font-weight:700;">${formatNumber(report.totals.activeIncidents)}</div>
+          <div style="font-size:12px;color:#6b7280;">${escapeHtml(copy.activeIncidents)}</div>
+          <div style="font-size:26px;font-weight:700;">${formatNumber(report.totals.activeIncidents, language)}</div>
         </div>
         <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
-          <div style="font-size:12px;color:#6b7280;">อัตราปิดเคส</div>
-          <div style="font-size:26px;font-weight:700;">${formatPercent(closedRate)}</div>
+          <div style="font-size:12px;color:#6b7280;">${escapeHtml(copy.closureRate)}</div>
+          <div style="font-size:26px;font-weight:700;">${formatPercent(closedRate, language)}</div>
         </div>
         <div style="border:1px solid #e5e7eb;border-radius:12px;padding:14px;">
-          <div style="font-size:12px;color:#6b7280;">สายที่ติดต่อสำเร็จ</div>
-          <div style="font-size:26px;font-weight:700;">${formatNumber(report.totals.connectedCalls)}</div>
+          <div style="font-size:12px;color:#6b7280;">${escapeHtml(copy.connectedCalls)}</div>
+          <div style="font-size:26px;font-weight:700;">${formatNumber(report.totals.connectedCalls, language)}</div>
         </div>
       </div>
 
-      <h2 style="font-size:18px;margin:28px 0 0;">แนวโน้มการแจ้งเหตุ</h2>
+      <h2 style="font-size:18px;margin:28px 0 0;">${escapeHtml(copy.trendTitle)}</h2>
       ${buildPdfTable(
-        ["วันที่", "เหตุทั้งหมด", "ปิดเคสแล้ว"],
-        trendRows
+        [copy.date, copy.totalIncidents, copy.closedCases],
+        trendRows,
+        copy.empty
       )}
     `,
     footerLabel
   ))
 
   pages.push(createPdfPageElement(
-    "สถานะและหมวดเหตุ",
+    copy.statusAndCategoryTitle,
     `
-      <h2 style="font-size:18px;margin:0;">สถานะปัจจุบัน</h2>
+      <h2 style="font-size:18px;margin:0;">${escapeHtml(copy.currentStatus)}</h2>
       ${buildPdfTable(
-        ["สถานะ", "จำนวน"],
-        statusRows
+        [copy.status, copy.count],
+        statusRows,
+        copy.empty
       )}
 
-      <h2 style="font-size:18px;margin:28px 0 0;">หมวดเหตุ</h2>
+      <h2 style="font-size:18px;margin:28px 0 0;">${escapeHtml(copy.category)}</h2>
       ${buildPdfTable(
-        ["หมวดเหตุ", "จำนวน"],
-        categoryRows
+        [copy.category, copy.count],
+        categoryRows,
+        copy.empty
       )}
     `,
     footerLabel
@@ -274,10 +292,10 @@ function buildPdfReportPages(report: ReportSummary, rangeLabel: string, scopeLab
 
   for (const [index, rows] of chunkRows(areaRows, 24).entries()) {
     pages.push(createPdfPageElement(
-      index === 0 ? "พื้นที่" : `พื้นที่ (${index + 1})`,
+      index === 0 ? copy.area : `${copy.area} (${index + 1})`,
       `
-        <h2 style="font-size:18px;margin:0;">พื้นที่ที่มีเหตุการณ์มากที่สุด</h2>
-        ${buildPdfTable(["พื้นที่", "จำนวน"], rows)}
+        <h2 style="font-size:18px;margin:0;">${escapeHtml(copy.topAreasTitle)}</h2>
+        ${buildPdfTable([copy.area, copy.count], rows, copy.empty)}
       `,
       footerLabel
     ))
@@ -286,8 +304,16 @@ function buildPdfReportPages(report: ReportSummary, rangeLabel: string, scopeLab
   return pages
 }
 
-function buildPrintableReportHtml(report: ReportSummary, rangeLabel: string, scopeLabel: string) {
-  const pages = buildPdfReportPages(report, rangeLabel, scopeLabel)
+function buildPrintableReportHtml(
+  report: ReportSummary,
+  rangeLabel: string,
+  scopeLabel: string,
+  language: "th" | "en",
+  statusLabels: Record<string, string>,
+  categoryLabelMap: Record<string, string>,
+  copy: ReportCopy
+) {
+  const pages = buildPdfReportPages(report, rangeLabel, scopeLabel, language, statusLabels, categoryLabelMap, copy)
   return pages
     .map(page => {
       const content = page.innerHTML
@@ -298,7 +324,10 @@ function buildPrintableReportHtml(report: ReportSummary, rangeLabel: string, sco
 }
 
 export default function ReportsPage() {
+  const { language, t } = useAdminI18n()
+  const preferThai = language !== "en"
   const { user, canViewAllAgencies, getUserAgency } = useAuth()
+  const { categories: referenceCategories } = useReferenceCategories()
   const [dateRange, setDateRange] = useState<ReportRange>("month")
   const [reportSummary, setReportSummary] = useState<ReportSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -308,9 +337,51 @@ export default function ReportsPage() {
 
   const isSuperAdmin = canViewAllAgencies()
   const agency = getUserAgency()
+  const { labelMap: categoryLabelMap } = useMemo(
+    () => buildAdminCategoryCollections(referenceCategories, preferThai),
+    [preferThai, referenceCategories]
+  )
+  const chartConfig = useMemo(
+    () => getChartConfig(t("reportsTotalIncidents"), t("reportsClosedCases")),
+    [t]
+  )
+  const statusLabels: Record<string, string> = {
+    open: t("reportsStatusOpen"),
+    reported: t("reportsStatusReported"),
+    acknowledged: t("reportsStatusAcknowledged"),
+    coordinating: t("reportsStatusCoordinating"),
+    dispatched: t("reportsStatusDispatched"),
+    on_scene: t("reportsStatusOnScene"),
+    closed: t("reportsStatusClosed"),
+  }
+  const reportRangeLabels: Record<ReportRange, string> = {
+    week: t("reportsRangeWeek"),
+    month: t("reportsRangeMonth"),
+    quarter: t("reportsRangeQuarter"),
+    year: t("reportsRangeYear"),
+  }
+  const reportCopy: ReportCopy = {
+    pageTitle: t("reportsPageTitle"),
+    generatedAt: t("reportsGeneratedAt"),
+    totalIncidents: t("reportsTotalIncidents"),
+    activeIncidents: t("reportsActiveIncidents"),
+    closureRate: t("reportsClosureRate"),
+    connectedCalls: t("reportsConnectedCalls"),
+    trendTitle: t("reportsTrendTitle"),
+    date: t("reportsTableDate"),
+    closedCases: t("reportsClosedCases"),
+    statusAndCategoryTitle: t("reportsStatusAndCategoryTitle"),
+    currentStatus: t("reportsCurrentStatus"),
+    status: t("reportsStatusColumn"),
+    count: t("reportsCountColumn"),
+    category: t("reportsCategoryTab"),
+    area: t("reportsAreaTab"),
+    topAreasTitle: t("reportsTopAreasTitle"),
+    empty: t("reportsNoDataInRange"),
+  }
   const scopeLabel = isSuperAdmin
-    ? "สิทธิ์: ทุกหน่วยงาน"
-    : "สิทธิ์: " + (agency?.nameTh ?? agency?.name ?? "หน่วยงานของฉัน")
+    ? t("reportsScopeAll")
+    : t("reportsScopePrefix") + (preferThai ? agency?.nameTh : agency?.name ?? agency?.nameTh ?? t("reportsOwnAgencyFallback"))
 
   const closedRate = useMemo(() => {
     const total = reportSummary?.totals.totalIncidents ?? 0
@@ -321,17 +392,17 @@ export default function ReportsPage() {
   const trendData = useMemo(() => {
     return (reportSummary?.trend ?? []).map(item => ({
       ...item,
-      label: formatDateLabel(item.bucket),
+      label: formatDateLabel(item.bucket, language),
     }))
-  }, [reportSummary])
+  }, [language, reportSummary])
 
   const categoryData = useMemo(() => {
     return (reportSummary?.byCategory ?? []).map((item, index) => ({
       ...item,
-      name: getEmergencyCategoryLabel(item.category, item.category),
+      name: categoryLabelMap[item.category] ?? item.category,
       color: categoryColors[index % categoryColors.length],
     }))
-  }, [reportSummary])
+  }, [categoryLabelMap, reportSummary])
 
   const loadReports = useCallback(async () => {
     try {
@@ -341,47 +412,47 @@ export default function ReportsPage() {
         API_BASE_URL + "/api/reports/summary?range=" + dateRange,
         { headers: buildAdminApiHeaders(user) }
       )
-      if (!response.ok) throw new Error("โหลดรายงานไม่สำเร็จ")
+      if (!response.ok) throw new Error(t("reportsLoadError"))
       const data = (await response.json()) as ReportSummary
       setReportSummary(data)
     } catch {
-      setErrorMessage("ไม่สามารถโหลดรายงานจากฐานข้อมูลได้")
+      setErrorMessage(t("reportsLoadFromDbError"))
       setReportSummary(null)
-      toast.error("โหลดรายงานไม่สำเร็จ")
+      toast.error(t("reportsLoadError"))
     } finally {
       setIsLoading(false)
     }
-  }, [dateRange, user])
+  }, [dateRange, t, user])
 
   const exportReportCsv = useCallback(() => {
     if (!reportSummary) {
-      toast.error("ไม่มีข้อมูลสำหรับส่งออก")
+      toast.error(t("reportsNoDataToExport"))
       return
     }
 
     const rows = [
       ...buildCsvSection("Smart Emergency Report", [
-        ["ช่วงเวลา", reportRangeLabels[dateRange]],
-        ["สิทธิ์ข้อมูล", scopeLabel],
-        ["เหตุทั้งหมด", reportSummary.totals.totalIncidents],
-        ["เหตุที่ยังเปิดอยู่", reportSummary.totals.activeIncidents],
-        ["ปิดเคสแล้ว", reportSummary.totals.closedIncidents],
-        ["สายที่ติดต่อสำเร็จ", reportSummary.totals.connectedCalls],
+        [t("reportsDateRange"), reportRangeLabels[dateRange]],
+        [t("reportsDataScope"), scopeLabel],
+        [t("reportsTotalIncidents"), reportSummary.totals.totalIncidents],
+        [t("reportsActiveIncidents"), reportSummary.totals.activeIncidents],
+        [t("reportsClosedCases"), reportSummary.totals.closedIncidents],
+        [t("reportsConnectedCalls"), reportSummary.totals.connectedCalls],
       ]),
-      ...buildCsvSection("แนวโน้มการแจ้งเหตุ", [
-        ["วันที่", "เหตุทั้งหมด", "ปิดเคสแล้ว"],
+      ...buildCsvSection(t("reportsTrendTitle"), [
+        [t("reportsTableDate"), t("reportsTotalIncidents"), t("reportsClosedCases")],
         ...reportSummary.trend.map(item => [item.bucket, item.count, item.closedCount]),
       ]),
-      ...buildCsvSection("สถานะปัจจุบัน", [
-        ["สถานะ", "จำนวน"],
+      ...buildCsvSection(t("reportsCurrentStatus"), [
+        [t("reportsStatusColumn"), t("reportsCountColumn")],
         ...reportSummary.byStatus.map(item => [statusLabels[item.status] ?? item.status, item.count]),
       ]),
-      ...buildCsvSection("หมวดเหตุ", [
-        ["หมวดเหตุ", "จำนวน"],
-        ...reportSummary.byCategory.map(item => [getEmergencyCategoryLabel(item.category, item.category), item.count]),
+      ...buildCsvSection(t("reportsCategoryTab"), [
+        [t("reportsCategoryTab"), t("reportsCountColumn")],
+        ...reportSummary.byCategory.map(item => [categoryLabelMap[item.category] ?? item.category, item.count]),
       ]),
-      ...buildCsvSection("พื้นที่", [
-        ["พื้นที่", "จำนวน"],
+      ...buildCsvSection(t("reportsAreaTab"), [
+        [t("reportsAreaTab"), t("reportsCountColumn")],
         ...reportSummary.byArea.map(item => [item.areaName, item.count]),
       ]),
     ]
@@ -396,16 +467,16 @@ export default function ReportsPage() {
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
-    toast.success("ส่งออกรายงาน CSV แล้ว")
-  }, [dateRange, reportSummary, scopeLabel])
+    toast.success(t("reportsCsvExported"))
+  }, [categoryLabelMap, dateRange, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
 
   const exportReportPdf = useCallback(async () => {
     if (!reportSummary) {
-      toast.error("ไม่มีข้อมูลสำหรับส่งออก")
+      toast.error(t("reportsNoDataToExport"))
       return
     }
 
-    const pdfPages = buildPdfReportPages(reportSummary, reportRangeLabels[dateRange], scopeLabel)
+    const pdfPages = buildPdfReportPages(reportSummary, reportRangeLabels[dateRange], scopeLabel, language, statusLabels, categoryLabelMap, reportCopy)
     try {
       setIsExportingPdf(true)
       const [{ default: html2canvas }, jsPdfModule] = await Promise.all([
@@ -433,29 +504,29 @@ export default function ReportsPage() {
       }
 
       pdf.save(`smart-emergency-report-${dateRange}.pdf`)
-      toast.success("ส่งออกรายงาน PDF แล้ว")
+      toast.success(t("reportsPdfExported"))
     } catch (error) {
       console.error("Report PDF export failed", error)
-      toast.error("ส่งออก PDF ไม่สำเร็จ")
+      toast.error(t("reportsPdfExportFailed"))
     } finally {
       for (const pageElement of pdfPages) {
         pageElement.remove()
       }
       setIsExportingPdf(false)
     }
-  }, [dateRange, reportSummary, scopeLabel])
+  }, [categoryLabelMap, dateRange, language, reportCopy, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
 
   const printReport = useCallback(() => {
     if (!reportSummary) {
-      toast.error("ไม่มีข้อมูลสำหรับส่งออก")
+      toast.error(t("reportsNoDataToExport"))
       return
     }
 
-    setPrintReportHtml(buildPrintableReportHtml(reportSummary, reportRangeLabels[dateRange], scopeLabel))
+    setPrintReportHtml(buildPrintableReportHtml(reportSummary, reportRangeLabels[dateRange], scopeLabel, language, statusLabels, categoryLabelMap, reportCopy))
     window.setTimeout(() => {
       window.print()
     }, 250)
-  }, [dateRange, reportSummary, scopeLabel])
+  }, [categoryLabelMap, dateRange, language, reportCopy, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
 
   useEffect(() => {
     void loadReports()
@@ -505,9 +576,9 @@ export default function ReportsPage() {
       />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">รายงานและสถิติ</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("reportsPageTitle")}</h1>
           <p className="text-muted-foreground">
-            รายงานจากฐานข้อมูลจริง แสดงข้อมูลตามสิทธิ์ของ role ปัจจุบัน
+            {t("reportsPageDescription")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -517,7 +588,7 @@ export default function ReportsPage() {
           <Select value={dateRange} onValueChange={value => setDateRange((value ?? "month") as ReportRange)}>
             <SelectTrigger className="w-[170px]">
               <Calendar className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="เลือกช่วงเวลา" />
+              <SelectValue placeholder={t("reportsSelectRange")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="week">{reportRangeLabels.week}</SelectItem>
@@ -539,21 +610,21 @@ export default function ReportsPage() {
               }
             >
               <Download className="mr-2 h-4 w-4" />
-              ส่งออก
+              {t("reportsExport")}
               <ChevronDown className="ml-2 h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={exportReportCsv}>
                 <Download className="mr-2 h-4 w-4" />
-                ส่งออก CSV
+                {t("reportsExportCsv")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void exportReportPdf()}>
                 <FileText className="mr-2 h-4 w-4" />
-                ส่งออก PDF
+                {t("reportsExportPdf")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={printReport}>
                 <Printer className="mr-2 h-4 w-4" />
-                พิมพ์รายงาน
+                {t("reportsPrint")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -568,7 +639,7 @@ export default function ReportsPage() {
               {errorMessage}
             </div>
             <Button variant="outline" size="sm" onClick={() => void loadReports()}>
-              ลองโหลดอีกครั้ง
+              {t("reportsRetry")}
             </Button>
           </CardContent>
         </Card>
@@ -578,7 +649,7 @@ export default function ReportsPage() {
         <Card>
           <CardContent className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
             <RefreshCw className="h-4 w-4 animate-spin" />
-            กำลังโหลดรายงานจากฐานข้อมูล...
+            {t("reportsLoading")}
           </CardContent>
         </Card>
       )}
@@ -587,67 +658,67 @@ export default function ReportsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">เหตุทั้งหมด</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("reportsTotalIncidents")}</CardTitle>
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "..." : formatNumber(reportSummary?.totals.totalIncidents)}
+              {isLoading ? "..." : formatNumber(reportSummary?.totals.totalIncidents, language)}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">ตามช่วงเวลาที่เลือก</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("reportsSelectedRangeHint")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">เหตุที่ยังเปิดอยู่</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("reportsActiveIncidents")}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "..." : formatNumber(reportSummary?.totals.activeIncidents)}
+              {isLoading ? "..." : formatNumber(reportSummary?.totals.activeIncidents, language)}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">ทุกสถานะที่ยังไม่ปิดเคส</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("reportsActiveIncidentsHint")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">อัตราปิดเคส</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("reportsClosureRate")}</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{isLoading ? "..." : formatPercent(closedRate)}</div>
+            <div className="text-2xl font-bold">{isLoading ? "..." : formatPercent(closedRate, language)}</div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {formatNumber(reportSummary?.totals.closedIncidents)} รายการปิดแล้ว
+              {formatNumber(reportSummary?.totals.closedIncidents, language)} {t("reportsClosedSuffix")}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">สายที่ติดต่อสำเร็จ</CardTitle>
+            <CardTitle className="text-sm font-medium">{t("reportsConnectedCalls")}</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? "..." : formatNumber(reportSummary?.totals.connectedCalls)}
+              {isLoading ? "..." : formatNumber(reportSummary?.totals.connectedCalls, language)}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">นับจาก call status connected</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("reportsConnectedCallsHint")}</p>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="calls" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="calls">สถิติการแจ้งเหตุ</TabsTrigger>
-          <TabsTrigger value="categories">หมวดเหตุ</TabsTrigger>
-          <TabsTrigger value="locations">พื้นที่</TabsTrigger>
+          <TabsTrigger value="calls">{t("reportsCallsTab")}</TabsTrigger>
+          <TabsTrigger value="categories">{t("reportsCategoryTab")}</TabsTrigger>
+          <TabsTrigger value="locations">{t("reportsAreaTab")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calls" className="space-y-4">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>แนวโน้มการแจ้งเหตุ</CardTitle>
-                <CardDescription>จำนวนเหตุทั้งหมดและเคสที่ปิดแล้วรายวัน</CardDescription>
+                <CardTitle>{t("reportsTrendTitle")}</CardTitle>
+                <CardDescription>{t("reportsTrendDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
@@ -657,8 +728,8 @@ export default function ReportsPage() {
                       <XAxis dataKey="label" />
                       <YAxis allowDecimals={false} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="count" fill="var(--chart-1)" name="เหตุทั้งหมด" />
-                      <Bar dataKey="closedCount" fill="var(--chart-3)" name="ปิดเคสแล้ว" />
+                      <Bar dataKey="count" fill="var(--chart-1)" name={t("reportsTotalIncidents")} />
+                      <Bar dataKey="closedCount" fill="var(--chart-3)" name={t("reportsClosedCases")} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -667,8 +738,8 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>สถานะปัจจุบัน</CardTitle>
-                <CardDescription>จำนวนเหตุแยกตามสถานะล่าสุด</CardDescription>
+                <CardTitle>{t("reportsCurrentStatus")}</CardTitle>
+                <CardDescription>{t("reportsCurrentStatusDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -678,11 +749,11 @@ export default function ReportsPage() {
                         <div className="font-medium">{statusLabels[item.status] ?? item.status}</div>
                         <div className="text-sm text-muted-foreground">{item.status}</div>
                       </div>
-                      <Badge variant="secondary">{formatNumber(item.count)}</Badge>
+                      <Badge variant="secondary">{formatNumber(item.count, language)}</Badge>
                     </div>
                   ))}
                   {!isLoading && (reportSummary?.byStatus.length ?? 0) === 0 && (
-                    <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูลในช่วงเวลานี้</p>
+                    <p className="text-sm text-muted-foreground">{t("reportsNoDataInRange")}</p>
                   )}
                 </div>
               </CardContent>
@@ -694,8 +765,8 @@ export default function ReportsPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>สัดส่วนหมวดเหตุ</CardTitle>
-                <CardDescription>แบ่งตามหมวดเหตุจาก incident category</CardDescription>
+                <CardTitle>{t("reportsCategoryShareTitle")}</CardTitle>
+                <CardDescription>{t("reportsCategoryShareDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={chartConfig} className="h-[300px]">
@@ -724,8 +795,8 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>รายละเอียดหมวดเหตุ</CardTitle>
-                <CardDescription>เรียงตามจำนวนเหตุสูงสุด</CardDescription>
+                <CardTitle>{t("reportsCategoryDetailTitle")}</CardTitle>
+                <CardDescription>{t("reportsCategoryDetailDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -735,7 +806,7 @@ export default function ReportsPage() {
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium">{item.name}</span>
-                          <span className="text-sm text-muted-foreground">{formatNumber(item.count)}</span>
+                          <span className="text-sm text-muted-foreground">{formatNumber(item.count, language)}</span>
                         </div>
                         <div className="mt-1 h-2 w-full rounded-full bg-muted">
                           <div
@@ -753,7 +824,7 @@ export default function ReportsPage() {
                     </div>
                   ))}
                   {!isLoading && categoryData.length === 0 && (
-                    <p className="text-sm text-muted-foreground">ยังไม่มีข้อมูลหมวดเหตุในช่วงเวลานี้</p>
+                    <p className="text-sm text-muted-foreground">{t("reportsNoCategoryData")}</p>
                   )}
                 </div>
               </CardContent>
@@ -766,17 +837,17 @@ export default function ReportsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
-                พื้นที่ที่มีเหตุการณ์มากที่สุด
+                {t("reportsTopAreasTitle")}
               </CardTitle>
-              <CardDescription>จัดอันดับจาก province/district ที่บันทึกใน incidents</CardDescription>
+              <CardDescription>{t("reportsTopAreasDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>อันดับ</TableHead>
-                    <TableHead>พื้นที่</TableHead>
-                    <TableHead className="text-right">จำนวนเหตุ</TableHead>
+                    <TableHead>{t("reportsRankColumn")}</TableHead>
+                    <TableHead>{t("reportsAreaTab")}</TableHead>
+                    <TableHead className="text-right">{t("reportsCountColumn")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -786,13 +857,13 @@ export default function ReportsPage() {
                         <Badge variant="outline">{index + 1}</Badge>
                       </TableCell>
                       <TableCell className="font-medium">{area.areaName}</TableCell>
-                      <TableCell className="text-right">{formatNumber(area.count)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(area.count, language)}</TableCell>
                     </TableRow>
                   ))}
                   {!isLoading && (reportSummary?.byArea.length ?? 0) === 0 && (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center text-muted-foreground">
-                        ยังไม่มีข้อมูลพื้นที่ในช่วงเวลานี้
+                        {t("reportsNoAreaData")}
                       </TableCell>
                     </TableRow>
                   )}

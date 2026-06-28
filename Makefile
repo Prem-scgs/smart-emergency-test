@@ -55,6 +55,7 @@ db-migrate:
 	pnpm db:migrate:contact-coverage
 	pnpm db:migrate:db-readiness
 	pnpm db:migrate:incident-tracking
+	pnpm db:migrate:share-channels
 
 db-seed:
 	pnpm db:seed
@@ -73,6 +74,7 @@ db-reset:
 	pnpm db:migrate:contact-coverage
 	pnpm db:migrate:db-readiness
 	pnpm db:migrate:incident-tracking
+	pnpm db:migrate:share-channels
 	pnpm db:seed
 
 web:

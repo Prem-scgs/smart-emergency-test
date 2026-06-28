@@ -30,6 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
@@ -41,6 +42,7 @@ import {
   saveAdminAlertPreferences,
   type AlertTonePreset,
 } from "@/lib/admin-alert-preferences"
+import { buildAdminApiHeaders } from "@/lib/admin-api"
 import {
   ADMIN_LANGUAGE_CHANGE_EVENT,
   ADMIN_SETTINGS_PREFERENCES_KEY,
@@ -54,6 +56,8 @@ const API_BASE_URL = getEmergencyApiBaseUrl()
 type LanguagePreference = "th" | "en"
 type HealthStatus = "checking" | "online" | "offline"
 type SseStatus = "connecting" | "connected" | "disconnected" | "unknown"
+type ShareChannelName = "line" | "sms" | "whatsapp"
+type ShareChannelSource = "db" | "env" | "none"
 
 interface AdminSettingsPreferences {
   language: LanguagePreference
@@ -61,9 +65,14 @@ interface AdminSettingsPreferences {
 }
 
 interface ShareChannelState {
-  line: { enabled: boolean }
-  sms: { enabled: boolean }
-  whatsapp: { enabled: boolean }
+  line: { enabled: boolean; maskedValue: string | null; source: ShareChannelSource }
+  sms: { enabled: boolean; maskedValue: string | null; source: ShareChannelSource }
+  whatsapp: { enabled: boolean; maskedValue: string | null; source: ShareChannelSource }
+}
+
+interface ShareChannelDraft {
+  enabled: boolean
+  recipientValue: string
 }
 
 const DEFAULT_SETTINGS_PREFERENCES: AdminSettingsPreferences = {
@@ -72,9 +81,15 @@ const DEFAULT_SETTINGS_PREFERENCES: AdminSettingsPreferences = {
 }
 
 const DEFAULT_SHARE_CHANNELS: ShareChannelState = {
-  line: { enabled: false },
-  sms: { enabled: false },
-  whatsapp: { enabled: false },
+  line: { enabled: false, maskedValue: null, source: "none" },
+  sms: { enabled: false, maskedValue: null, source: "none" },
+  whatsapp: { enabled: false, maskedValue: null, source: "none" },
+}
+
+const DEFAULT_SHARE_CHANNEL_DRAFTS: Record<ShareChannelName, ShareChannelDraft> = {
+  line: { enabled: false, recipientValue: "" },
+  sms: { enabled: false, recipientValue: "" },
+  whatsapp: { enabled: false, recipientValue: "" },
 }
 
 function getStoredSettingsPreferences(): AdminSettingsPreferences {
@@ -124,7 +139,7 @@ function previewSettingsLanguage(language: LanguagePreference) {
   )
 }
 
-function testAlertTone(preset: AlertTonePreset) {
+function testAlertTone(preset: AlertTonePreset, unsupportedMessage: string) {
   if (typeof window === "undefined") return
 
   const AudioContextClass =
@@ -132,7 +147,7 @@ function testAlertTone(preset: AlertTonePreset) {
     (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
 
   if (!AudioContextClass) {
-    toast.error("เบราว์เซอร์นี้ยังไม่รองรับการทดสอบเสียง")
+    toast.error(unsupportedMessage)
     return
   }
 
@@ -204,6 +219,12 @@ function channelBadge(enabled: boolean, t: ReturnType<typeof useAdminI18n>["t"])
   )
 }
 
+function sourceLabel(source: ShareChannelSource, t: ReturnType<typeof useAdminI18n>["t"]) {
+  if (source === "db") return t("channelSourceDb")
+  if (source === "env") return t("channelSourceEnv")
+  return t("channelSourceNone")
+}
+
 export default function SettingsPage() {
   const { user, canViewAllAgencies } = useAuth()
   const { t } = useAdminI18n()
@@ -211,6 +232,7 @@ export default function SettingsPage() {
   const [alertPreferences, setAlertPreferences] = useState(DEFAULT_ADMIN_ALERT_PREFERENCES)
   const [settingsPreferences, setSettingsPreferences] = useState(DEFAULT_SETTINGS_PREFERENCES)
   const [shareChannelStatus, setShareChannelStatus] = useState(DEFAULT_SHARE_CHANNELS)
+  const [shareChannelDrafts, setShareChannelDrafts] = useState(DEFAULT_SHARE_CHANNEL_DRAFTS)
   const [systemHealth, setSystemHealth] = useState<{
     api: HealthStatus
     database: HealthStatus
@@ -227,7 +249,7 @@ export default function SettingsPage() {
   const isDarkMode = theme === "dark" || (theme === "system" && resolvedTheme === "dark")
   const roleLabel = isSuperAdmin
     ? t("scopeSuperAdmin")
-    : t("scopeOwnAgency") + (user?.agency?.nameTh ?? user?.agency?.name ?? "หน่วยงานของฉัน")
+    : t("scopeOwnAgency") + (user?.agency?.nameTh ?? user?.agency?.name ?? t("settingsOwnAgencyFallback"))
 
   const enabledChannels = useMemo(() => {
     return Object.values(shareChannelStatus).filter(channel => channel.enabled).length
@@ -236,6 +258,27 @@ export default function SettingsPage() {
     "soft-chime": t("toneSoft"),
     "alert-beep": t("toneClear"),
     "siren-pulse": t("toneUrgent"),
+  }), [t])
+  const shareChannelLabels = useMemo<Record<ShareChannelName, {
+    title: string
+    description: string
+    placeholder: string
+  }>>(() => ({
+    line: {
+      title: "LINE OA",
+      description: t("lineEnvDescription"),
+      placeholder: t("lineRecipientPlaceholder"),
+    },
+    sms: {
+      title: "SMS Center",
+      description: t("smsEnvDescription"),
+      placeholder: t("smsRecipientPlaceholder"),
+    },
+    whatsapp: {
+      title: "WhatsApp Center",
+      description: t("whatsappEnvDescription"),
+      placeholder: t("whatsappRecipientPlaceholder"),
+    },
   }), [t])
 
   useEffect(() => {
@@ -254,12 +297,24 @@ export default function SettingsPage() {
 
     async function loadShareChannels() {
       try {
-        const response = await fetch(API_BASE_URL + "/api/reference/share-channels")
+        const response = await fetch(API_BASE_URL + "/api/admin/share-channels", {
+          headers: buildAdminApiHeaders(user),
+        })
         if (!response.ok) throw new Error("share channels unavailable")
-        const data = (await response.json()) as ShareChannelState
-        if (!cancelled) setShareChannelStatus(data)
+        const data = (await response.json()) as { channels: ShareChannelState }
+        if (!cancelled) {
+          setShareChannelStatus(data.channels)
+          setShareChannelDrafts({
+            line: { enabled: data.channels.line.enabled, recipientValue: "" },
+            sms: { enabled: data.channels.sms.enabled, recipientValue: "" },
+            whatsapp: { enabled: data.channels.whatsapp.enabled, recipientValue: "" },
+          })
+        }
       } catch {
-        if (!cancelled) setShareChannelStatus(DEFAULT_SHARE_CHANNELS)
+        if (!cancelled) {
+          setShareChannelStatus(DEFAULT_SHARE_CHANNELS)
+          setShareChannelDrafts(DEFAULT_SHARE_CHANNEL_DRAFTS)
+        }
       }
     }
 
@@ -295,7 +350,7 @@ export default function SettingsPage() {
     return () => {
       cancelled = true
     }
-  }, [isSuperAdmin])
+  }, [isSuperAdmin, user])
 
   useEffect(() => {
     const handleSseStatus = (event: Event) => {
@@ -323,9 +378,75 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSave = () => {
+  const handleShareChannelDraftChange = (
+    channel: ShareChannelName,
+    next: Partial<ShareChannelDraft>
+  ) => {
+    setShareChannelDrafts(prev => ({
+      ...prev,
+      [channel]: { ...prev[channel], ...next },
+    }))
+  }
+
+  const saveShareChannels = async () => {
+    const payload = {
+      channels: {
+        line: {
+          enabled: shareChannelDrafts.line.enabled,
+          ...(shareChannelDrafts.line.recipientValue.trim()
+            ? { recipientValue: shareChannelDrafts.line.recipientValue.trim() }
+            : {}),
+        },
+        sms: {
+          enabled: shareChannelDrafts.sms.enabled,
+          ...(shareChannelDrafts.sms.recipientValue.trim()
+            ? { recipientValue: shareChannelDrafts.sms.recipientValue.trim() }
+            : {}),
+        },
+        whatsapp: {
+          enabled: shareChannelDrafts.whatsapp.enabled,
+          ...(shareChannelDrafts.whatsapp.recipientValue.trim()
+            ? { recipientValue: shareChannelDrafts.whatsapp.recipientValue.trim() }
+            : {}),
+        },
+      },
+    }
+
+    const response = await fetch(API_BASE_URL + "/api/admin/share-channels", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAdminApiHeaders(user),
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      throw new Error("share channel save failed")
+    }
+
+    const data = (await response.json()) as { channels: ShareChannelState }
+    setShareChannelStatus(data.channels)
+    setShareChannelDrafts({
+      line: { enabled: data.channels.line.enabled, recipientValue: "" },
+      sms: { enabled: data.channels.sms.enabled, recipientValue: "" },
+      whatsapp: { enabled: data.channels.whatsapp.enabled, recipientValue: "" },
+    })
+  }
+
+  const handleSave = async () => {
     saveAdminAlertPreferences(alertPreferences)
     saveSettingsPreferences(settingsPreferences)
+
+    if (isSuperAdmin) {
+      try {
+        await saveShareChannels()
+      } catch {
+        toast.error(t("shareChannelsSaveError"))
+        return
+      }
+    }
+
     toast.success(t("settingsSaved"))
   }
 
@@ -501,7 +622,7 @@ export default function SettingsPage() {
                   variant="outline"
                   className="w-fit"
                   disabled={!alertPreferences.enabled}
-                  onClick={() => testAlertTone(alertPreferences.tone)}
+                  onClick={() => testAlertTone(alertPreferences.tone, t("settingsAudioUnsupported"))}
                 >
                   <Volume2 className="mr-2 h-4 w-4" />
                   {t("testSound")}
@@ -592,33 +713,50 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium">LINE OA</div>
-                      {channelBadge(shareChannelStatus.line.enabled, t)}
+                  {(["line", "sms", "whatsapp"] as ShareChannelName[]).map(channel => (
+                    <div key={channel} className="rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium">{shareChannelLabels[channel].title}</div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {shareChannelLabels[channel].description}
+                          </p>
+                        </div>
+                        {channelBadge(shareChannelStatus[channel].enabled, t)}
+                      </div>
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm text-muted-foreground">
+                            {sourceLabel(shareChannelStatus[channel].source, t)}
+                          </div>
+                          <Switch
+                            checked={shareChannelDrafts[channel].enabled}
+                            onCheckedChange={(checked) =>
+                              handleShareChannelDraftChange(channel, { enabled: checked })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("shareChannelCurrentValue")}</Label>
+                          <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                            {shareChannelStatus[channel].maskedValue ?? t("shareChannelNoValue")}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>{t("replaceShareChannelValue")}</Label>
+                          <Input
+                            value={shareChannelDrafts[channel].recipientValue}
+                            onChange={(event) =>
+                              handleShareChannelDraftChange(channel, {
+                                recipientValue: event.target.value,
+                              })
+                            }
+                            placeholder={shareChannelLabels[channel].placeholder}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t("lineEnvDescription")}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium">SMS Center</div>
-                      {channelBadge(shareChannelStatus.sms.enabled, t)}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t("smsEnvDescription")}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="font-medium">WhatsApp Center</div>
-                      {channelBadge(shareChannelStatus.whatsapp.enabled, t)}
-                    </div>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t("whatsappEnvDescription")}
-                    </p>
-                  </div>
+                  ))}
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {t("noSecretsShown")}

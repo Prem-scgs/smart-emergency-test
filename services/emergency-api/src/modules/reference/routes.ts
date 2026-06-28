@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { buildApiErrorPayload } from "../../api-error.js";
-import { config } from "../../config.js";
 import { pool } from "../../db.js";
-import { getShareChannelAvailability } from "../../location-share.js";
+import {
+  resolveShareChannels,
+  toPublicShareChannelAvailability,
+} from "../../share-channel-settings.js";
 
 function rowToCategory(row: Record<string, unknown>) {
   return {
@@ -63,7 +65,7 @@ function rowToDashboardStats(row: Record<string, unknown>) {
 
 export async function registerReferenceRoutes(app: FastifyInstance) {
   app.get("/api/reference/share-channels", async () => {
-    return getShareChannelAvailability(config.shareChannels);
+    return toPublicShareChannelAvailability(await resolveShareChannels());
   });
 
   app.get("/api/reference/categories", async () => {

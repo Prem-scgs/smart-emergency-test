@@ -127,7 +127,10 @@ test("POST /api/incidents/:id/share-attempts validates ownership and records the
   config.shareChannels.smsCenterPhone = "0812345678";
   (pool.query as any) = async (sql: unknown, values?: unknown[]) => {
     calls.push({ sql: String(sql), values });
-    if (calls.length === 1) {
+    if (String(sql).includes("FROM center_share_channels")) {
+      return { rows: [] };
+    }
+    if (String(sql).includes("FROM incidents")) {
       return {
         rows: [{
           id: "77777777-7777-4777-8777-777777777777",
@@ -168,12 +171,77 @@ test("POST /api/incidents/:id/share-attempts validates ownership and records the
     assert.match(result.shareUrl, /^sms:0812345678\?body=/);
     assert.match(result.message, /เบอร์ผู้แจ้ง: 0811111111/);
     assert.match(result.mapsUrl, /13\.747800,100\.535100/);
-    assert.deepEqual(calls[0]?.values, [
+    const incidentSelect = calls.find(call => /FROM incidents/.test(call.sql));
+    assert.deepEqual(incidentSelect?.values, [
       "77777777-7777-4777-8777-777777777777",
       "session-share-success",
     ]);
-    assert.match(calls[1]?.sql ?? "", /INSERT INTO audit_logs/);
-    assert.doesNotMatch(JSON.stringify(calls[1]?.values), /0811111111/);
+    const auditInsert = calls.find(call => /INSERT INTO audit_logs/.test(call.sql));
+    assert.ok(auditInsert);
+    assert.doesNotMatch(JSON.stringify(auditInsert.values), /0811111111/);
+  } finally {
+    (pool.query as any) = originalQuery;
+    Object.assign(config.shareChannels, originalChannels);
+  }
+});
+
+test("POST /api/incidents/:id/share-attempts uses DB channel recipient before env fallback", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const originalChannels = { ...config.shareChannels };
+  const calls: Array<{ sql: string; values?: unknown[] }> = [];
+  config.shareChannels.smsCenterPhone = null;
+
+  (pool.query as any) = async (sql: unknown, values?: unknown[]) => {
+    calls.push({ sql: String(sql), values });
+    const sqlText = String(sql);
+
+    if (sqlText.includes("FROM center_share_channels")) {
+      return {
+        rows: [
+          { channel: "sms", enabled: true, recipient_value: "0899999999" },
+        ],
+      };
+    }
+
+    if (sqlText.includes("FROM incidents")) {
+      return {
+        rows: [{
+          id: "77777777-7777-4777-8777-777777777778",
+          category: "medical",
+          province: "กรุงเทพมหานคร",
+          district: "ปทุมวัน",
+          latitude: 13.7478,
+          longitude: 100.5351,
+          created_at: "2026-06-21T03:42:00.000Z",
+        }],
+      };
+    }
+
+    return { rowCount: 1, rows: [] };
+  };
+
+  try {
+    await registerIncidentRoutes(app as any);
+    const handler = app.postHandlers.get("/api/incidents/:id/share-attempts");
+    assert.ok(handler);
+
+    const reply = createReplyDouble();
+    const result = await handler({
+      id: "request-share-db-channel",
+      ip: "127.0.0.20",
+      log: { error() {} },
+      headers: { "x-mobile-platform": "android" },
+      params: { id: "77777777-7777-4777-8777-777777777778" },
+      body: {
+        sessionId: "session-share-db-channel",
+        channel: "sms",
+      },
+    }, reply) as any;
+
+    assert.equal(reply.statusCode, 200);
+    assert.match(result.shareUrl, /^sms:0899999999\?body=/);
+    assert.match(calls[0]?.sql ?? "", /FROM center_share_channels/);
   } finally {
     (pool.query as any) = originalQuery;
     Object.assign(config.shareChannels, originalChannels);
@@ -184,11 +252,13 @@ test("POST /api/incidents/:id/share-attempts returns recorded false when audit f
   const app = createFakeApp();
   const originalQuery = pool.query.bind(pool);
   const originalChannels = { ...config.shareChannels };
-  let callCount = 0;
   config.shareChannels.lineOaId = "@smartemergency";
-  (pool.query as any) = async () => {
-    callCount += 1;
-    if (callCount === 1) {
+  (pool.query as any) = async (sql: unknown) => {
+    const sqlText = String(sql);
+    if (sqlText.includes("FROM center_share_channels")) {
+      return { rows: [] };
+    }
+    if (sqlText.includes("FROM incidents")) {
       return {
         rows: [{
           id: "88888888-8888-4888-8888-888888888888",

@@ -20,6 +20,7 @@
     "db:migrate:contact-coverage": "docker compose exec -T db psql -U emergency -d smart_emergency -f /docker-entrypoint-initdb.d/010_contact_coverage_type.sql",
     "db:migrate:db-readiness": "docker compose exec -T db psql -U emergency -d smart_emergency -f /docker-entrypoint-initdb.d/011_database_readiness.sql",
     "db:migrate:incident-tracking": "docker compose exec -T db psql -v ON_ERROR_STOP=1 -U emergency -d smart_emergency -f /docker-entrypoint-initdb.d/016_incident_tracking.sql",
+    "db:migrate:share-channels": "docker compose exec -T db psql -v ON_ERROR_STOP=1 -U emergency -d smart_emergency -f /docker-entrypoint-initdb.d/017_center_share_channels.sql",
     "db:import:boundaries": "pnpm --filter emergency-api import:boundaries",
     "db:seed": "docker compose cp services/emergency-api/db/seeds/dev_seed.sql db:/tmp/dev_seed.sql && docker compose exec -T db psql -U emergency -d smart_emergency -f /tmp/dev_seed.sql",
     "build": "next build",
