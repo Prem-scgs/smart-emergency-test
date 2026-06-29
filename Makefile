@@ -56,6 +56,7 @@ db-migrate:
 	pnpm db:migrate:db-readiness
 	pnpm db:migrate:incident-tracking
 	pnpm db:migrate:share-channels
+	pnpm db:migrate:system-settings
 
 db-seed:
 	pnpm db:seed
@@ -75,6 +76,7 @@ db-reset:
 	pnpm db:migrate:db-readiness
 	pnpm db:migrate:incident-tracking
 	pnpm db:migrate:share-channels
+	pnpm db:migrate:system-settings
 	pnpm db:seed
 
 web:

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useTheme } from "next-themes"
 import {
   Bell,
+  Building2,
   Database,
   Globe,
   Languages,
@@ -61,6 +62,12 @@ interface AdminSettingsPreferences {
   reducedMotion: boolean
 }
 
+interface OrganizationSettings {
+  systemName: string
+  organizationName: string
+  timezone: "Asia/Bangkok" | "UTC"
+}
+
 interface ShareChannelState {
   line: { enabled: boolean; maskedValue: string | null; source: ShareChannelSource }
   sms: { enabled: boolean; maskedValue: string | null; source: ShareChannelSource }
@@ -75,6 +82,12 @@ interface ShareChannelDraft {
 const DEFAULT_SETTINGS_PREFERENCES: AdminSettingsPreferences = {
   language: "th",
   reducedMotion: false,
+}
+
+const DEFAULT_ORGANIZATION_SETTINGS: OrganizationSettings = {
+  systemName: "Smart Emergency Platform",
+  organizationName: "ศูนย์บัญชาการเหตุฉุกเฉิน",
+  timezone: "Asia/Bangkok",
 }
 
 const DEFAULT_SHARE_CHANNELS: ShareChannelState = {
@@ -228,6 +241,7 @@ export default function SettingsPage() {
   const { theme, resolvedTheme, setTheme } = useTheme()
   const [alertPreferences, setAlertPreferences] = useState(DEFAULT_ADMIN_ALERT_PREFERENCES)
   const [settingsPreferences, setSettingsPreferences] = useState(DEFAULT_SETTINGS_PREFERENCES)
+  const [organizationSettings, setOrganizationSettings] = useState(DEFAULT_ORGANIZATION_SETTINGS)
   const [shareChannelStatus, setShareChannelStatus] = useState(DEFAULT_SHARE_CHANNELS)
   const [shareChannelDrafts, setShareChannelDrafts] = useState(DEFAULT_SHARE_CHANNEL_DRAFTS)
   const [systemHealth, setSystemHealth] = useState<{
@@ -332,6 +346,23 @@ export default function SettingsPage() {
 
     let cancelled = false
 
+    async function loadOrganizationSettings() {
+      try {
+        const response = await fetch(API_BASE_URL + "/api/admin/organization-settings", {
+          headers: buildAdminApiHeaders(user),
+        })
+        if (!response.ok) throw new Error("organization settings unavailable")
+        const data = (await response.json()) as { settings: OrganizationSettings }
+        if (!cancelled) {
+          setOrganizationSettings(data.settings)
+        }
+      } catch {
+        if (!cancelled) {
+          setOrganizationSettings(DEFAULT_ORGANIZATION_SETTINGS)
+        }
+      }
+    }
+
     async function loadShareChannels() {
       try {
         const response = await fetch(API_BASE_URL + "/api/admin/share-channels", {
@@ -381,6 +412,7 @@ export default function SettingsPage() {
       }
     }
 
+    void loadOrganizationSettings()
     void loadShareChannels()
     void loadSystemHealth()
 
@@ -415,6 +447,10 @@ export default function SettingsPage() {
     }
   }
 
+  const handleOrganizationSettingsChange = (next: Partial<OrganizationSettings>) => {
+    setOrganizationSettings(prev => ({ ...prev, ...next }))
+  }
+
   const handleShareChannelDraftChange = (
     channel: ShareChannelName,
     next: Partial<ShareChannelDraft>
@@ -423,6 +459,32 @@ export default function SettingsPage() {
       ...prev,
       [channel]: { ...prev[channel], ...next },
     }))
+  }
+
+  const saveOrganizationSettings = async () => {
+    const payload = {
+      settings: {
+        systemName: organizationSettings.systemName.trim(),
+        organizationName: organizationSettings.organizationName.trim(),
+        timezone: organizationSettings.timezone,
+      },
+    }
+
+    const response = await fetch(API_BASE_URL + "/api/admin/organization-settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAdminApiHeaders(user),
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      throw new Error("organization settings save failed")
+    }
+
+    const data = (await response.json()) as { settings: OrganizationSettings }
+    setOrganizationSettings(data.settings)
   }
 
   const saveShareChannels = async () => {
@@ -476,6 +538,13 @@ export default function SettingsPage() {
     saveSettingsPreferences(settingsPreferences)
 
     if (isSuperAdmin) {
+      try {
+        await saveOrganizationSettings()
+      } catch {
+        toast.error(t("organizationSettingsSaveError"))
+        return
+      }
+
       try {
         await saveShareChannels()
       } catch {
@@ -585,13 +654,17 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="personal" className="space-y-4">
-        <TabsList className={isSuperAdmin ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
+        <TabsList className={isSuperAdmin ? "grid w-full grid-cols-4" : "grid w-full grid-cols-1"}>
           <TabsTrigger value="personal" className="gap-2">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">{t("personalSettingsTab")}</span>
           </TabsTrigger>
           {isSuperAdmin && (
             <>
+              <TabsTrigger value="organization" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                <span className="hidden sm:inline">{t("organizationTab")}</span>
+              </TabsTrigger>
               <TabsTrigger value="channels" className="gap-2">
                 <Share2 className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("channelsTab")}</span>
@@ -735,6 +808,72 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isSuperAdmin && (
+          <TabsContent value="organization" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  {t("organizationSettings")}
+                </CardTitle>
+                <CardDescription>
+                  {t("organizationSettingsDescription")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("systemNameLabel")}</Label>
+                  <Input
+                    value={organizationSettings.systemName}
+                    onChange={(event) =>
+                      handleOrganizationSettingsChange({ systemName: event.target.value })
+                    }
+                    placeholder={t("systemNamePlaceholder")}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {t("systemNameDescription")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("organizationNameLabel")}</Label>
+                  <Input
+                    value={organizationSettings.organizationName}
+                    onChange={(event) =>
+                      handleOrganizationSettingsChange({ organizationName: event.target.value })
+                    }
+                    placeholder={t("organizationNamePlaceholder")}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {t("organizationNameDescription")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("timezoneLabel")}</Label>
+                  <Select
+                    value={organizationSettings.timezone}
+                    onValueChange={(value) =>
+                      handleOrganizationSettingsChange({
+                        timezone: (value ?? organizationSettings.timezone) as OrganizationSettings["timezone"],
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full sm:w-[220px]">
+                      <SelectValue>{organizationSettings.timezone}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Asia/Bangkok">Asia/Bangkok</SelectItem>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    {t("timezoneDescription")}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {isSuperAdmin && (
           <TabsContent value="channels" className="space-y-4">

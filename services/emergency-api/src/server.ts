@@ -5,6 +5,7 @@ import { buildApiErrorPayload } from "./api-error.js";
 import { config } from "./config.js";
 import { corsMethods } from "./cors-options.js";
 import { closeDb, pool } from "./db.js";
+import { registerAdminOrganizationSettingsRoutes } from "./modules/admin/organization-settings.routes.js";
 import { registerAdminShareChannelRoutes } from "./modules/admin/share-channels.routes.js";
 import { registerAreaRoutes } from "./modules/areas/routes.js";
 import { registerContactRoutes } from "./modules/contacts/routes.js";
@@ -68,6 +69,7 @@ await registerContactRoutes(app);
 await registerAreaRoutes(app);
 await registerIncidentRoutes(app);
 await registerReferenceRoutes(app);
+await registerAdminOrganizationSettingsRoutes(app);
 await registerAdminShareChannelRoutes(app);
 
 const shutdown = async () => {
