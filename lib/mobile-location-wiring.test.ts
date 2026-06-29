@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 const mobileAppUrl = new URL('../components/mobile/mobile-app.tsx', import.meta.url)
+const incidentSelectionUrl = new URL('../components/mobile/incident-selection-screen.tsx', import.meta.url)
 const splashUrl = new URL('../components/mobile/splash-screen.tsx', import.meta.url)
 
 test('mobile incidents never use fallback coordinates', async () => {
@@ -28,4 +29,13 @@ test('mobile keeps central contacts available without GPS', async () => {
   assert.match(source, /function isGlobalContact/)
   assert.match(source, /loadContacts\(null\)/)
   assert.match(source, /apiContacts = apiContacts\.filter\(isGlobalApiContact\)/)
+})
+
+test('mobile call button uses a native tel link while preserving the app call handler', async () => {
+  const source = await readFile(incidentSelectionUrl, 'utf8')
+
+  assert.match(source, /function buildTelUrl/)
+  assert.match(source, /href=\{buildTelUrl\(contact\.phoneNumber\)\}/)
+  assert.match(source, /onClick=\{\(\) => onCall\(contact\)\}/)
+  assert.doesNotMatch(source, /<Button onClick=\{\(\) => onCall\(contact\)\}/)
 })

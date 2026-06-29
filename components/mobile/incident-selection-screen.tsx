@@ -2,7 +2,7 @@
 
 import { Ambulance, ArrowLeft, Bookmark, Bug, Car, CheckCircle2, Clock, Flame, HeartHandshake, LifeBuoy, Luggage, MapPin, Navigation, Phone, ShieldAlert, Waves, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
@@ -29,6 +29,11 @@ interface IncidentSelectionScreenProps {
   onBack: () => void
   onCall: (contact: EmergencyContact) => void
   onViewMap: (contact: EmergencyContact) => void
+}
+
+function buildTelUrl(phoneNumber: string) {
+  const sanitizedPhone = phoneNumber.replace(/[^\d+*#]/g, '')
+  return `tel:${sanitizedPhone}`
 }
 
 export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContacts = false, onBack, onCall, onViewMap }: IncidentSelectionScreenProps) {
@@ -94,7 +99,16 @@ export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContact
                     <Separator className="my-3" />
 
                     <div className="grid grid-cols-2 gap-2">
-                      <Button onClick={() => onCall(contact)} className="bg-success hover:bg-success/90 text-success-foreground"><Phone className="h-4 w-4 mr-1" />Call</Button>
+                      <a
+                        href={buildTelUrl(contact.phoneNumber)}
+                        onClick={() => onCall(contact)}
+                        className={buttonVariants({
+                          className: 'bg-success hover:bg-success/90 text-success-foreground',
+                        })}
+                      >
+                        <Phone className="h-4 w-4 mr-1" />
+                        Call
+                      </a>
                       <Button variant="outline" onClick={() => onViewMap(contact)}><MapPin className="h-4 w-4 mr-1" />Map</Button>
                     </div>
                   </CardContent>
