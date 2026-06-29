@@ -1,4 +1,4 @@
-.PHONY: help install dev web api api-build db-up db-ui db-down db-status db-migrate db-seed db-reset verify status stack-build stack-up stack-down stack-logs stack-status
+.PHONY: help install dev web api api-build db-up db-ui db-down db-status db-migrate db-seed db-reset verify status stack-build stack-up stack-down stack-logs stack-status stack-tunnel stack-tunnel-logs
 
 help:
 	@echo "Smart Emergency commands"
@@ -16,6 +16,7 @@ help:
 	@echo "  make dev          Start DB UI hint, then run web and api in separate terminals"
 	@echo "  make stack-up     Start local full stack in Docker"
 	@echo "  make stack-build  Build local full stack Docker images"
+	@echo "  make stack-tunnel Start Cloudflare Tunnel for local API"
 	@echo ""
 	@echo "Check:"
 	@echo "  make api-build    Build emergency-api"
@@ -27,6 +28,7 @@ help:
 	@echo "  make db-down      Stop Docker Compose services"
 	@echo "  make stack-down   Stop local full stack Docker services"
 	@echo "  make stack-logs   Follow local full stack Docker logs"
+	@echo "  make stack-tunnel-logs Show Cloudflare Tunnel URL/logs"
 
 install:
 	pnpm install
@@ -116,3 +118,9 @@ stack-logs:
 
 stack-status:
 	docker compose -f docker-compose.yml -f docker-compose.local.yml ps
+
+stack-tunnel:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml up -d cloudflared
+
+stack-tunnel-logs:
+	docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f cloudflared

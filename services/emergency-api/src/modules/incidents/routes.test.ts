@@ -686,6 +686,45 @@ test("GET /api/events streams status updates allowed by agency scope", async () 
   assert.doesNotMatch(output, /incident-fire/);
 });
 
+test("GET /api/events sends a proxy-flushing prelude before realtime events", async () => {
+  const app = createFakeApp();
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.getHandlers.get("/api/events");
+  assert.ok(handler);
+
+  class RawReplyDouble extends EventEmitter {
+    chunks: string[] = [];
+
+    writeHead() {}
+    flushHeaders() {}
+    write(chunk: string) {
+      this.chunks.push(chunk);
+      return true;
+    }
+  }
+
+  const raw = new RawReplyDouble();
+  const reply = {
+    hijack() {},
+    raw,
+  };
+
+  await handler(
+    {
+      headers: {
+        "x-admin-role": "super_admin",
+      },
+      query: {},
+    },
+    reply
+  );
+  raw.emit("close");
+
+  const output = raw.chunks.join("");
+  assert.match(output, /^: {2048,}\n\nretry: 2000\n: connected\n\n/);
+});
+
 test("GET /api/incidents scopes agency admin to their own category on the server side", async () => {
   const app = createFakeApp();
   const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;

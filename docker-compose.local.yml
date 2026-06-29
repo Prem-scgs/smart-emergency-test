@@ -8,7 +8,7 @@ services:
     environment:
       PORT: 4000
       DATABASE_URL: postgres://emergency:emergency_dev@db:5432/smart_emergency
-      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://web:3000
+      CORS_ORIGINS: https://smart-emergency-test.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://web:3000
     ports:
       - "4000:4000"
     depends_on:
@@ -35,6 +35,15 @@ services:
       HOSTNAME: 0.0.0.0
     ports:
       - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: smart-emergency-cloudflared
+    restart: unless-stopped
+    command: tunnel --url http://api:4000
     depends_on:
       api:
         condition: service_healthy

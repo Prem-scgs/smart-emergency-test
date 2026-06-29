@@ -683,15 +683,20 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     reply.hijack();
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      "Content-Encoding": "none",
       "Access-Control-Allow-Origin": getAllowedCorsOrigin(request.headers?.origin),
       Vary: "Origin",
     });
     reply.raw.flushHeaders?.();
 
     let closed = false;
+
+    const flushStream = () => {
+      (reply.raw as { flush?: () => void }).flush?.();
+    };
     let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
     const cleanup = () => {
@@ -1301,15 +1306,20 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     reply.hijack();
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      "Content-Encoding": "none",
       "Access-Control-Allow-Origin": getAllowedCorsOrigin(request.headers?.origin),
       Vary: "Origin",
     });
     reply.raw.flushHeaders?.();
 
     let closed = false;
+
+    const flushStream = () => {
+      (reply.raw as { flush?: () => void }).flush?.();
+    };
 
     const cleanup = () => {
       if (closed) {
@@ -1337,6 +1347,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       try {
         reply.raw.write(`event: ${eventName}\n`);
         reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+        flushStream();
       } catch {
         cleanup();
       }
@@ -1350,8 +1361,10 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       sendEvent("incident.status_updated", payload);
     };
 
+    reply.raw.write(`:${" ".repeat(2048)}\n\n`);
     reply.raw.write("retry: 2000\n");
     reply.raw.write(": connected\n\n");
+    flushStream();
 
     const heartbeatInterval = setInterval(() => {
       if (closed) {
@@ -1360,6 +1373,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
       try {
         reply.raw.write(": keepalive\n\n");
+        flushStream();
       } catch {
         cleanup();
       }
