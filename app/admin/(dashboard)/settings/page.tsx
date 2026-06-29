@@ -50,6 +50,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getEmergencyApiBaseUrl } from "@/lib/emergency-api-url"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
+const ORGANIZATION_SETTINGS_UPDATED_EVENT = "smart-emergency:organization-settings-updated"
 
 type LanguagePreference = "th" | "en"
 type HealthStatus = "checking" | "online" | "offline"
@@ -249,11 +250,15 @@ export default function SettingsPage() {
     database: HealthStatus
     sse: SseStatus
     dbTime: string | null
+    healthLastCheckedAt: string | null
+    sseLastCheckedAt: string | null
   }>({
     api: "checking",
     database: "checking",
     sse: "unknown",
     dbTime: null,
+    healthLastCheckedAt: null,
+    sseLastCheckedAt: null,
   })
 
   const isSuperAdmin = canViewAllAgencies()
@@ -299,10 +304,10 @@ export default function SettingsPage() {
       status: systemHealth.api,
       description:
         systemHealth.api === "online"
-          ? t("healthApiOnline")
+          ? `${t("healthApiOnline")} · ${t("lastChecked")} ${systemHealth.healthLastCheckedAt ?? t("notCheckedYet")}`
           : systemHealth.api === "checking"
             ? t("checking")
-            : t("healthApiOffline"),
+            : `${t("healthApiOffline")} · ${t("lastChecked")} ${systemHealth.healthLastCheckedAt ?? t("notCheckedYet")}`,
     },
     {
       key: "database",
@@ -312,11 +317,11 @@ export default function SettingsPage() {
       description:
         systemHealth.database === "online"
           ? systemHealth.dbTime
-            ? t("healthDbCheckedPrefix") + systemHealth.dbTime
+            ? `${t("healthDbCheckedPrefix")}${systemHealth.dbTime} · ${t("lastChecked")} ${systemHealth.healthLastCheckedAt ?? t("notCheckedYet")}`
             : t("healthDatabaseOnline")
           : systemHealth.database === "checking"
             ? t("healthDbPending")
-            : t("healthDatabaseOffline"),
+            : `${t("healthDatabaseOffline")} · ${t("lastChecked")} ${systemHealth.healthLastCheckedAt ?? t("notCheckedYet")}`,
     },
     {
       key: "sse",
@@ -325,12 +330,36 @@ export default function SettingsPage() {
       status: systemHealth.sse,
       description:
         systemHealth.sse === "connected"
-          ? t("healthSseConnected")
+          ? `${t("healthSseConnected")} · ${t("lastChecked")} ${systemHealth.sseLastCheckedAt ?? t("notCheckedYet")}`
           : systemHealth.sse === "connecting"
-            ? t("healthSseConnecting")
-            : t("healthSseDisconnected"),
+            ? `${t("healthSseConnecting")} · ${t("lastChecked")} ${systemHealth.sseLastCheckedAt ?? t("notCheckedYet")}`
+            : `${t("healthSseDisconnected")} · ${t("lastChecked")} ${systemHealth.sseLastCheckedAt ?? t("notCheckedYet")}`,
     },
   ], [systemHealth, t])
+
+  const refreshSystemHealth = async () => {
+    setSystemHealth(prev => ({ ...prev, api: "checking", database: "checking" }))
+    try {
+      const response = await fetch(API_BASE_URL + "/health")
+      if (!response.ok) throw new Error("health unavailable")
+      const data = (await response.json()) as { ok?: boolean; dbTime?: string }
+      setSystemHealth(prev => ({
+        ...prev,
+        api: data.ok ? "online" : "offline",
+        database: data.dbTime ? "online" : "offline",
+        dbTime: data.dbTime ?? null,
+        healthLastCheckedAt: new Date().toLocaleString(),
+      }))
+    } catch {
+      setSystemHealth(prev => ({
+        ...prev,
+        api: "offline",
+        database: "offline",
+        dbTime: null,
+        healthLastCheckedAt: new Date().toLocaleString(),
+      }))
+    }
+  }
 
   useEffect(() => {
     const storedAlert = getStoredAdminAlertPreferences()
@@ -386,35 +415,9 @@ export default function SettingsPage() {
       }
     }
 
-    async function loadSystemHealth() {
-      setSystemHealth(prev => ({ ...prev, api: "checking", database: "checking" }))
-      try {
-        const response = await fetch(API_BASE_URL + "/health")
-        if (!response.ok) throw new Error("health unavailable")
-        const data = (await response.json()) as { ok?: boolean; dbTime?: string }
-        if (!cancelled) {
-          setSystemHealth(prev => ({
-            ...prev,
-            api: data.ok ? "online" : "offline",
-            database: data.dbTime ? "online" : "offline",
-            dbTime: data.dbTime ?? null,
-          }))
-        }
-      } catch {
-        if (!cancelled) {
-          setSystemHealth(prev => ({
-            ...prev,
-            api: "offline",
-            database: "offline",
-            dbTime: null,
-          }))
-        }
-      }
-    }
-
     void loadOrganizationSettings()
     void loadShareChannels()
-    void loadSystemHealth()
+    void refreshSystemHealth()
 
     return () => {
       cancelled = true
@@ -425,7 +428,11 @@ export default function SettingsPage() {
     const handleSseStatus = (event: Event) => {
       const detail = (event as CustomEvent<{ status?: SseStatus }>).detail
       if (detail?.status) {
-        setSystemHealth(prev => ({ ...prev, sse: detail.status ?? "unknown" }))
+        setSystemHealth(prev => ({
+          ...prev,
+          sse: detail.status ?? "unknown",
+          sseLastCheckedAt: new Date().toLocaleString(),
+        }))
       }
     }
 
@@ -485,6 +492,7 @@ export default function SettingsPage() {
 
     const data = (await response.json()) as { settings: OrganizationSettings }
     setOrganizationSettings(data.settings)
+    window.dispatchEvent(new Event(ORGANIZATION_SETTINGS_UPDATED_EVENT))
   }
 
   const saveShareChannels = async () => {
@@ -654,17 +662,13 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="personal" className="space-y-4">
-        <TabsList className={isSuperAdmin ? "grid w-full grid-cols-4" : "grid w-full grid-cols-1"}>
+        <TabsList className={isSuperAdmin ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
           <TabsTrigger value="personal" className="gap-2">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">{t("personalSettingsTab")}</span>
           </TabsTrigger>
           {isSuperAdmin && (
             <>
-              <TabsTrigger value="organization" className="gap-2">
-                <Building2 className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("organizationTab")}</span>
-              </TabsTrigger>
               <TabsTrigger value="channels" className="gap-2">
                 <Share2 className="h-4 w-4" />
                 <span className="hidden sm:inline">{t("channelsTab")}</span>
@@ -678,6 +682,70 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="personal" className="space-y-4">
+          {isSuperAdmin && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  {t("organizationSettings")}
+                </CardTitle>
+                <CardDescription>
+                  {t("organizationSettingsDescription")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("systemNameLabel")}</Label>
+                  <Input
+                    value={organizationSettings.systemName}
+                    onChange={(event) =>
+                      handleOrganizationSettingsChange({ systemName: event.target.value })
+                    }
+                    placeholder={t("systemNamePlaceholder")}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {t("systemNameDescription")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("organizationNameLabel")}</Label>
+                  <Input
+                    value={organizationSettings.organizationName}
+                    onChange={(event) =>
+                      handleOrganizationSettingsChange({ organizationName: event.target.value })
+                    }
+                    placeholder={t("organizationNamePlaceholder")}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    {t("organizationNameDescription")}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>{t("timezoneLabel")}</Label>
+                  <Select
+                    value={organizationSettings.timezone}
+                    onValueChange={(value) =>
+                      handleOrganizationSettingsChange({
+                        timezone: (value ?? organizationSettings.timezone) as OrganizationSettings["timezone"],
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-full sm:w-[220px]">
+                      <SelectValue>{organizationSettings.timezone}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Asia/Bangkok">Asia/Bangkok</SelectItem>
+                      <SelectItem value="UTC">UTC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    {t("timezoneDescription")}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -810,72 +878,6 @@ export default function SettingsPage() {
         </TabsContent>
 
         {isSuperAdmin && (
-          <TabsContent value="organization" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  {t("organizationSettings")}
-                </CardTitle>
-                <CardDescription>
-                  {t("organizationSettingsDescription")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>{t("systemNameLabel")}</Label>
-                  <Input
-                    value={organizationSettings.systemName}
-                    onChange={(event) =>
-                      handleOrganizationSettingsChange({ systemName: event.target.value })
-                    }
-                    placeholder={t("systemNamePlaceholder")}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    {t("systemNameDescription")}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("organizationNameLabel")}</Label>
-                  <Input
-                    value={organizationSettings.organizationName}
-                    onChange={(event) =>
-                      handleOrganizationSettingsChange({ organizationName: event.target.value })
-                    }
-                    placeholder={t("organizationNamePlaceholder")}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    {t("organizationNameDescription")}
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>{t("timezoneLabel")}</Label>
-                  <Select
-                    value={organizationSettings.timezone}
-                    onValueChange={(value) =>
-                      handleOrganizationSettingsChange({
-                        timezone: (value ?? organizationSettings.timezone) as OrganizationSettings["timezone"],
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-full sm:w-[220px]">
-                      <SelectValue>{organizationSettings.timezone}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Asia/Bangkok">Asia/Bangkok</SelectItem>
-                      <SelectItem value="UTC">UTC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">
-                    {t("timezoneDescription")}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
-
-        {isSuperAdmin && (
           <TabsContent value="channels" className="space-y-4">
             <Card>
               <CardHeader>
@@ -890,11 +892,11 @@ export default function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   {(["line", "sms", "whatsapp"] as ShareChannelName[]).map(channel => (
-                    <div key={channel} className="rounded-lg border p-4">
+                    <div key={channel} className="flex h-full flex-col rounded-lg border p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="font-medium">{shareChannelLabels[channel].title}</div>
-                          <p className="mt-1 text-sm text-muted-foreground">
+                          <p className="mt-1 min-h-10 text-sm text-muted-foreground">
                             {shareChannelLabels[channel].description}
                           </p>
                         </div>
@@ -945,14 +947,20 @@ export default function SettingsPage() {
         {isSuperAdmin && (
           <TabsContent value="health" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Server className="h-5 w-5" />
-                  {t("systemStatus")}
-                </CardTitle>
-                <CardDescription>
-                  {t("healthDescription")}
-                </CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1.5">
+                  <CardTitle className="flex items-center gap-2">
+                    <Server className="h-5 w-5" />
+                    {t("systemStatus")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("healthDescription")}
+                  </CardDescription>
+                </div>
+                <Button type="button" variant="outline" onClick={refreshSystemHealth}>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {t("checkAgain")}
+                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-3">

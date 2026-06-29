@@ -32,8 +32,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { buildAdminApiHeaders } from '@/lib/admin-api'
 import { useAdminI18n, type AdminI18nKey } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
+import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { cn } from '@/lib/utils'
 
 import { NotificationBell } from './notification-bell'
@@ -47,6 +49,21 @@ const sidebarItems = [
   { href: '/admin/settings', labelKey: 'settingsTitle', icon: Settings, permission: 'settings.view' },
 ] as const
 
+const API_BASE_URL = getEmergencyApiBaseUrl()
+const ORGANIZATION_SETTINGS_UPDATED_EVENT = 'smart-emergency:organization-settings-updated'
+
+interface OrganizationSettings {
+  systemName: string
+  organizationName: string
+  timezone: string
+}
+
+const DEFAULT_ORGANIZATION_SETTINGS: OrganizationSettings = {
+  systemName: 'Smart Emergency',
+  organizationName: 'ศูนย์บัญชาการเหตุฉุกเฉิน',
+  timezone: 'Asia/Bangkok',
+}
+
 interface AdminLayoutClientProps {
   children: React.ReactNode
 }
@@ -57,6 +74,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const { theme, setTheme } = useTheme()
   const { t } = useAdminI18n()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [organizationSettings, setOrganizationSettings] = useState(DEFAULT_ORGANIZATION_SETTINGS)
 
   const { user, isAuthenticated, isLoading, hasPermission, logout, canViewAllAgencies } = useAuth()
 
@@ -74,6 +92,37 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
       router.replace('/admin')
     }
   }, [isAuthenticated, isLoading, router])
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) return
+
+    let cancelled = false
+
+    async function loadOrganizationSettings() {
+      try {
+        const response = await fetch(API_BASE_URL + '/api/admin/organization-settings', {
+          headers: buildAdminApiHeaders(user),
+        })
+        if (!response.ok) throw new Error('organization settings unavailable')
+        const data = (await response.json()) as { settings: OrganizationSettings }
+        if (!cancelled) {
+          setOrganizationSettings(data.settings)
+        }
+      } catch {
+        if (!cancelled) {
+          setOrganizationSettings(DEFAULT_ORGANIZATION_SETTINGS)
+        }
+      }
+    }
+
+    void loadOrganizationSettings()
+    window.addEventListener(ORGANIZATION_SETTINGS_UPDATED_EVENT, loadOrganizationSettings)
+
+    return () => {
+      cancelled = true
+      window.removeEventListener(ORGANIZATION_SETTINGS_UPDATED_EVENT, loadOrganizationSettings)
+    }
+  }, [isAuthenticated, user])
 
   if (isLoading) {
     return (
@@ -120,9 +169,11 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
         </div>
         {(!sidebarCollapsed || mobile) && (
           <div className="flex flex-col">
-            <span className="font-semibold text-foreground">Smart Emergency</span>
+            <span className="font-semibold text-foreground">{organizationSettings.systemName}</span>
             <span className="text-xs text-muted-foreground">
-              {canViewAllAgencies() ? t('commandCenter') : user?.agency?.nameTh || t('adminSystem')}
+              {canViewAllAgencies()
+                ? organizationSettings.organizationName
+                : user?.agency?.nameTh || t('adminSystem')}
             </span>
           </div>
         )}

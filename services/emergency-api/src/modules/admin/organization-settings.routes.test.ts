@@ -41,7 +41,7 @@ test("admin organization settings routes register GET and PUT endpoints", async 
   assert.equal(typeof app.putHandlers.get("/api/admin/organization-settings"), "function");
 });
 
-test("GET /api/admin/organization-settings is super admin only", async () => {
+test("GET /api/admin/organization-settings is visible to admins", async () => {
   const app = createFakeApp();
   const originalQuery = pool.query.bind(pool);
 
@@ -63,8 +63,12 @@ test("GET /api/admin/organization-settings is super admin only", async () => {
       { headers: { "x-admin-role": "agency_admin", "x-admin-category": "medical" } },
       agencyReply
     ) as any;
-    assert.equal(agencyReply.statusCode, 403);
-    assert.equal(agencyResult.code, "ADMIN_ORGANIZATION_SETTINGS_FORBIDDEN");
+    assert.equal(agencyReply.statusCode, 200);
+    assert.deepEqual(agencyResult.settings, {
+      systemName: "Smart Emergency Platform",
+      organizationName: "ศูนย์บัญชาการเหตุฉุกเฉิน",
+      timezone: "Asia/Bangkok",
+    });
 
     const superReply = createReplyDouble();
     const superResult = await handler(
@@ -80,6 +84,32 @@ test("GET /api/admin/organization-settings is super admin only", async () => {
   } finally {
     (pool.query as any) = originalQuery;
   }
+});
+
+test("PUT /api/admin/organization-settings is super admin only", async () => {
+  const app = createFakeApp();
+
+  await registerAdminOrganizationSettingsRoutes(app as any);
+  const handler = app.putHandlers.get("/api/admin/organization-settings");
+  assert.ok(handler);
+
+  const agencyReply = createReplyDouble();
+  const agencyResult = await handler(
+    {
+      headers: { "x-admin-role": "agency_admin", "x-admin-category": "medical" },
+      body: {
+        settings: {
+          systemName: "Emergency Ops",
+          organizationName: "ศูนย์ทดสอบ",
+          timezone: "Asia/Bangkok",
+        },
+      },
+    },
+    agencyReply
+  ) as any;
+
+  assert.equal(agencyReply.statusCode, 403);
+  assert.equal(agencyResult.code, "ADMIN_ORGANIZATION_SETTINGS_FORBIDDEN");
 });
 
 test("PUT /api/admin/organization-settings updates DB and writes audit log", async () => {

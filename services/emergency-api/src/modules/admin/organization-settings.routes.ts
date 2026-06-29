@@ -38,6 +38,10 @@ function requireSuperAdmin(headers: Record<string, unknown> | undefined) {
   return scope?.role === "super_admin";
 }
 
+function requireAdmin(headers: Record<string, unknown> | undefined) {
+  return Boolean(getMockAdminScope(headers));
+}
+
 async function readOrganizationSettings() {
   const result = await pool.query<{
     setting_key: string;
@@ -64,7 +68,7 @@ async function readOrganizationSettings() {
 
 export async function registerAdminOrganizationSettingsRoutes(app: FastifyInstance) {
   app.get("/api/admin/organization-settings", async (request, reply) => {
-    if (!requireSuperAdmin(request.headers)) {
+    if (!requireAdmin(request.headers)) {
       reply.code(403);
       return buildForbiddenPayload();
     }
