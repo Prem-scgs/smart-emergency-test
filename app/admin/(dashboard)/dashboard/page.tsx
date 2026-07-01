@@ -47,8 +47,10 @@ import {
 } from '@/lib/reference-locations'
 import type { EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import type { MultiPolygon, Polygon } from 'geojson'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
+const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
 const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
 const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
 type DashboardIncident = IncidentMapPoint & {
@@ -82,6 +84,12 @@ interface MasterLocationOption {
   districtCode: string | null
   district: string | null
   searchable: string
+}
+
+type MapBounds = [[number, number], [number, number]]
+
+interface DashboardAreaBoundary {
+  polygon: Polygon | MultiPolygon | null
 }
 
 const IncidentMap = dynamic(
@@ -130,6 +138,37 @@ function selectLabel(label: string) {
 
 function normalizeText(value: string) {
   return value.trim().toLocaleLowerCase('th-TH').normalize('NFC')
+}
+
+function collectLngLatPairs(value: unknown, pairs: Array<[number, number]>) {
+  if (!Array.isArray(value)) return
+
+  if (
+    value.length >= 2 &&
+    typeof value[0] === 'number' &&
+    typeof value[1] === 'number'
+  ) {
+    pairs.push([value[0], value[1]])
+    return
+  }
+
+  value.forEach(item => collectLngLatPairs(item, pairs))
+}
+
+function getPolygonBounds(polygon: Polygon | MultiPolygon | null): MapBounds | null {
+  if (!polygon) return null
+
+  const pairs: Array<[number, number]> = []
+  collectLngLatPairs(polygon.coordinates, pairs)
+  if (pairs.length === 0) return null
+
+  const lngs = pairs.map(pair => pair[0])
+  const lats = pairs.map(pair => pair[1])
+
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ]
 }
 
 function formatDateTime(value: string) {
@@ -220,6 +259,7 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
   const [locationQuery, setLocationQuery] = useState('')
   const [selectedLocation, setSelectedLocation] = useState<MasterLocationOption | null>(null)
+  const [selectedLocationBounds, setSelectedLocationBounds] = useState<MapBounds | null>(null)
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -321,6 +361,45 @@ export default function DashboardPage() {
     document.addEventListener('mousedown', handlePointerDown)
     return () => document.removeEventListener('mousedown', handlePointerDown)
   }, [])
+
+  useEffect(() => {
+    if (!selectedLocation) {
+      setSelectedLocationBounds(null)
+      return
+    }
+
+    const controller = new AbortController()
+    const params = new URLSearchParams({
+      areaType: selectedLocation.areaType,
+      source: OFFICIAL_SOURCE,
+      includeGeometry: 'true',
+    })
+
+    if (selectedLocation.provinceCode) {
+      params.set('provinceCode', selectedLocation.provinceCode)
+    }
+    if (selectedLocation.areaType === 'district' && selectedLocation.districtCode) {
+      params.set('districtCode', selectedLocation.districtCode)
+    }
+
+    async function loadSelectedLocationBounds() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/areas?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        if (!response.ok) throw new Error('Unable to load selected area bounds')
+
+        const areas = (await response.json()) as DashboardAreaBoundary[]
+        setSelectedLocationBounds(getPolygonBounds(areas[0]?.polygon ?? null))
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return
+        setSelectedLocationBounds(null)
+      }
+    }
+
+    loadSelectedLocationBounds()
+    return () => controller.abort()
+  }, [selectedLocation])
 
   const roleIncidents = useMemo(() => {
     if (isSuperAdmin) return incidents
@@ -551,6 +630,8 @@ export default function DashboardPage() {
     setSelectedLocation(option)
     setLocationQuery(option.label)
     setIsLocationMenuOpen(false)
+    setSelectedIncidentId(null)
+    setIsIncidentDetailOpen(false)
   }
 
   function clearLocationSelection() {
@@ -759,10 +840,12 @@ export default function DashboardPage() {
               <IncidentMap
                 incidents={localizedVisibleIncidents}
                 selectedIncidentId={selectedIncidentId}
+                selectedAreaBounds={selectedLocationBounds}
                 categoryLabels={categoryLabelMap}
                 onSelectIncident={openIncidentDetail}
+                useCurrentLocation
               />
-              <div className="pointer-events-none absolute left-4 top-4 rounded-md border bg-background/95 px-4 py-3 text-sm shadow-sm">
+              <div className="pointer-events-none absolute right-4 top-4 max-w-[min(260px,calc(100%-2rem))] rounded-md border bg-background/95 px-4 py-3 text-sm shadow-sm">
                 <p className="font-medium">
                   {t('dashboardVisibleIncidentsPrefix')}{localizedVisibleIncidents.length.toLocaleString()}{t('dashboardVisibleIncidentsSuffix')}
                 </p>

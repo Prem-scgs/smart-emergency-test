@@ -62,23 +62,23 @@
   --card-foreground: #1A1A1A;
   --popover: #FFFFFF;
   --popover-foreground: #1A1A1A;
-  
+
   /* Primary: Emergency Red */
   --primary: #D32F2F;
   --primary-foreground: #FFFFFF;
-  
+
   /* Secondary: Government Blue */
   --secondary: #1976D2;
   --secondary-foreground: #FFFFFF;
-  
+
   --muted: #F5F5F5;
   --muted-foreground: #666666;
   --accent: #E3F2FD;
   --accent-foreground: #1565C0;
-  
+
   /* Destructive: Darker Red for errors */
   --destructive: #B71C1C;
-  
+
   /* Emergency specific colors */
   --emergency: #D32F2F;
   --emergency-foreground: #FFFFFF;
@@ -86,20 +86,20 @@
   --success-foreground: #FFFFFF;
   --warning: #ED6C02;
   --warning-foreground: #FFFFFF;
-  
+
   --border: #E0E0E0;
   --input: #E0E0E0;
   --ring: #D32F2F;
-  
+
   /* Chart colors for dashboard */
   --chart-1: #D32F2F;
   --chart-2: #1976D2;
   --chart-3: #2E7D32;
   --chart-4: #ED6C02;
   --chart-5: #7B1FA2;
-  
+
   --radius: 0.75rem;
-  
+
   /* Sidebar */
   --sidebar: #FFFFFF;
   --sidebar-foreground: #1A1A1A;
@@ -119,23 +119,23 @@
   --card-foreground: #FAFAFA;
   --popover: #141414;
   --popover-foreground: #FAFAFA;
-  
+
   /* Primary: Emergency Red - slightly brighter for dark mode */
   --primary: #EF5350;
   --primary-foreground: #FFFFFF;
-  
+
   /* Secondary: Government Blue - brighter for dark mode */
   --secondary: #42A5F5;
   --secondary-foreground: #FFFFFF;
-  
+
   --muted: #1A1A1A;
   --muted-foreground: #A0A0A0;
   --accent: #1E3A5F;
   --accent-foreground: #90CAF9;
-  
+
   /* Destructive */
   --destructive: #EF5350;
-  
+
   /* Emergency specific colors */
   --emergency: #EF5350;
   --emergency-foreground: #FFFFFF;
@@ -143,18 +143,18 @@
   --success-foreground: #FFFFFF;
   --warning: #FFA726;
   --warning-foreground: #1A1A1A;
-  
+
   --border: #2A2A2A;
   --input: #2A2A2A;
   --ring: #EF5350;
-  
+
   /* Chart colors for dashboard */
   --chart-1: #EF5350;
   --chart-2: #42A5F5;
   --chart-3: #66BB6A;
   --chart-4: #FFA726;
   --chart-5: #AB47BC;
-  
+
   /* Sidebar */
   --sidebar: #141414;
   --sidebar-foreground: #FAFAFA;
@@ -184,6 +184,12 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
 }
 
 /* Custom utilities for emergency actions */
@@ -192,7 +198,7 @@
     min-height: 48px;
     min-width: 48px;
   }
-  
+
   .emergency-pulse {
     animation: emergency-pulse 2s ease-in-out infinite;
   }

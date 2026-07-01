@@ -247,6 +247,16 @@ export default function GISPage() {
     return districts.filter(area => searchableText(area).includes(keyword))
   }, [districts, searchTerm])
 
+  useEffect(() => {
+    const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
+    if (!keyword || isDistrictLoading || filteredDistricts.length === 0) return
+
+    const matchedArea = filteredDistricts[0]
+    if (matchedArea.id !== selectedArea?.id) {
+      setSelectedArea(matchedArea)
+    }
+  }, [filteredDistricts, isDistrictLoading, searchTerm, selectedArea?.id])
+
   const matchedProvince = useMemo(() => {
     const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
     if (!keyword) return null
@@ -325,7 +335,9 @@ export default function GISPage() {
               <Label>{t('gisProvinceLabel')}</Label>
               <Select
                 value={selectedProvinceCode}
-                onValueChange={setSelectedProvinceCode}
+                onValueChange={(value) => {
+                  if (value) setSelectedProvinceCode(value)
+                }}
                 disabled={isProvinceLoading}
               >
                 <SelectTrigger>

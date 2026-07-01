@@ -1,26 +1,34 @@
 'use client'
 
-import 'leaflet/dist/leaflet.css'
-
-import L from 'leaflet'
-import { useEffect } from 'react'
-import { CircleMarker, GeoJSON, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Map,
+  MapControls,
+  MapGeoJSON,
+  MapMarker,
+  MapPopup,
+  MarkerContent,
+  MarkerPopup,
+  useMap,
+  type MapGeoJSONEvent,
+} from '@/components/ui/map'
+import { cn } from '@/lib/utils'
+import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson'
 
 export interface GisBoundary {
   id: string
   name: string
   color: string
   areaType: string
+  source: string | null
+  sourceCode: string | null
   provinceCode: string | null
   provinceNameTh: string | null
   provinceNameEn: string | null
   districtCode: string | null
   districtNameTh: string | null
   districtNameEn: string | null
-  polygon: {
-    type: 'Polygon' | 'MultiPolygon'
-    coordinates: unknown
-  } | null
+  polygon: Polygon | MultiPolygon | null
 }
 
 interface GisBoundaryMapProps {
@@ -51,34 +59,64 @@ interface GisBoundaryMapProps {
   severityLabels?: Record<string, string>
 }
 
-const DEFAULT_CENTER: [number, number] = [13.7563, 100.5018]
+const DEFAULT_CENTER: [number, number] = [100.5018, 13.7563]
 
-function FitBounds({ areas }: { areas: GisBoundary[] }) {
-  const map = useMap()
+type AreaFeatureProperties = {
+  id: string
+  name: string
+  color: string
+}
+
+type AreaFeatureCollection = FeatureCollection<Polygon | MultiPolygon, AreaFeatureProperties>
+
+function collectLngLatPairs(value: unknown, pairs: Array<[number, number]>) {
+  if (!Array.isArray(value)) return
+
+  if (
+    value.length >= 2 &&
+    typeof value[0] === 'number' &&
+    typeof value[1] === 'number'
+  ) {
+    pairs.push([value[0], value[1]])
+    return
+  }
+
+  value.forEach(item => collectLngLatPairs(item, pairs))
+}
+
+function getAreasBounds(areas: GisBoundary[]) {
+  const pairs: Array<[number, number]> = []
+
+  areas.forEach((area) => {
+    if (area.polygon) {
+      collectLngLatPairs(area.polygon.coordinates, pairs)
+    }
+  })
+
+  if (pairs.length === 0) return null
+
+  const lngs = pairs.map(pair => pair[0])
+  const lats = pairs.map(pair => pair[1])
+
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ] as [[number, number], [number, number]]
+}
+
+function FitBounds({ areas, selectedAreaId }: { areas: GisBoundary[]; selectedAreaId: string | null }) {
+  const { map, isLoaded } = useMap()
 
   useEffect(() => {
-    const features = areas
-      .filter(area => area.polygon)
-      .map(area => ({
-        type: 'Feature',
-        properties: { id: area.id },
-        geometry: area.polygon,
-      }))
+    if (!map || !isLoaded) return
+    const selectedArea = selectedAreaId
+      ? areas.find(area => area.id === selectedAreaId)
+      : null
+    const bounds = getAreasBounds(selectedArea ? [selectedArea] : areas)
+    if (!bounds) return
 
-    if (features.length === 0) {
-      return
-    }
-
-    const layer = L.geoJSON({
-      type: 'FeatureCollection',
-      features,
-    } as never)
-    const bounds = layer.getBounds()
-
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 })
-    }
-  }, [areas, map])
+    map.fitBounds(bounds, { padding: 32, maxZoom: selectedArea ? 13 : 11, duration: 500 })
+  }, [areas, isLoaded, map, selectedAreaId])
 
   return null
 }
@@ -106,6 +144,12 @@ export function GisBoundaryMap({
   statusLabels = {},
   severityLabels = {},
 }: GisBoundaryMapProps) {
+  const [areaPopup, setAreaPopup] = useState<{
+    longitude: number
+    latitude: number
+    name: string
+  } | null>(null)
+
   function getAreaName(area: GisBoundary) {
     const districtName = preferThai
       ? area.districtNameTh ?? area.districtNameEn
@@ -117,104 +161,132 @@ export function GisBoundaryMap({
     return districtName ?? provinceName ?? area.name
   }
 
-  const features = areas
-    .filter(area => area.polygon)
-    .map(area => ({
+  const features = useMemo<AreaFeatureCollection>(() => ({
+    type: 'FeatureCollection',
+    features: areas
+      .filter((area): area is GisBoundary & { polygon: NonNullable<GisBoundary['polygon']> } => Boolean(area.polygon))
+      .map(area => ({
       type: 'Feature',
+      id: area.id,
       properties: {
         id: area.id,
         name: getAreaName(area),
         color: area.color,
       },
       geometry: area.polygon,
-    }))
+    })),
+  }), [areas, preferThai])
+
+  function handleAreaClick(event: MapGeoJSONEvent<AreaFeatureProperties>) {
+    const areaId = event.feature.properties.id
+    const area = areas.find(item => item.id === areaId)
+    if (!area) return
+
+    setAreaPopup({
+      longitude: event.longitude,
+      latitude: event.latitude,
+      name: event.feature.properties.name ?? areaFallbackLabel,
+    })
+    onSelectArea(area)
+  }
 
   return (
-    <MapContainer
+    <Map
       center={DEFAULT_CENTER}
       zoom={6}
-      scrollWheelZoom
-      className="isolate z-0 h-full w-full"
-      style={{ minHeight: 520 }}
+      className="isolate z-0 h-full w-full overflow-hidden rounded-[inherit]"
+      minZoom={4}
+      maxZoom={18}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <FitBounds areas={areas} />
-      <GeoJSON
-        key={`${areas.map(area => area.id).join('-')}-${selectedAreaId ?? 'none'}`}
-        data={{
-          type: 'FeatureCollection',
-          features,
-        } as never}
-        style={(feature) => {
-          const id = feature?.properties?.id as string | undefined
-          const color = (feature?.properties?.color as string | undefined) ?? '#2563eb'
-          const selected = id === selectedAreaId
-          return {
-            color,
-            weight: selected ? 3 : 1.4,
-            fillColor: color,
-            fillOpacity: selected ? 0.28 : 0.12,
-          }
+      <MapControls position="top-left" showZoom showCompass />
+      <FitBounds areas={areas} selectedAreaId={selectedAreaId} />
+      <MapGeoJSON<AreaFeatureProperties>
+        id="gis-boundaries"
+        data={features}
+        promoteId="id"
+        interactive
+        fillPaint={{
+          'fill-color': ['get', 'color'],
+          'fill-opacity': [
+            'case',
+            ['==', ['get', 'id'], selectedAreaId ?? ''],
+            0.3,
+            0.12,
+          ],
         }}
-        onEachFeature={(feature, layer) => {
-          layer.on('click', () => {
-            const area = areas.find(item => item.id === feature.properties?.id)
-            if (area) {
-              onSelectArea(area)
-            }
-          })
-          layer.bindTooltip(String(feature.properties?.name ?? areaFallbackLabel), {
-            sticky: true,
-          })
+        fillHoverPaint={{
+          'fill-opacity': 0.24,
         }}
+        linePaint={{
+          'line-color': ['get', 'color'],
+          'line-width': [
+            'case',
+            ['==', ['get', 'id'], selectedAreaId ?? ''],
+            3,
+            1.4,
+          ],
+        }}
+        onClick={handleAreaClick}
       />
+      {areaPopup && (
+        <MapPopup
+          longitude={areaPopup.longitude}
+          latitude={areaPopup.latitude}
+          onClose={() => setAreaPopup(null)}
+        >
+          <div className="rounded-lg border bg-popover px-3 py-2 text-sm font-medium text-popover-foreground shadow-md">
+            {areaPopup.name}
+          </div>
+        </MapPopup>
+      )}
       {contacts
         .filter(contact => contact.latitude != null && contact.longitude != null)
         .map(contact => (
-          <CircleMarker
+          <MapMarker
             key={`contact-${contact.id}`}
-            center={[contact.latitude as number, contact.longitude as number]}
-            radius={6}
-            pathOptions={{
-              color: '#2563eb',
-              fillColor: '#2563eb',
-              fillOpacity: 0.9,
-              weight: 2,
-            }}
+            longitude={contact.longitude as number}
+            latitude={contact.latitude as number}
           >
-            <Popup>
-              <div className="space-y-1">
+            <MarkerContent>
+              <span className="block size-3.5 rounded-full border-2 border-background bg-blue-600 shadow-md ring-2 ring-blue-600/30" />
+            </MarkerContent>
+            <MarkerPopup>
+              <div className="flex min-w-40 flex-col gap-1 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
                 <p className="font-medium">{contact.name}</p>
-                <p>{contact.phone}</p>
-                <p>{categoryLabels[contact.category ?? ''] ?? contact.category ?? contactFallbackLabel}</p>
+                <p className="text-sm text-muted-foreground">{contact.phone}</p>
+                <p className="text-sm text-muted-foreground">
+                  {categoryLabels[contact.category ?? ''] ?? contact.category ?? contactFallbackLabel}
+                </p>
               </div>
-            </Popup>
-          </CircleMarker>
+            </MarkerPopup>
+          </MapMarker>
         ))}
       {incidents.map(incident => (
-        <CircleMarker
+        <MapMarker
           key={`incident-${incident.id}`}
-          center={[incident.latitude, incident.longitude]}
-          radius={8}
-          pathOptions={{
-            color: incidentColor(incident.severity),
-            fillColor: incidentColor(incident.severity),
-            fillOpacity: 0.88,
-            weight: 2,
-          }}
+          longitude={incident.longitude}
+          latitude={incident.latitude}
         >
-          <Popup>
-            <div className="space-y-1">
+          <MarkerContent>
+            <span
+              className={cn(
+                'block size-5 rounded-full border-2 border-background shadow-md ring-2',
+              )}
+              style={{
+                backgroundColor: incidentColor(incident.severity),
+                '--tw-ring-color': `${incidentColor(incident.severity)}55`,
+              } as React.CSSProperties}
+            />
+          </MarkerContent>
+          <MarkerPopup>
+            <div className="flex min-w-40 flex-col gap-1 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
               <p className="font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
-              <p>{statusLabels[incident.status] ?? incident.status}</p>
-              <p>{severityLabels[incident.severity] ?? incident.severity}</p>
+              <p className="text-sm text-muted-foreground">{statusLabels[incident.status] ?? incident.status}</p>
+              <p className="text-sm text-muted-foreground">{severityLabels[incident.severity] ?? incident.severity}</p>
             </div>
-          </Popup>
-        </CircleMarker>
+          </MarkerPopup>
+        </MapMarker>
       ))}
-    </MapContainer>
+    </Map>
   )
 }
