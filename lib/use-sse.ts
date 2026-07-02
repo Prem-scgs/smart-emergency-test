@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { buildAdminEventsUrl } from './admin-api'
-import { getEmergencyApiEventsBaseUrl } from './emergency-api-url'
+import { buildAdminApiHeaders, buildAdminEventsUrl } from './admin-api'
+import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from './emergency-api-url'
 import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
 interface IncidentEventPayload {
@@ -37,6 +37,8 @@ interface UseSseOptions {
 }
 
 type SseDebugStatus = 'connecting' | 'connected' | 'disconnected'
+
+const POLLING_FALLBACK_INTERVAL_MS = 3000
 
 function emitSseDebugStatus(status: SseDebugStatus) {
   if (typeof window === 'undefined') return
@@ -98,6 +100,29 @@ function alertSeverityForIncident(severity: IncidentEventPayload['severity']): A
   if (severity === 'critical') return 'critical'
   if (severity === 'high') return 'warning'
   return 'info'
+}
+
+function buildApiUrl(baseUrl: string, path: string) {
+  const base = baseUrl.replace(/\/$/, '')
+
+  if (/^https?:\/\//i.test(base)) {
+    return new URL(path, base).toString()
+  }
+
+  return `${base}${path}`
+}
+
+function isIncidentEventPayload(payload: unknown): payload is IncidentEventPayload {
+  if (!payload || typeof payload !== 'object') return false
+
+  const incident = payload as Partial<IncidentEventPayload>
+  return (
+    typeof incident.id === 'string' &&
+    typeof incident.category === 'string' &&
+    typeof incident.severity === 'string' &&
+    typeof incident.status === 'string' &&
+    typeof incident.createdAt === 'string'
+  )
 }
 
 export function parseIncidentStatusUpdatedPayload(data: string): IncidentStatusUpdatedPayload {
@@ -172,6 +197,8 @@ export function useSse(options: UseSseOptions = {}) {
   const { onNotification, onAlert, onEvent, enabled = true, user = null } = options
   const eventSourceRef = useRef<EventSource | null>(null)
   const connectionStateRef = useRef<SseDebugStatus | null>(null)
+  const seenIncidentIdsRef = useRef<Set<string>>(new Set())
+  const hasSeededPollingRef = useRef(false)
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -179,6 +206,8 @@ export function useSse(options: UseSseOptions = {}) {
     }
 
     let isDisposed = false
+    seenIncidentIdsRef.current = new Set()
+    hasSeededPollingRef.current = false
     const eventSource = new EventSource(buildAdminEventsUrl(getEmergencyApiEventsBaseUrl(), user))
     eventSourceRef.current = eventSource
 
@@ -191,28 +220,79 @@ export function useSse(options: UseSseOptions = {}) {
       emitSseDebugStatus(status)
     }
 
+    const handleIncidentPayload = (payload: IncidentEventPayload, source: 'sse' | 'poll') => {
+      if (seenIncidentIdsRef.current.has(payload.id)) {
+        return
+      }
+
+      seenIncidentIdsRef.current.add(payload.id)
+
+      if (source === 'poll') {
+        emitSseDebugEvent('incident.created.poll')
+      }
+
+      const { notification, alert } = buildRealtimeIncidentArtifacts(payload)
+
+      onNotification?.(notification)
+      onAlert?.(alert)
+      onEvent?.({
+        type: 'new-incident',
+        data: payload,
+        timestamp: notification.timestamp,
+        agencyId: notification.agencyId,
+      })
+
+      window.dispatchEvent(
+        new CustomEvent('smart-emergency:incident-created', {
+          detail: payload,
+        })
+      )
+    }
+
     const handleIncidentCreated = (event: MessageEvent<string>) => {
       try {
         const payload = JSON.parse(event.data) as IncidentEventPayload
-        const { notification, alert } = buildRealtimeIncidentArtifacts(payload)
-
-        onNotification?.(notification)
-        onAlert?.(alert)
-        onEvent?.({
-          type: 'new-incident',
-          data: payload,
-          timestamp: notification.timestamp,
-          agencyId: notification.agencyId,
-        })
-
-        window.dispatchEvent(
-          new CustomEvent('smart-emergency:incident-created', {
-            detail: payload,
-          })
-        )
+        handleIncidentPayload(payload, 'sse')
         emitSseDebugEvent('incident.created')
       } catch (error) {
         console.error('[smart-emergency] failed to parse incident event', error)
+      }
+    }
+
+    const pollLatestIncidents = async () => {
+      try {
+        const response = await fetch(buildApiUrl(getEmergencyApiBaseUrl(), '/api/incidents'), {
+          headers: buildAdminApiHeaders(user),
+          cache: 'no-store',
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const payload = (await response.json()) as unknown
+        if (!Array.isArray(payload)) {
+          return
+        }
+
+        const incidents = payload.filter(isIncidentEventPayload)
+        if (!hasSeededPollingRef.current) {
+          seenIncidentIdsRef.current = new Set(incidents.map((incident) => incident.id))
+          hasSeededPollingRef.current = true
+          return
+        }
+
+        const newIncidents = incidents
+          .filter((incident) => !seenIncidentIdsRef.current.has(incident.id))
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
+        for (const incident of newIncidents) {
+          handleIncidentPayload(incident, 'poll')
+        }
+      } catch (error) {
+        if (!isDisposed) {
+          console.error('[smart-emergency] polling fallback failed', error)
+        }
       }
     }
 
@@ -252,8 +332,14 @@ export function useSse(options: UseSseOptions = {}) {
       console.error('[smart-emergency] event stream disconnected, waiting for automatic reconnect...')
     }
 
+    void pollLatestIncidents()
+    const pollingFallbackInterval = window.setInterval(() => {
+      void pollLatestIncidents()
+    }, POLLING_FALLBACK_INTERVAL_MS)
+
     return () => {
       isDisposed = true
+      window.clearInterval(pollingFallbackInterval)
       eventSource.removeEventListener('incident.created', handleIncidentCreated as EventListener)
       eventSource.removeEventListener(
         'incident.status_updated',
