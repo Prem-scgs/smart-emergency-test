@@ -15,7 +15,9 @@ export function getEmergencyApiBaseUrl(
 
 export function getEmergencyApiEventsBaseUrl(
   location: ApiLocation | undefined = typeof window === 'undefined' ? undefined : window.location,
-  configuredUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL,
+  configuredUrl =
+    process.env.NEXT_PUBLIC_EMERGENCY_SSE_URL ??
+    process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL,
 ) {
   if (configuredUrl) {
     return configuredUrl.replace(/\/$/, '')
