@@ -31,6 +31,41 @@ test('admin SSE uses the configured SSE URL when supplied', () => {
   )
 })
 
+test('admin SSE falls back to the configured API URL when no SSE URL is supplied', () => {
+  const previousApiUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_URL
+  const previousSseUrl = process.env.NEXT_PUBLIC_EMERGENCY_SSE_URL
+  const previousLegacyEventsUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL
+
+  try {
+    process.env.NEXT_PUBLIC_EMERGENCY_API_URL = 'https://api-tunnel.trycloudflare.com/'
+    delete process.env.NEXT_PUBLIC_EMERGENCY_SSE_URL
+    delete process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL
+
+    assert.equal(
+      getEmergencyApiEventsBaseUrl({ origin: 'https://smart-emergency-test.vercel.app' }),
+      'https://api-tunnel.trycloudflare.com',
+    )
+  } finally {
+    if (previousApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_EMERGENCY_API_URL
+    } else {
+      process.env.NEXT_PUBLIC_EMERGENCY_API_URL = previousApiUrl
+    }
+
+    if (previousSseUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_EMERGENCY_SSE_URL
+    } else {
+      process.env.NEXT_PUBLIC_EMERGENCY_SSE_URL = previousSseUrl
+    }
+
+    if (previousLegacyEventsUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL
+    } else {
+      process.env.NEXT_PUBLIC_EMERGENCY_API_EVENTS_URL = previousLegacyEventsUrl
+    }
+  }
+})
+
 test('admin SSE falls back to Fastify localhost during local development', () => {
   assert.equal(
     getEmergencyApiEventsBaseUrl({ origin: 'http://localhost:3000' }, undefined),
