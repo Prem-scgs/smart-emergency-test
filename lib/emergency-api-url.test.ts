@@ -11,17 +11,44 @@ test('uses the same-origin emergency gateway by default', () => {
   )
 })
 
-test('uses the configured API URL when supplied', () => {
+test('uses the configured API URL directly on local origins when supplied', () => {
   assert.equal(
     getEmergencyApiBaseUrl(
-      { origin: 'https://172.20.10.4:3000' },
+      { origin: 'http://localhost:3000' },
       'https://api.example.com/',
     ),
     'https://api.example.com',
   )
 })
 
-test('uses the external API URL environment alias when supplied', () => {
+test('uses the external API URL directly during local development when supplied', () => {
+  const previousExternalApiUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL
+  const previousApiUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_URL
+
+  try {
+    process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL = 'https://api-external.trycloudflare.com/'
+    delete process.env.NEXT_PUBLIC_EMERGENCY_API_URL
+
+    assert.equal(
+      getEmergencyApiBaseUrl({ origin: 'http://localhost:3000' }),
+      'https://api-external.trycloudflare.com',
+    )
+  } finally {
+    if (previousExternalApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL
+    } else {
+      process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL = previousExternalApiUrl
+    }
+
+    if (previousApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_EMERGENCY_API_URL
+    } else {
+      process.env.NEXT_PUBLIC_EMERGENCY_API_URL = previousApiUrl
+    }
+  }
+})
+
+test('uses the same-origin emergency gateway on deployed origins even when an external API URL is supplied', () => {
   const previousExternalApiUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL
   const previousApiUrl = process.env.NEXT_PUBLIC_EMERGENCY_API_URL
 
@@ -31,7 +58,7 @@ test('uses the external API URL environment alias when supplied', () => {
 
     assert.equal(
       getEmergencyApiBaseUrl({ origin: 'https://smart-emergency-test.vercel.app' }),
-      'https://api-external.trycloudflare.com',
+      '/emergency-api',
     )
   } finally {
     if (previousExternalApiUrl === undefined) {

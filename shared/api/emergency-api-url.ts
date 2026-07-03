@@ -8,6 +8,18 @@ export function getEmergencyApiBaseUrl(
     process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL ??
     process.env.NEXT_PUBLIC_EMERGENCY_API_URL,
 ) {
+  // บน Vercel ให้ REST/polling วิ่งผ่าน same-origin rewrite เพื่อตัดปัญหา CORS ของ Cloudflare tunnel
+  if (configuredUrl && location?.origin) {
+    try {
+      const origin = new URL(location.origin)
+      if (origin.hostname !== 'localhost' && origin.hostname !== '127.0.0.1') {
+        return '/emergency-api'
+      }
+    } catch {
+      return configuredUrl.replace(/\/$/, '')
+    }
+  }
+
   if (configuredUrl) {
     return configuredUrl.replace(/\/$/, '')
   }
