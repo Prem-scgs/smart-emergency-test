@@ -129,6 +129,8 @@ The backend validates these values on startup.
 
 ## Important Files
 
+- Code conventions: [CODE_CONVENTIONS_TH.md](docs/architecture/CODE_CONVENTIONS_TH.md)
+- FSD-lite guide: [FSD_LITE_GUIDE.md](docs/architecture/FSD_LITE_GUIDE.md)
 - Production tracking: [PRODUCTION_CHECKLIST.md](docs/operations/PRODUCTION_CHECKLIST.md)
 - Local operations guide: [RUNBOOK.md](docs/operations/RUNBOOK.md)
 
@@ -137,6 +139,17 @@ The backend validates these values on startup.
 - Admin auth is still mock-based and will be integrated with the team auth system later.
 - `admin/users` is still mock-backed.
 - Audit logging and rate limiting are still pending.
+
+
+## Before Commit Checklist
+
+Before committing, check:
+
+- Did relevant build/tests pass?
+- If business logic changed, did you add or update Thai comments where they explain non-obvious rules?
+- If flow/API/env/schema/realtime/GIS changed, did you update docs in the same change?
+- Are new files placed in the correct FSD-lite layer instead of adding runtime code to `lib/`?
+- If a legacy `lib/` import remains, is it only a bridge export with a clear migration path?
 
 ## Repository Notes
 

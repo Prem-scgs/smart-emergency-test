@@ -93,6 +93,17 @@ Run frontend build:
 pnpm build
 ```
 
+
+## 4.1 Comment / Docs / FSD-lite Check
+
+Before every commit, confirm:
+
+1. Business rules, fallback logic, role scope, realtime, GIS, and API/DB integration have Thai comments where the reason is not obvious.
+2. Flow, API, environment variable, schema, realtime, or GIS changes update the related docs in the same change.
+3. New runtime files use FSD-lite placement: `shared/`, `entities/`, `features/`, or `widgets/`.
+4. `lib/` is used only as a compatibility bridge. Do not add new runtime implementation there.
+5. See [CODE_CONVENTIONS_TH.md](../architecture/CODE_CONVENTIONS_TH.md) and [FSD_LITE_GUIDE.md](../architecture/FSD_LITE_GUIDE.md).
+
 ## 5. Health Checks
 
 Frontend:
