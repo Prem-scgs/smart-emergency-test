@@ -173,6 +173,27 @@ Check:
 - dashboard page open
 - incident creation succeeds
 
+
+## 6.1 Cloudflare Tunnel for Vercel Demo
+
+For the Vercel demo, the frontend must point to the public Cloudflare Tunnel URL for the local Fastify API. The Docker local stack runs cloudflared with HTTP/2 because SSE needs a long-lived stream and the previous QUIC quick tunnel showed intermittent stream timeout/cancel behavior.
+
+Required Vercel environment variables:
+
+```env
+NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL=https://<your-tunnel>.trycloudflare.com
+NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL=https://<your-tunnel>.trycloudflare.com
+```
+
+Do not set EMERGENCY_API_INTERNAL_URL on Vercel to localhost, 127.0.0.1, or http://api:4000; that value is only for local Docker networking.
+
+Smoke checks:
+
+```powershell
+curl https://<your-tunnel>.trycloudflare.com/health
+curl https://smart-emergency-test.vercel.app/emergency-api/health
+```
+
 ## 7. Current Known Limits
 
 - Auth is still mock-based in the app layer

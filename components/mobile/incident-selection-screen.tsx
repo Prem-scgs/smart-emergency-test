@@ -1,5 +1,6 @@
 'use client'
 
+import type { MouseEvent } from 'react'
 import { Ambulance, ArrowLeft, Bookmark, Bug, Car, CheckCircle2, Clock, Flame, HeartHandshake, LifeBuoy, Luggage, MapPin, Navigation, Phone, ShieldAlert, Waves, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -27,7 +28,7 @@ interface IncidentSelectionScreenProps {
   contacts: EmergencyContact[]
   isLoadingContacts?: boolean
   onBack: () => void
-  onCall: (contact: EmergencyContact) => void
+  onCall: (contact: EmergencyContact) => void | Promise<void>
   onViewMap: (contact: EmergencyContact) => void
 }
 
@@ -41,6 +42,21 @@ export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContact
   const category = categories.find(item => item.id === categoryId)
   const visibleContacts = contacts.filter(contact => contact.category === categoryId)
   const Icon = category ? iconMap[category.icon] : ShieldAlert
+
+  const handleCallClick = async (
+    event: MouseEvent<HTMLAnchorElement>,
+    contact: EmergencyContact
+  ) => {
+    event.preventDefault()
+    const telUrl = buildTelUrl(contact.phoneNumber)
+
+    try {
+      // โทรศัพท์จริงจะออกไป native dialer ทันที จึงต้องส่ง incident ให้จบก่อนเปิด tel:
+      await onCall(contact)
+    } finally {
+      window.location.assign(telUrl)
+    }
+  }
 
   if (!category) return null
 
@@ -101,7 +117,9 @@ export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContact
                     <div className="grid grid-cols-2 gap-2">
                       <a
                         href={buildTelUrl(contact.phoneNumber)}
-                        onClick={() => onCall(contact)}
+                        onClick={event => {
+                          void handleCallClick(event, contact)
+                        }}
                         className={buttonVariants({
                           className: 'bg-success hover:bg-success/90 text-success-foreground',
                         })}

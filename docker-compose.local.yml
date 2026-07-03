@@ -43,7 +43,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: smart-emergency-cloudflared
     restart: unless-stopped
-    command: tunnel --url http://api:4000
+    command: tunnel --protocol http2 --url http://api:4000
     depends_on:
       api:
         condition: service_healthy

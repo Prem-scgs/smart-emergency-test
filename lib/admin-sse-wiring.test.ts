@@ -37,11 +37,11 @@ test('admin realtime requires authenticated admin state before opening SSE', asy
   assert.match(adminLayout, /if \(!isAuthenticated \|\| !user\)/)
 })
 
-test('admin realtime uses the dedicated admin SSE API base URL helper', async () => {
+test('admin realtime uses the dedicated SSE helper and REST polling helper', async () => {
   const source = await readFile(new URL('./use-sse.ts', import.meta.url), 'utf8')
 
-  assert.match(source, /getEmergencyApiEventsBaseUrl/)
-  assert.doesNotMatch(source, /getEmergencyApiBaseUrl\(\)/)
+  assert.match(source, /new EventSource\(buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), user\)\)/)
+  assert.match(source, /buildApiUrl\(getEmergencyApiBaseUrl\(\), `\/api\/incidents\/recent\?\$\{searchParams\.toString\(\)\}`\)/)
 })
 
 test('admin alert detail action opens the existing dashboard incident detail panel', async () => {

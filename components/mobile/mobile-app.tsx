@@ -335,7 +335,7 @@ export function MobileApp() {
 
   const handleCall = (contact: EmergencyContact) => {
     const incidentCategory = selectedCategory ?? contact.category
-    void startCallFlow(contact, incidentCategory)
+    return startCallFlow(contact, incidentCategory)
   }
 
   const handleCallComplete = async (status: CallStatus) => {
