@@ -5,9 +5,6 @@ function getEmergencyApiInternalUrl() {
 
 const nextConfig = {
   allowedDevOrigins: ['172.20.10.4'],
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

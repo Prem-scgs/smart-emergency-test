@@ -19,7 +19,7 @@ test('standalone location sharing is removed from the mobile flow but its file i
     readFile(new URL('components/mobile/mobile-app.tsx', root), 'utf8'),
     readFile(new URL('components/mobile/mobile-nav.tsx', root), 'utf8'),
     readFile(new URL('components/mobile/incident-selection-screen.tsx', root), 'utf8'),
-    readFile(new URL('components/mobile/location-sharing-screen.tsx', root), 'utf8'),
+    readFile(new URL('_legacy/mobile/location-sharing-screen.tsx', root), 'utf8'),
   ])
 
   assert.doesNotMatch(mobileApp, /LocationSharingScreen|location-share|handleShareLocation/)

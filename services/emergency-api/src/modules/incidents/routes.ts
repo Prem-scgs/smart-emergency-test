@@ -140,6 +140,11 @@ const reportSummaryQuery = z.object({
   range: z.enum(["week", "month", "quarter", "year"]).default("month"),
 });
 
+const recentIncidentsQuery = z.object({
+  since: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
 function buildReportWhereClause(
   range: keyof typeof reportRangeIntervals,
   adminScope: ReturnType<typeof getMockAdminScopeFromRequest>
@@ -329,6 +334,90 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       values
     );
     return result.rows.map(rowToIncident);
+  });
+
+  app.get("/api/incidents/recent", async (request) => {
+    const query = recentIncidentsQuery.parse(request.query ?? {});
+    const adminScope = getMockAdminScopeFromRequest(
+      request.headers as Record<string, unknown> | undefined,
+      request.query as Record<string, unknown> | undefined
+    );
+    const since = query.since ?? new Date().toISOString();
+    const limit = query.limit;
+    const values: Array<string | number> = [since, limit];
+    const filters = ["i.created_at > $1::timestamptz"];
+    const statusFilters = [
+      "i.updated_at > $1::timestamptz",
+      "i.created_at <= $1::timestamptz",
+    ];
+
+    if (adminScope?.role === "agency_admin") {
+      values.push(adminScope.category);
+      filters.push(`i.category = $${values.length}`);
+      statusFilters.push(`i.category = $${values.length}`);
+    }
+
+    const createdResult = await pool.query(
+      `
+        SELECT
+          i.id,
+          i.category,
+          i.severity,
+          i.status,
+          i.status_version,
+          i.description,
+          i.agency_contact_id,
+          c.name AS agency_name,
+          c.phone AS agency_phone,
+          i.province_code,
+          i.province,
+          i.district_code,
+          i.district,
+          i.accuracy,
+          i.call_status,
+          i.reporter_phone,
+          i.session_id,
+          i.latitude,
+          i.longitude,
+          i.created_at,
+          i.updated_at,
+          ${markerColorSql()}
+        FROM incidents i
+        LEFT JOIN contacts c ON c.id = i.agency_contact_id
+        WHERE ${filters.join(" AND ")}
+        ORDER BY i.created_at ASC, i.id ASC
+        LIMIT $2
+      `,
+      values
+    );
+
+    const statusResult = await pool.query(
+      `
+        SELECT
+          i.id,
+          i.category,
+          i.status,
+          i.status_version,
+          i.updated_at
+        FROM incidents i
+        WHERE ${statusFilters.join(" AND ")}
+        ORDER BY i.updated_at ASC, i.id ASC
+        LIMIT $2
+      `,
+      values
+    );
+
+    return {
+      cursor: new Date().toISOString(),
+      created: createdResult.rows.map(rowToIncident),
+      statusUpdated: statusResult.rows.map((row) => ({
+        id: row.id,
+        category: row.category,
+        status: row.status,
+        statusVersion: row.status_version,
+        updatedAt: row.updated_at,
+      })),
+    };
   });
 
   app.get("/api/incidents/:id", async (request, reply) => {

@@ -58,6 +58,90 @@ test("registerIncidentRoutes registers GET /api/incidents/:id", async () => {
   assert.equal(typeof app.getHandlers.get("/api/incidents/:id"), "function");
 });
 
+test("registerIncidentRoutes registers GET /api/incidents/recent", async () => {
+  const app = createFakeApp();
+
+  await registerIncidentRoutes(app as any);
+
+  assert.equal(typeof app.getHandlers.get("/api/incidents/recent"), "function");
+});
+
+test("GET /api/incidents/recent returns cursor-scoped created and status updates", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+
+  await registerIncidentRoutes(app as any);
+  const handler = app.getHandlers.get("/api/incidents/recent");
+  assert.ok(handler);
+
+  (pool.query as any) = async (sql: string, values: unknown[] = []) => {
+    calls.push({ sql, values });
+    if (sql.includes("i.created_at > $1::timestamptz")) {
+      return {
+        rows: [{
+          id: "incident-recent-created",
+          category: "medical",
+          severity: "high",
+          status: "reported",
+          status_version: 0,
+          description: null,
+          agency_contact_id: null,
+          agency_name: null,
+          agency_phone: null,
+          province_code: "65",
+          province: "Phitsanulok",
+          district_code: "6501",
+          district: "Mueang Phitsanulok",
+          accuracy: 12,
+          call_status: "connected",
+          reporter_phone: null,
+          session_id: "session-recent",
+          latitude: 16.8211,
+          longitude: 100.2659,
+          marker_color: "#f97316",
+          created_at: "2026-06-30T10:00:05.000Z",
+          updated_at: "2026-06-30T10:00:05.000Z",
+        }],
+      };
+    }
+
+    return {
+      rows: [{
+        id: "incident-recent-status",
+        category: "fire",
+        status: "acknowledged",
+        status_version: 2,
+        updated_at: "2026-06-30T10:00:07.000Z",
+      }],
+    };
+  };
+
+  try {
+    const result = await handler?.(
+      {
+        headers: { "x-admin-role": "agency_admin", "x-admin-category": "medical" },
+        query: { since: "2026-06-30T10:00:00.000Z", limit: "25" },
+      }
+    ) as any;
+
+    assert.match(calls[0]?.sql ?? "", /i\.category = \$3/);
+    assert.match(calls[1]?.sql ?? "", /i\.category = \$3/);
+    assert.deepEqual(calls[0]?.values, ["2026-06-30T10:00:00.000Z", 25, "medical"]);
+    assert.equal(result.created[0].id, "incident-recent-created");
+    assert.deepEqual(result.statusUpdated, [{
+      id: "incident-recent-status",
+      category: "fire",
+      status: "acknowledged",
+      statusVersion: 2,
+      updatedAt: "2026-06-30T10:00:07.000Z",
+    }]);
+    assert.equal(typeof result.cursor, "string");
+  } finally {
+    (pool.query as any) = originalQuery;
+  }
+});
+
 test("registerIncidentRoutes registers PUT /api/incidents/:id/call", async () => {
   const app = createFakeApp();
 
@@ -95,8 +179,15 @@ test("registerIncidentRoutes registers POST /api/incidents/:id/share-attempts", 
 
 test("POST /api/incidents/:id/share-attempts returns 503 for an unconfigured channel", async () => {
   const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
   const originalChannels = { ...config.shareChannels };
   config.shareChannels.smsCenterPhone = null;
+  (pool.query as any) = async (sql: unknown) => {
+    if (String(sql).includes("FROM center_share_channels")) {
+      return { rows: [] };
+    }
+    return { rows: [] };
+  };
 
   try {
     await registerIncidentRoutes(app as any);
@@ -115,6 +206,7 @@ test("POST /api/incidents/:id/share-attempts returns 503 for an unconfigured cha
     assert.equal(reply.statusCode, 503);
     assert.equal((result as any).code, "SHARE_CHANNEL_NOT_CONFIGURED");
   } finally {
+    (pool.query as any) = originalQuery;
     Object.assign(config.shareChannels, originalChannels);
   }
 });

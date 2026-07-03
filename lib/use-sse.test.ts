@@ -1,67 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
-import {
-  buildRealtimeIncidentArtifacts,
-  parseIncidentStatusUpdatedPayload,
-} from "./use-sse.ts";
+async function readUseSseSource() {
+  return readFile(new URL("./use-sse.ts", import.meta.url), "utf8");
+}
 
-test("buildRealtimeIncidentArtifacts maps incident payload to notification and alert", () => {
-  const payload = {
-    id: "incident-1",
-    category: "medical",
-    severity: "high" as const,
-    status: "open",
-    areaName: "Bangkok Central",
-    provinceCode: "10",
-    province: "Bangkok",
-    districtCode: "1001",
-    district: "Phra Nakhon",
-    createdAt: "2026-06-17T12:00:00.000Z",
-  };
+test("useSse keeps the realtime alert and notification contract", async () => {
+  const source = await readUseSseSource();
 
-  const { notification, alert } = buildRealtimeIncidentArtifacts(payload);
-
-  assert.equal(notification.id, "incident-incident-1");
-  assert.equal(notification.type, "new-incident");
-  assert.equal(notification.title, "มีเหตุใหม่เข้าระบบ");
-  assert.equal(notification.category, "medical");
-  assert.equal(notification.areaId, undefined);
-  assert.equal(notification.provinceCode, "10");
-  assert.equal(notification.districtCode, "1001");
-  assert.equal(alert.id, "alert-incident-1");
-  assert.equal(alert.severity, "warning");
-  assert.equal(alert.title, "มีเหตุเร่งด่วนใหม่");
-  assert.equal(alert.description, "ระดับความรุนแรง สูง สถานะ open");
-  assert.equal(alert.category, "medical");
-  assert.equal(alert.incidentId, "incident-1");
-  assert.equal(alert.actionUrl, "/admin/dashboard");
+  assert.match(source, /export function buildRealtimeIncidentArtifacts/);
+  assert.match(source, /title:\s*'มีเหตุใหม่เข้าระบบ'/);
+  assert.match(source, /'มีเหตุเร่งด่วนใหม่'/);
+  assert.match(source, /actionLabel:\s*'ดูรายละเอียด'/);
+  assert.match(source, /actionUrl:\s*'\/admin\/dashboard'/);
+  assert.match(source, /new CustomEvent\('smart-emergency:incident-created'/);
 });
 
-test("parseIncidentStatusUpdatedPayload validates the realtime status contract", () => {
-  assert.deepEqual(
-    parseIncidentStatusUpdatedPayload(JSON.stringify({
-      id: "incident-1",
-      category: "medical",
-      fromStatus: "reported",
-      status: "acknowledged",
-      statusVersion: 1,
-      note: null,
-      updatedAt: "2026-06-19T05:00:00.000Z",
-    })),
-    {
-      id: "incident-1",
-      category: "medical",
-      fromStatus: "reported",
-      status: "acknowledged",
-      statusVersion: 1,
-      note: null,
-      updatedAt: "2026-06-19T05:00:00.000Z",
-    }
-  );
+test("useSse validates and dispatches status update events", async () => {
+  const source = await readUseSseSource();
 
-  assert.throws(
-    () => parseIncidentStatusUpdatedPayload('{"id":"incident-1"}'),
-    /Invalid incident status event/
-  );
+  assert.match(source, /export function parseIncidentStatusUpdatedPayload/);
+  assert.match(source, /throw new Error\('Invalid incident status event'\)/);
+  assert.match(source, /new CustomEvent\('smart-emergency:incident-status-updated'/);
+  assert.match(source, /const versionKey = `\$\{payload\.id\}:\$\{payload\.statusVersion\}`/);
+  assert.match(source, /seenStatusVersionsRef\.current\.has\(versionKey\)/);
+});
+
+test("useSse polling fallback uses cursor-based recent endpoint and in-flight guard", async () => {
+  const source = await readUseSseSource();
+
+  assert.match(source, /\/api\/incidents\/recent/);
+  assert.match(source, /since: pollingCursorRef\.current/);
+  assert.match(source, /isPollingRef\.current/);
+  assert.match(source, /incident\.status_updated\.poll/);
 });

@@ -56,6 +56,9 @@ db-migrate:
 	pnpm db:migrate:audit-logs
 	pnpm db:migrate:contact-coverage
 	pnpm db:migrate:db-readiness
+	pnpm db:migrate:target-schema
+	pnpm db:migrate:target-backfill
+	pnpm db:migrate:drop-mock-tables
 	pnpm db:migrate:incident-tracking
 	pnpm db:migrate:share-channels
 	pnpm db:migrate:system-settings
@@ -76,6 +79,9 @@ db-reset:
 	pnpm db:migrate:audit-logs
 	pnpm db:migrate:contact-coverage
 	pnpm db:migrate:db-readiness
+	pnpm db:migrate:target-schema
+	pnpm db:migrate:target-backfill
+	pnpm db:migrate:drop-mock-tables
 	pnpm db:migrate:incident-tracking
 	pnpm db:migrate:share-channels
 	pnpm db:migrate:system-settings

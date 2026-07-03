@@ -27,38 +27,14 @@ function createReplyDouble() {
   };
 }
 
-test("GET /api/users/mock-profile returns standardized 404 error when profile is missing", async () => {
-  const app = createFakeApp();
-  const originalQuery = pool.query.bind(pool);
-
-  await registerReferenceRoutes(app as any);
-
-  const handler = app.getHandlers.get("/api/users/mock-profile");
-  assert.ok(handler);
-
-  (pool.query as any) = async () => ({ rowCount: 0, rows: [] });
-
-  try {
-    const reply = createReplyDouble();
-    const result = await handler?.({}, reply);
-
-    assert.equal(reply.statusCode, 404);
-    assert.deepEqual(result, {
-      error: "User profile not found",
-      code: "USER_PROFILE_NOT_FOUND",
-      statusCode: 404,
-    });
-  } finally {
-    (pool.query as any) = originalQuery;
-  }
-});
-
 test("GET /api/reference/share-channels exposes availability without recipients", async () => {
   const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
   const originalChannels = { ...config.shareChannels };
   config.shareChannels.lineOaId = "@smartemergency";
   config.shareChannels.smsCenterPhone = null;
   config.shareChannels.whatsappCenterPhone = "66812345678";
+  (pool.query as any) = async () => ({ rows: [] });
 
   try {
     await registerReferenceRoutes(app as any);
@@ -71,6 +47,7 @@ test("GET /api/reference/share-channels exposes availability without recipients"
       whatsapp: { enabled: true },
     });
   } finally {
+    (pool.query as any) = originalQuery;
     Object.assign(config.shareChannels, originalChannels);
   }
 });

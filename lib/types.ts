@@ -105,7 +105,7 @@ export interface DashboardStats {
   activeIncidents: number
   totalAgencies: number
   avgResponseTime: number
-  callsByCategory: Record<EmergencyCategory, number>
+  callsByCategory: Partial<Record<EmergencyCategory, number>>
   callsByProvince: Record<string, number>
   successRate: number
 }

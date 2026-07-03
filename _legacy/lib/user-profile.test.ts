@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { mockUserProfile } from "./mock-data";
+import { mockUserProfile } from "../../lib/mock-data";
 import {
   __resetUserProfileCache,
   loadMockUserProfile,

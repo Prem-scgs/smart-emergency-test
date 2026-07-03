@@ -3,11 +3,11 @@
 const SESSION_KEY = 'smart-emergency:reporter-session-id'
 const PHONE_KEY = 'smart-emergency:reporter-phone'
 
-function canUseStorage() {
+function canUseStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
-export function getOrCreateReporterSessionId() {
+export function getOrCreateReporterSessionId(): string {
   if (!canUseStorage()) return 'session-server'
 
   const existing = window.localStorage.getItem(SESSION_KEY)
@@ -21,12 +21,12 @@ export function getOrCreateReporterSessionId() {
   return next
 }
 
-export function getStoredReporterPhone() {
+export function getStoredReporterPhone(): string {
   if (!canUseStorage()) return ''
   return window.localStorage.getItem(PHONE_KEY) ?? ''
 }
 
-export function setStoredReporterPhone(phone) {
+export function setStoredReporterPhone(phone: string): void {
   if (!canUseStorage()) return
   window.localStorage.setItem(PHONE_KEY, phone)
 }

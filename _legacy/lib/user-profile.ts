@@ -1,6 +1,6 @@
-import { getEmergencyApiBaseUrl } from './emergency-api-url'
-import { mockUserProfile } from './mock-data'
-import type { UserProfile } from './types'
+import { getEmergencyApiBaseUrl } from '../../lib/emergency-api-url'
+import { mockUserProfile } from '../../lib/mock-data'
+import type { UserProfile } from '../../lib/types'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 

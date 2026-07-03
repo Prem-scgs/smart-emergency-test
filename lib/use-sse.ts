@@ -18,6 +18,18 @@ interface IncidentEventPayload {
   createdAt: string
 }
 
+interface RecentIncidentsPayload {
+  cursor: string
+  created: IncidentEventPayload[]
+  statusUpdated: Array<{
+    id: string
+    category: string
+    status: string
+    statusVersion: number
+    updatedAt: string
+  }>
+}
+
 export interface IncidentStatusUpdatedPayload {
   id: string
   category: string
@@ -125,6 +137,17 @@ function isIncidentEventPayload(payload: unknown): payload is IncidentEventPaylo
   )
 }
 
+function isRecentIncidentsPayload(payload: unknown): payload is RecentIncidentsPayload {
+  if (!payload || typeof payload !== 'object') return false
+
+  const recent = payload as Partial<RecentIncidentsPayload>
+  return (
+    typeof recent.cursor === 'string' &&
+    Array.isArray(recent.created) &&
+    Array.isArray(recent.statusUpdated)
+  )
+}
+
 export function parseIncidentStatusUpdatedPayload(data: string): IncidentStatusUpdatedPayload {
   const payload = JSON.parse(data) as Partial<IncidentStatusUpdatedPayload>
 
@@ -198,7 +221,9 @@ export function useSse(options: UseSseOptions = {}) {
   const eventSourceRef = useRef<EventSource | null>(null)
   const connectionStateRef = useRef<SseDebugStatus | null>(null)
   const seenIncidentIdsRef = useRef<Set<string>>(new Set())
-  const hasSeededPollingRef = useRef(false)
+  const seenStatusVersionsRef = useRef<Set<string>>(new Set())
+  const pollingCursorRef = useRef(new Date().toISOString())
+  const isPollingRef = useRef(false)
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
@@ -207,7 +232,9 @@ export function useSse(options: UseSseOptions = {}) {
 
     let isDisposed = false
     seenIncidentIdsRef.current = new Set()
-    hasSeededPollingRef.current = false
+    seenStatusVersionsRef.current = new Set()
+    pollingCursorRef.current = new Date().toISOString()
+    isPollingRef.current = false
     const eventSource = new EventSource(buildAdminEventsUrl(getEmergencyApiEventsBaseUrl(), user))
     eventSourceRef.current = eventSource
 
@@ -260,45 +287,76 @@ export function useSse(options: UseSseOptions = {}) {
     }
 
     const pollLatestIncidents = async () => {
+      if (isPollingRef.current) {
+        return
+      }
+
+      isPollingRef.current = true
       try {
-        const response = await fetch(buildApiUrl(getEmergencyApiBaseUrl(), '/api/incidents'), {
-          headers: buildAdminApiHeaders(user),
-          cache: 'no-store',
+        const searchParams = new URLSearchParams({
+          since: pollingCursorRef.current,
+          limit: '50',
         })
+        const response = await fetch(
+          buildApiUrl(getEmergencyApiBaseUrl(), `/api/incidents/recent?${searchParams.toString()}`),
+          {
+            headers: buildAdminApiHeaders(user),
+            cache: 'no-store',
+          }
+        )
 
         if (!response.ok) {
           return
         }
 
         const payload = (await response.json()) as unknown
-        if (!Array.isArray(payload)) {
+        if (!isRecentIncidentsPayload(payload)) {
           return
         }
 
-        const incidents = payload.filter(isIncidentEventPayload)
-        if (!hasSeededPollingRef.current) {
-          seenIncidentIdsRef.current = new Set(incidents.map((incident) => incident.id))
-          hasSeededPollingRef.current = true
-          return
-        }
-
-        const newIncidents = incidents
+        const newIncidents = payload.created
+          .filter(isIncidentEventPayload)
           .filter((incident) => !seenIncidentIdsRef.current.has(incident.id))
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
         for (const incident of newIncidents) {
           handleIncidentPayload(incident, 'poll')
         }
+
+        for (const statusUpdate of payload.statusUpdated) {
+          const versionKey = `${statusUpdate.id}:${statusUpdate.statusVersion}`
+          if (seenStatusVersionsRef.current.has(versionKey)) {
+            continue
+          }
+
+          seenStatusVersionsRef.current.add(versionKey)
+          window.dispatchEvent(
+            new CustomEvent('smart-emergency:incident-status-updated', {
+              detail: statusUpdate,
+            })
+          )
+          emitSseDebugEvent('incident.status_updated.poll')
+        }
+
+        pollingCursorRef.current = payload.cursor
       } catch (error) {
         if (!isDisposed) {
           console.error('[smart-emergency] polling fallback failed', error)
         }
+      } finally {
+        isPollingRef.current = false
       }
     }
 
     const handleIncidentStatusUpdated = (event: MessageEvent<string>) => {
       try {
         const payload = parseIncidentStatusUpdatedPayload(event.data)
+        const versionKey = `${payload.id}:${payload.statusVersion}`
+        if (seenStatusVersionsRef.current.has(versionKey)) {
+          return
+        }
+
+        seenStatusVersionsRef.current.add(versionKey)
         window.dispatchEvent(
           new CustomEvent('smart-emergency:incident-status-updated', {
             detail: payload,

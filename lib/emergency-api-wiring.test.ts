@@ -4,7 +4,6 @@ import test from 'node:test'
 
 const runtimeFiles = [
   'lib/use-sse.ts',
-  'lib/user-profile.ts',
   'app/admin/(dashboard)/gis/page.tsx',
   'app/admin/(dashboard)/contacts/page.tsx',
   'app/admin/(dashboard)/dashboard/page.tsx',

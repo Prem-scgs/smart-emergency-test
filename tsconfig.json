@@ -41,6 +41,7 @@
     "services",
     "_backup",
     "backups",
+    "_legacy",
     ".ai"
   ]
 }

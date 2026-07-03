@@ -48,13 +48,7 @@ docker compose up -d dbgate
 4. Apply migrations and seed local data
 
 ```powershell
-pnpm db:migrate:contacts
-pnpm db:migrate:mock
-pnpm db:migrate:areas
-pnpm db:migrate:call-logs
-pnpm db:migrate:reporters
-pnpm db:migrate:category-master
-pnpm db:migrate:location-codes
+pnpm db:migrate
 pnpm db:seed
 ```
 
@@ -103,6 +97,18 @@ Frontend build:
 ```powershell
 pnpm build
 ```
+
+## Migration Notes
+
+Use `pnpm db:migrate` as the source-of-truth migration command for local
+development. It applies the base mock-to-real transition migrations, the
+target schema migrations `013`-`015`, incident tracking, share channels, and
+system settings in order.
+
+The legacy mock tables `dashboard_snapshots`, `app_users`, and
+`user_emergency_contacts` are intentionally dropped by migration `015`; current
+dashboard, mobile tracking, and share-location flows read from real incident,
+contact, area, and settings tables instead.
 
 ## Important Local URLs
 

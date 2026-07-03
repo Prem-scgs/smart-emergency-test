@@ -32,7 +32,7 @@ import {
   DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog'
-import { loadMockUserProfile } from '@/lib/user-profile'
+import { loadMockUserProfile } from '../lib/user-profile'
 import { PersonalEmergencyContact, UserProfile } from '@/lib/types'
 import { toast } from 'sonner'
 

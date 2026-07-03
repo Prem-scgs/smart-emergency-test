@@ -26,13 +26,7 @@ docker compose up -d dbgate
 Apply migrations:
 
 ```powershell
-pnpm db:migrate:contacts
-pnpm db:migrate:mock
-pnpm db:migrate:areas
-pnpm db:migrate:call-logs
-pnpm db:migrate:reporters
-pnpm db:migrate:category-master
-pnpm db:migrate:location-codes
+pnpm db:migrate
 ```
 
 Seed local data:
@@ -62,15 +56,22 @@ If local DB state is broken:
 ```powershell
 docker compose down -v
 docker compose up -d db dbgate
-pnpm db:migrate:contacts
-pnpm db:migrate:mock
-pnpm db:migrate:areas
-pnpm db:migrate:call-logs
-pnpm db:migrate:reporters
-pnpm db:migrate:category-master
-pnpm db:migrate:location-codes
+pnpm db:migrate
 pnpm db:seed
 ```
+
+Migration `015_drop_mock_tables.sql` removes legacy mock tables
+`dashboard_snapshots`, `app_users`, and `user_emergency_contacts`. Do not add
+new runtime features that depend on those tables; use incidents, contacts,
+areas, reference categories, and system settings instead.
+
+## 3.1 Auth Boundary
+
+Admin role scope is currently a development/demo contract. The frontend sends
+`x-admin-role` and `x-admin-category` headers, and the backend uses them to
+filter demo data. This is not production authentication. Do not build new
+security-sensitive behavior on these headers until the real JWT/Auth contract
+from the owning team is integrated.
 
 ## 4. Verify Before Push
 
