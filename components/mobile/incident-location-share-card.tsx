@@ -22,6 +22,7 @@ import {
   type ShareChannelAvailability,
 } from '@/lib/incident-location-share'
 import type { MobileTrackingIncident } from '@/lib/mobile-tracking'
+import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 
 interface IncidentLocationShareCardProps {
   incident: MobileTrackingIncident
@@ -94,7 +95,7 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
     try {
       const platform = detectMobilePlatform(window.navigator.userAgent)
       const response = await fetch(
-        buildIncidentShareAttemptUrl(getEmergencyApiBaseUrl(), incident.caseNumber),
+        buildIncidentShareAttemptUrl(getEmergencyApiBaseUrl(), incident.id),
         {
           method: 'POST',
           headers: {
@@ -102,7 +103,7 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
             'x-mobile-platform': platform,
           },
           body: JSON.stringify({
-            trackingToken: incident.trackingToken,
+            sessionId: getOrCreateReporterSessionId(),
             channel,
             reporterPhone: includeReporterPhone ? reporterPhone : null,
           }),

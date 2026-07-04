@@ -31,14 +31,14 @@ import {
 } from '@/lib/mobile-tracking'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
+import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { cn } from '@/lib/utils'
 import { EmergencyCategory } from '@/lib/types'
 import { IncidentLocationShareCard } from './incident-location-share-card'
 
 interface IncidentTrackingScreenProps {
-  caseNumber: string
-  trackingToken: string
+  incidentId: string
   categoryId: EmergencyCategory
   trackingStatus?: IncidentWorkflowStatus
   trackingHistory?: IncidentTrackingHistoryEntry[]
@@ -48,8 +48,7 @@ interface IncidentTrackingScreenProps {
 }
 
 export function IncidentTrackingScreen({ 
-  caseNumber,
-  trackingToken,
+  incidentId, 
   categoryId, 
   trackingStatus = 'reported',
   trackingHistory = [],
@@ -67,7 +66,8 @@ export function IncidentTrackingScreen({
   const category = categories.find(c => c.id === categoryId)
 
   const loadTracking = useCallback(async () => {
-    const response = await fetch(buildMobileTrackingUrl(getEmergencyApiBaseUrl(), caseNumber, trackingToken))
+    const sessionId = getOrCreateReporterSessionId()
+    const response = await fetch(buildMobileTrackingUrl(getEmergencyApiBaseUrl(), incidentId, sessionId))
     if (!response.ok) {
       throw new Error('โหลดสถานะเหตุการณ์ไม่สำเร็จ')
     }
@@ -80,7 +80,7 @@ export function IncidentTrackingScreen({
     setTrackingData(nextTracking)
     setTrackingError(null)
     setLastRefreshedAt(new Date(nextTracking.incident.updatedAt))
-  }, [caseNumber, trackingToken])
+  }, [incidentId])
 
   useEffect(() => {
     void loadTracking().catch(error => {
@@ -89,8 +89,9 @@ export function IncidentTrackingScreen({
   }, [loadTracking])
 
   useEffect(() => {
+    const sessionId = getOrCreateReporterSessionId()
     const eventSource = new EventSource(
-      buildMobileIncidentEventsUrl(getEmergencyApiBaseUrl(), caseNumber, trackingToken)
+      buildMobileIncidentEventsUrl(getEmergencyApiBaseUrl(), incidentId, sessionId)
     )
 
     const refreshAuthoritativeTracking = () => {
@@ -106,7 +107,7 @@ export function IncidentTrackingScreen({
       eventSource.removeEventListener('incident.status_updated', refreshAuthoritativeTracking)
       eventSource.close()
     }
-  }, [caseNumber, trackingToken, loadTracking])
+  }, [incidentId, loadTracking])
 
   const authoritativeStatus = trackingData?.incident.status
   const currentStatus = isMobileIncidentWorkflowStatus(authoritativeStatus)
@@ -167,7 +168,7 @@ export function IncidentTrackingScreen({
             </Button>
             <div>
               <h1 className="font-semibold text-foreground">ติดตามสถานะ</h1>
-              <p className="text-xs text-muted-foreground">หมายเลขเหตุ: {caseNumber}</p>
+              <p className="text-xs text-muted-foreground">หมายเลขเหตุ: {incidentId}</p>
             </div>
           </div>
           <Button

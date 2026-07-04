@@ -8,7 +8,7 @@ export interface ShareChannelAvailability {
 }
 
 export interface IncidentShareSnapshot {
-  caseNumber: string
+  id: string
   category: string
   province?: string | null
   district?: string | null
@@ -30,8 +30,8 @@ export function buildShareChannelsUrl(baseUrl: string) {
   return `${baseUrl.replace(/\/$/, '')}/api/reference/share-channels`
 }
 
-export function buildIncidentShareAttemptUrl(baseUrl: string, caseNumber: string) {
-  return `${baseUrl.replace(/\/$/, '')}/api/incidents/${encodeURIComponent(caseNumber)}/share-attempts`
+export function buildIncidentShareAttemptUrl(baseUrl: string, incidentId: string) {
+  return `${baseUrl.replace(/\/$/, '')}/api/incidents/${encodeURIComponent(incidentId)}/share-attempts`
 }
 
 export function isValidThaiReporterPhone(value: string) {
@@ -68,7 +68,7 @@ export function buildIncidentShareCopyMessage(
   const mapsUrl = buildIncidentShareMapsUrl(incident.latitude, incident.longitude)
 
   return [
-    `หมายเลขเหตุ: ${incident.caseNumber}`,
+    `หมายเลขเหตุ: ${incident.id}`,
     `ประเภทเหตุ: ${CATEGORY_LABELS[incident.category] ?? incident.category}`,
     `เวลาแจ้ง: ${occurredAt}`,
     area ? `พื้นที่: ${area}` : null,

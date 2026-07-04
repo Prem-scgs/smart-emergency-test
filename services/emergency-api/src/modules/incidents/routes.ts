@@ -1,4 +1,3 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { getMockAdminScopeFromRequest } from "../../admin-scope.js";
@@ -61,8 +60,7 @@ const incidentStatusUpdateBody = z.object({
 });
 
 const incidentShareAttemptBody = z.object({
-  sessionId: z.string().trim().min(8).max(128).optional(),
-  trackingToken: z.string().trim().min(32).optional(),
+  sessionId: z.string().trim().min(8).max(128),
   channel: z.enum(["line", "sms", "whatsapp"]),
   reporterPhone: z
     .string()
@@ -72,35 +70,14 @@ const incidentShareAttemptBody = z.object({
     .optional(),
 });
 
-function rowToIncident(
-  row: Record<string, unknown>,
-  options: {
-    includeTrackingToken?: boolean;
-    includeInternalId?: boolean;
-    includeClientRequestId?: boolean;
-  } = {}
-) {
+function rowToIncident(row: Record<string, unknown>) {
   return {
-    ...(options.includeInternalId === false ? {} : { id: row.id }),
-    ...(Object.hasOwn(row, "case_number")
-      ? { caseNumber: row.case_number }
-      : {}),
-    ...(options.includeClientRequestId !== false && Object.hasOwn(row, "client_request_id")
+    id: row.id,
+    ...(Object.hasOwn(row, "client_request_id")
       ? { clientRequestId: row.client_request_id }
       : {}),
     ...(Object.hasOwn(row, "dialed_phone")
       ? { dialedPhone: row.dialed_phone }
-      : {}),
-    // โทเคนติดตามเป็นสิทธิ์ของผู้แจ้งเหตุเท่านั้น อย่าส่งออกจาก endpoint admin โดยไม่จำเป็น
-    ...(options.includeTrackingToken &&
-    typeof row.client_request_id === "string" &&
-    typeof row.session_id === "string"
-      ? {
-          trackingToken: buildTrackingToken({
-            clientRequestId: row.client_request_id,
-            sessionId: row.session_id,
-          }),
-        }
       : {}),
     category: row.category,
     severity: row.severity,
@@ -129,41 +106,6 @@ function rowToIncident(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-function omitPublicInternalIds(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(omitPublicInternalIds);
-  }
-
-  if (!value || typeof value !== "object") {
-    return value;
-  }
-
-  const { id: _id, changedByAdminId: _changedByAdminId, ...rest } = value as Record<string, unknown>;
-  return rest;
-}
-
-function buildTrackingToken(input: {
-  clientRequestId: string;
-  sessionId: string | null | undefined;
-}) {
-  return createHmac("sha256", config.trackingTokenSecret)
-    .update(input.clientRequestId)
-    .update(":")
-    .update(input.sessionId ?? "")
-    .digest("base64url");
-}
-
-function hashTrackingToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-function isTrackingTokenMatch(token: string, expectedHash: unknown) {
-  if (typeof expectedHash !== "string") return false;
-  const actual = Buffer.from(hashTrackingToken(token), "hex");
-  const expected = Buffer.from(expectedHash, "hex");
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 function markerColorSql() {
@@ -359,7 +301,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -392,7 +333,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `,
       values
     );
-    return result.rows.map(row => rowToIncident(row));
+    return result.rows.map(rowToIncident);
   });
 
   app.get("/api/incidents/recent", async (request) => {
@@ -420,7 +361,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -455,7 +395,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
           i.category,
           i.status,
           i.status_version,
@@ -470,7 +409,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
     return {
       cursor: new Date().toISOString(),
-      created: createdResult.rows.map(row => rowToIncident(row)),
+      created: createdResult.rows.map(rowToIncident),
       statusUpdated: statusResult.rows.map((row) => ({
         id: row.id,
         category: row.category,
@@ -509,7 +448,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -566,7 +504,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const queryResult = z
       .object({
         sessionId: z.string().trim().min(8).optional(),
-        token: z.string().trim().min(32).optional(),
       })
       .passthrough()
       .safeParse(request.query ?? {});
@@ -581,19 +518,18 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       request.query as Record<string, unknown> | undefined
     );
     const sessionId = queryResult.data.sessionId;
-    const trackingToken = queryResult.data.token;
 
-    if (!adminScope && !sessionId && !trackingToken) {
+    if (!adminScope && !sessionId) {
       reply.code(403);
       return buildApiErrorPayload(
         403,
         "INCIDENT_TRACKING_ACCESS_DENIED",
-        "Reporter token, session, or admin scope is required"
+        "Reporter session or admin scope is required"
       );
     }
 
     const values: string[] = [paramsResult.data.id];
-    const filters = ["(i.case_number = $1 OR i.id::text = $1)"];
+    const filters = ["i.id = $1"];
 
     if (adminScope?.role === "agency_admin") {
       values.push(adminScope.category);
@@ -607,8 +543,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
-          i.tracking_token_hash,
           i.client_request_id,
           i.dialed_phone,
           i.category,
@@ -692,32 +626,16 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     }
 
     const row = result.rows[0];
-    if (!adminScope && trackingToken && !isTrackingTokenMatch(trackingToken, row.tracking_token_hash)) {
-      reply.code(404);
-      return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
-    }
-
-    const isPublicReporterRequest = !adminScope;
-
     return {
-      incident: rowToIncident(row, {
-        includeInternalId: !isPublicReporterRequest,
-        includeClientRequestId: !isPublicReporterRequest,
-      }),
-      statusHistory: isPublicReporterRequest
-        ? omitPublicInternalIds(row.status_history ?? [])
-        : row.status_history ?? [],
-      latestLocation: isPublicReporterRequest
-        ? omitPublicInternalIds(row.latest_location ?? null)
-        : row.latest_location ?? null,
-      locationHistory: isPublicReporterRequest
-        ? omitPublicInternalIds(row.location_history ?? [])
-        : row.location_history ?? [],
+      incident: rowToIncident(row),
+      statusHistory: row.status_history ?? [],
+      latestLocation: row.latest_location ?? null,
+      locationHistory: row.location_history ?? [],
     };
   });
 
   app.post("/api/incidents/:id/share-attempts", async (request, reply) => {
-    const params = z.object({ id: z.string().min(1) }).parse(request.params);
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const body = incidentShareAttemptBody.parse(request.body);
     const shareChannels = await resolveShareChannels();
     const recipient = getResolvedShareChannelRecipient(shareChannels, body.channel);
@@ -731,7 +649,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       );
     }
 
-    const rateLimitKey = `${request.ip ?? "unknown"}:${params.id}:${body.sessionId ?? body.trackingToken ?? "anonymous"}`;
+    const rateLimitKey = `${request.ip ?? "unknown"}:${params.id}:${body.sessionId}`;
     const rateLimitResult = incidentShareRateLimiter.check(rateLimitKey);
     if (!rateLimitResult.allowed) {
       reply.header("Retry-After", String(Math.ceil(rateLimitResult.retryAfterMs / 1000)));
@@ -747,8 +665,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           id,
-          case_number,
-          tracking_token_hash,
           category,
           province,
           district,
@@ -756,30 +672,20 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           longitude,
           created_at
         FROM incidents
-        WHERE (case_number = $1 OR id::text = $1)
-          AND (
-            $2::text IS NULL
-            OR session_id = $2
-          )
+        WHERE id = $1 AND session_id = $2
         LIMIT 1
       `,
-      [params.id, body.sessionId ?? null]
+      [params.id, body.sessionId]
     );
 
-    const incident = incidentResult.rows[0];
-    if (
-      !incident ||
-      (
-        !body.sessionId &&
-        (!body.trackingToken || !isTrackingTokenMatch(body.trackingToken, incident.tracking_token_hash))
-      )
-    ) {
+    if (incidentResult.rows.length === 0) {
       reply.code(404);
       return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
     }
 
+    const incident = incidentResult.rows[0];
     const message = buildIncidentLocationShareMessage({
-      caseNumber: incident.case_number,
+      id: incident.id,
       category: incident.category,
       province: incident.province,
       district: incident.district,
@@ -800,7 +706,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const recorded = await writeAuditLog(request, {
       action: "incident.location_share_opened",
       resourceType: "incident",
-      resourceId: String(incident.id),
+      resourceId: params.id,
       actorType: "mobile_session",
       details: {
         channel: body.channel,
@@ -834,8 +740,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
     const queryResult = z
       .object({
-        sessionId: z.string().trim().min(8).optional(),
-        token: z.string().trim().min(32).optional(),
+        sessionId: z.string().trim().min(8),
       })
       .safeParse(request.query ?? {});
 
@@ -844,29 +749,18 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       return buildZodValidationErrorPayload(queryResult.error);
     }
 
-    const incidentRef = paramsResult.data.id;
+    const incidentId = paramsResult.data.id;
     const ownershipResult = await pool.query(
       `
-        SELECT id, case_number, tracking_token_hash
+        SELECT id
         FROM incidents
-        WHERE (case_number = $1 OR id::text = $1)
-          AND (
-            $2::text IS NULL
-            OR session_id = $2
-          )
+        WHERE id = $1 AND session_id = $2
         LIMIT 1
       `,
-      [incidentRef, queryResult.data.sessionId ?? null]
+      [incidentId, queryResult.data.sessionId]
     );
 
-    const ownedIncident = ownershipResult.rows[0];
-    if (
-      !ownedIncident ||
-      (
-        !queryResult.data.sessionId &&
-        (!queryResult.data.token || !isTrackingTokenMatch(queryResult.data.token, ownedIncident.tracking_token_hash))
-      )
-    ) {
+    if (ownershipResult.rows.length === 0) {
       reply.code(403);
       return buildApiErrorPayload(
         403,
@@ -874,11 +768,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         "Reporter session does not own this incident"
       );
     }
-    const incidentId = String(ownedIncident.id);
-    const publicIncidentRef =
-      typeof ownedIncident.case_number === "string"
-        ? ownedIncident.case_number
-        : incidentRef;
 
     reply.hijack();
     reply.raw.writeHead(200, {
@@ -922,13 +811,8 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       }
 
       try {
-        const publicPayload = {
-          ...(payload as Record<string, unknown>),
-          id: publicIncidentRef,
-          caseNumber: publicIncidentRef,
-        };
         reply.raw.write("event: incident.status_updated\n");
-        reply.raw.write(`data: ${JSON.stringify(publicPayload)}\n\n`);
+        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
       } catch {
         cleanup();
       }
@@ -1149,7 +1033,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -1189,7 +1072,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `,
       values
     );
-    return result.rows.map(row => rowToIncident(row));
+    return result.rows.map(rowToIncident);
   });
 
   app.get("/api/incidents/history", async (request, reply) => {
@@ -1206,8 +1089,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
-          i.case_number,
-          i.client_request_id,
           i.category,
           i.severity,
           i.status,
@@ -1241,13 +1122,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       [queryResult.data.sessionId]
     );
 
-    return result.rows.map(row =>
-      rowToIncident(row, {
-        includeInternalId: false,
-        includeClientRequestId: false,
-        includeTrackingToken: true,
-      })
-    );
+    return result.rows.map(rowToIncident);
   });
 
   app.post("/api/incidents", async (request, reply) => {
@@ -1324,27 +1199,14 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       matchedArea?.district_name_th ??
       body.district ??
       null;
-    const trackingToken = buildTrackingToken({
-      clientRequestId: body.clientRequestId,
-      sessionId: body.sessionId,
-    });
-    const trackingTokenHash = hashTrackingToken(trackingToken);
 
     const result = await pool.query(
       `
-        WITH case_identity AS (
-          SELECT
-            out_case_number AS case_number,
-            out_case_date AS case_date,
-            out_case_sequence AS case_sequence
-          FROM next_incident_case_identity()
-        ),
-        inserted_incident AS (
+        WITH inserted_incident AS (
           INSERT INTO incidents
-            (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, client_request_id, dialed_phone, status_version, case_number, case_date, case_sequence, tracking_token_hash, location)
-          SELECT
-            $1, $2, 'reported', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, case_number, case_date, case_sequence, $17, ST_SetSRID(ST_MakePoint($6, $5), 4326)
-          FROM case_identity
+            (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, client_request_id, dialed_phone, status_version, location)
+          VALUES
+            ($1, $2, 'reported', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, ST_SetSRID(ST_MakePoint($6, $5), 4326))
           ON CONFLICT (client_request_id) WHERE client_request_id IS NOT NULL
           DO NOTHING
           RETURNING *
@@ -1393,27 +1255,18 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         body.sessionId ?? null,
         body.clientRequestId,
         body.dialedPhone,
-        trackingTokenHash,
       ]
     );
 
     const row = result.rows[0];
-    const internalIncident = rowToIncident(row);
-    const incident = {
-      ...rowToIncident(row, {
-        includeInternalId: false,
-        includeClientRequestId: false,
-        includeTrackingToken: true,
-      }),
-      trackingToken,
-    };
+    const incident = rowToIncident(row);
     const wasCreated = row?.was_created === true;
 
     if (wasCreated) {
       await writeAuditLog(request, {
         action: "incidents.create",
         resourceType: "incident",
-        resourceId: String(row.id),
+        resourceId: String(incident.id),
         details: {
           category: incident.category,
           severity: incident.severity,
@@ -1424,7 +1277,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       });
       emitEmergencyEvent({
         type: "incident.created",
-        payload: internalIncident,
+        payload: incident,
       });
     }
 
@@ -1488,7 +1341,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         )
         SELECT
           i.id,
-          i.case_number,
           i.category,
           i.severity,
           i.status,

@@ -9,7 +9,7 @@ import {
 } from "./location-share.js";
 
 const incident = {
-  caseNumber: "SE-260704-0007",
+  id: "incident-123",
   category: "medical",
   province: "กรุงเทพมหานคร",
   district: "ปทุมวัน",
@@ -21,7 +21,7 @@ const incident = {
 test("builds one authoritative Thai location message without reporter phone by default", () => {
   const message = buildIncidentLocationShareMessage(incident);
 
-  assert.match(message, /หมายเลขเหตุ: SE-260704-0007/);
+  assert.match(message, /หมายเลขเหตุ: incident-123/);
   assert.match(message, /ประเภทเหตุ: แพทย์/);
   assert.match(message, /พื้นที่: ปทุมวัน, กรุงเทพมหานคร/);
   assert.match(message, /พิกัด: 13\.747800, 100\.535100/);

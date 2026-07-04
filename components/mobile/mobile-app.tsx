@@ -40,7 +40,7 @@ interface MobileLocation {
 }
 
 interface LocalTrackingSnapshot {
-  caseNumber: string
+  incidentId: string
   status: IncidentWorkflowStatus
   updatedAt: string
   history: IncidentTrackingHistoryEntry[]
@@ -73,8 +73,7 @@ export function MobileApp() {
   const [screen, setScreen] = useState<Screen>('splash')
   const [activeNav, setActiveNav] = useState<NavItem>('home')
   const [selectedCategory, setSelectedCategory] = useState<EmergencyCategory | null>(null)
-  const [trackingCaseNumber, setTrackingCaseNumber] = useState<string | null>(null)
-  const [trackingToken, setTrackingToken] = useState<string | null>(null)
+  const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(null)
   const [contacts, setContacts] = useState<EmergencyContact[]>([])
   const [isLoadingContacts, setIsLoadingContacts] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<MobileLocation | null>(null)
@@ -279,7 +278,7 @@ export function MobileApp() {
         throw new Error('Failed to start incident')
       }
 
-      return (await response.json()) as { caseNumber: string; trackingToken: string }
+      return (await response.json()) as { id: string }
     },
     [currentLocation, locationStatus]
   )
@@ -297,7 +296,7 @@ export function MobileApp() {
       try {
         const incident = await createIncidentForCall(contact, incidentCategory, clientRequestId)
         setLocalTrackingSnapshot({
-          caseNumber: incident.caseNumber,
+          incidentId: incident.id,
           status: 'reported',
           updatedAt: new Date().toISOString(),
           history: [
@@ -307,6 +306,8 @@ export function MobileApp() {
             },
           ],
         })
+        setTrackingIncidentId(incident.id)
+        setScreen('tracking')
         toast.success('Emergency alert sent to admin dashboard')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to start incident')
@@ -329,9 +330,8 @@ export function MobileApp() {
     return startCallFlow(contact, incidentCategory)
   }
 
-  const handleViewTracking = (caseNumber: string, token: string, category: EmergencyCategory) => {
-    setTrackingCaseNumber(caseNumber)
-    setTrackingToken(token)
+  const handleViewTracking = (incidentId: string, category: EmergencyCategory) => {
+    setTrackingIncidentId(incidentId)
     setSelectedCategory(category)
     setScreen('tracking')
   }
@@ -352,8 +352,7 @@ export function MobileApp() {
     setScreen('home')
     setActiveNav('home')
     setSelectedCategory(null)
-    setTrackingCaseNumber(null)
-    setTrackingToken(null)
+    setTrackingIncidentId(null)
   }
 
   if (screen === 'splash') {
@@ -389,14 +388,13 @@ export function MobileApp() {
     )
   }
 
-  if (screen === 'tracking' && trackingCaseNumber && trackingToken && selectedCategory) {
+  if (screen === 'tracking' && trackingIncidentId && selectedCategory) {
     const activeTracking =
-      localTrackingSnapshot?.caseNumber === trackingCaseNumber ? localTrackingSnapshot : null
+      localTrackingSnapshot?.incidentId === trackingIncidentId ? localTrackingSnapshot : null
 
     return (
       <IncidentTrackingScreen
-        caseNumber={trackingCaseNumber}
-        trackingToken={trackingToken}
+        incidentId={trackingIncidentId}
         categoryId={selectedCategory}
         trackingStatus={activeTracking?.status}
         trackingHistory={activeTracking?.history}
