@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { SplashScreen } from './splash-screen'
 import { LocationHeader } from './location-header'
 import { EmergencyCategoriesGrid } from './emergency-categories-grid'
@@ -13,10 +20,10 @@ import { IncidentHistoryScreen } from './incident-history-screen'
 import { IncidentTrackingScreen } from './incident-tracking-screen'
 import { MobileNav, NavItem } from './mobile-nav'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { EmergencyCategory, EmergencyContact } from '@/lib/types'
+import { CallStatus, EmergencyCategory, EmergencyContact } from '@/lib/types'
 import { toast } from 'sonner'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
-import { buildIncidentCreatePayload } from '@/lib/mobile-incident'
+import { buildIncidentCallUpdatePayload, buildIncidentCreatePayload } from '@/lib/mobile-incident'
 import { type IncidentTrackingHistoryEntry, type IncidentWorkflowStatus } from '@/lib/incident-tracking'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { getLocationFailureStatus, type LocationLockStatus } from '@/lib/mobile-location'
@@ -44,6 +51,11 @@ interface LocalTrackingSnapshot {
   status: IncidentWorkflowStatus
   updatedAt: string
   history: IncidentTrackingHistoryEntry[]
+}
+
+interface PendingCallResult {
+  incidentId: string
+  contact: EmergencyContact
 }
 
 interface ApiContact {
@@ -79,6 +91,8 @@ export function MobileApp() {
   const [currentLocation, setCurrentLocation] = useState<MobileLocation | null>(null)
   const [locationStatus, setLocationStatus] = useState<LocationLockStatus>('requesting')
   const [localTrackingSnapshot, setLocalTrackingSnapshot] = useState<LocalTrackingSnapshot | null>(null)
+  const [pendingCallResult, setPendingCallResult] = useState<PendingCallResult | null>(null)
+  const [isSavingCallResult, setIsSavingCallResult] = useState(false)
   const { theme, setTheme } = useTheme()
 
   const handleSplashComplete = useCallback(() => {
@@ -307,6 +321,10 @@ export function MobileApp() {
           ],
         })
         setTrackingIncidentId(incident.id)
+        setPendingCallResult({
+          incidentId: incident.id,
+          contact,
+        })
         setScreen('tracking')
         toast.success('Emergency alert sent to admin dashboard')
       } catch (error) {
@@ -314,6 +332,43 @@ export function MobileApp() {
       }
     },
     [createIncidentForCall, currentLocation, locationStatus]
+  )
+
+  const updateCallResult = useCallback(
+    async (status: CallStatus) => {
+      if (!pendingCallResult) return
+
+      try {
+        setIsSavingCallResult(true)
+        const response = await fetch(
+          getEmergencyApiBaseUrl() + `/api/incidents/${pendingCallResult.incidentId}/call`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(
+              buildIncidentCallUpdatePayload({
+                status,
+                contact: pendingCallResult.contact,
+              })
+            ),
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error('Failed to update call result')
+        }
+
+        setPendingCallResult(null)
+        toast.success('Call result saved')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to update call result')
+      } finally {
+        setIsSavingCallResult(false)
+      }
+    },
+    [pendingCallResult]
   )
 
   const handleSOSPress = () => {
@@ -353,6 +408,7 @@ export function MobileApp() {
     setActiveNav('home')
     setSelectedCategory(null)
     setTrackingIncidentId(null)
+    setPendingCallResult(null)
   }
 
   if (screen === 'splash') {
@@ -393,7 +449,8 @@ export function MobileApp() {
       localTrackingSnapshot?.incidentId === trackingIncidentId ? localTrackingSnapshot : null
 
     return (
-      <IncidentTrackingScreen
+      <>
+        <IncidentTrackingScreen
         incidentId={trackingIncidentId}
         categoryId={selectedCategory}
         trackingStatus={activeTracking?.status}
@@ -408,7 +465,66 @@ export function MobileApp() {
           }
           void startCallFlow(contact, selectedCategory)
         }}
-      />
+        />
+
+        <Dialog
+          open={pendingCallResult?.incidentId === trackingIncidentId}
+          onOpenChange={open => {
+            if (!open && !isSavingCallResult) setPendingCallResult(null)
+          }}
+        >
+          <DialogContent className="max-w-[calc(100vw-2rem)] rounded-3xl sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>ผลการโทรเป็นอย่างไร?</DialogTitle>
+              <DialogDescription>
+                เลือกสถานะหลังโทรออก เพื่อให้รายงานบันทึกการโทรและสถิติฝั่ง admin ตรงกับเหตุการณ์จริง
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-2">
+              <Button
+                className="justify-start bg-success text-success-foreground hover:bg-success/90"
+                disabled={isSavingCallResult}
+                onClick={() => void updateCallResult('connected')}
+              >
+                โทรติด
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                disabled={isSavingCallResult}
+                onClick={() => void updateCallResult('busy')}
+              >
+                สายไม่ว่าง
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                disabled={isSavingCallResult}
+                onClick={() => void updateCallResult('no-answer')}
+              >
+                ไม่รับสาย
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start"
+                disabled={isSavingCallResult}
+                onClick={() => void updateCallResult('wrong-number')}
+              >
+                หมายเลขผิด
+              </Button>
+              <Button
+                variant="ghost"
+                className="justify-start text-muted-foreground"
+                disabled={isSavingCallResult}
+                onClick={() => void updateCallResult('cancelled')}
+              >
+                ยกเลิก/ไม่ได้โทรต่อ
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     )
   }
 
