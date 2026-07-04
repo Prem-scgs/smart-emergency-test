@@ -74,14 +74,18 @@ const incidentShareAttemptBody = z.object({
 
 function rowToIncident(
   row: Record<string, unknown>,
-  options: { includeTrackingToken?: boolean } = {}
+  options: {
+    includeTrackingToken?: boolean;
+    includeInternalId?: boolean;
+    includeClientRequestId?: boolean;
+  } = {}
 ) {
   return {
-    id: row.id,
+    ...(options.includeInternalId === false ? {} : { id: row.id }),
     ...(Object.hasOwn(row, "case_number")
       ? { caseNumber: row.case_number }
       : {}),
-    ...(Object.hasOwn(row, "client_request_id")
+    ...(options.includeClientRequestId !== false && Object.hasOwn(row, "client_request_id")
       ? { clientRequestId: row.client_request_id }
       : {}),
     ...(Object.hasOwn(row, "dialed_phone")
@@ -125,6 +129,19 @@ function rowToIncident(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function omitPublicInternalIds(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(omitPublicInternalIds);
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const { id: _id, changedByAdminId: _changedByAdminId, ...rest } = value as Record<string, unknown>;
+  return rest;
 }
 
 function buildTrackingToken(input: {
@@ -680,11 +697,22 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       return buildApiErrorPayload(404, "INCIDENT_NOT_FOUND", "Incident not found");
     }
 
+    const isPublicReporterRequest = !adminScope;
+
     return {
-      incident: rowToIncident(row),
-      statusHistory: row.status_history ?? [],
-      latestLocation: row.latest_location ?? null,
-      locationHistory: row.location_history ?? [],
+      incident: rowToIncident(row, {
+        includeInternalId: !isPublicReporterRequest,
+        includeClientRequestId: !isPublicReporterRequest,
+      }),
+      statusHistory: isPublicReporterRequest
+        ? omitPublicInternalIds(row.status_history ?? [])
+        : row.status_history ?? [],
+      latestLocation: isPublicReporterRequest
+        ? omitPublicInternalIds(row.latest_location ?? null)
+        : row.latest_location ?? null,
+      locationHistory: isPublicReporterRequest
+        ? omitPublicInternalIds(row.location_history ?? [])
+        : row.location_history ?? [],
     };
   });
 
@@ -819,7 +847,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const incidentRef = paramsResult.data.id;
     const ownershipResult = await pool.query(
       `
-        SELECT id, tracking_token_hash
+        SELECT id, case_number, tracking_token_hash
         FROM incidents
         WHERE (case_number = $1 OR id::text = $1)
           AND (
@@ -847,6 +875,10 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       );
     }
     const incidentId = String(ownedIncident.id);
+    const publicIncidentRef =
+      typeof ownedIncident.case_number === "string"
+        ? ownedIncident.case_number
+        : incidentRef;
 
     reply.hijack();
     reply.raw.writeHead(200, {
@@ -890,8 +922,13 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       }
 
       try {
+        const publicPayload = {
+          ...(payload as Record<string, unknown>),
+          id: publicIncidentRef,
+          caseNumber: publicIncidentRef,
+        };
         reply.raw.write("event: incident.status_updated\n");
-        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
+        reply.raw.write(`data: ${JSON.stringify(publicPayload)}\n\n`);
       } catch {
         cleanup();
       }
@@ -1152,7 +1189,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `,
       values
     );
-    return result.rows.map(row => rowToIncident(row, { includeTrackingToken: true }));
+    return result.rows.map(row => rowToIncident(row));
   });
 
   app.get("/api/incidents/history", async (request, reply) => {
@@ -1204,7 +1241,13 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       [queryResult.data.sessionId]
     );
 
-    return result.rows.map(row => rowToIncident(row, { includeTrackingToken: true }));
+    return result.rows.map(row =>
+      rowToIncident(row, {
+        includeInternalId: false,
+        includeClientRequestId: false,
+        includeTrackingToken: true,
+      })
+    );
   });
 
   app.post("/api/incidents", async (request, reply) => {
@@ -1355,8 +1398,13 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     );
 
     const row = result.rows[0];
+    const internalIncident = rowToIncident(row);
     const incident = {
-      ...rowToIncident(row, { includeTrackingToken: true }),
+      ...rowToIncident(row, {
+        includeInternalId: false,
+        includeClientRequestId: false,
+        includeTrackingToken: true,
+      }),
       trackingToken,
     };
     const wasCreated = row?.was_created === true;
@@ -1365,7 +1413,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       await writeAuditLog(request, {
         action: "incidents.create",
         resourceType: "incident",
-        resourceId: String(incident.id),
+        resourceId: String(row.id),
         details: {
           category: incident.category,
           severity: incident.severity,
@@ -1376,7 +1424,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       });
       emitEmergencyEvent({
         type: "incident.created",
-        payload: incident,
+        payload: internalIncident,
       });
     }
 

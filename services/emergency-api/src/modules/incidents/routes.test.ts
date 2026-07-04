@@ -1001,6 +1001,7 @@ test("POST /api/incidents writes an audit log after create", async () => {
         rows: [
           {
             id: "incident-1",
+            case_number: "SE-260704-0001",
             client_request_id: "33333333-3333-4333-8333-333333333333",
             dialed_phone: "199",
             category: "fire",
@@ -1061,7 +1062,10 @@ test("POST /api/incidents writes an audit log after create", async () => {
     assert.equal(reply.statusCode, 201);
     assert.equal(calls.length, 4);
     assert.match(String(calls[3]?.[0]), /INSERT INTO audit_logs/);
-    assert.equal((result as any).id, "incident-1");
+    assert.equal((result as any).id, undefined);
+    assert.equal((result as any).clientRequestId, undefined);
+    assert.equal((result as any).caseNumber, "SE-260704-0001");
+    assert.equal(typeof (result as any).trackingToken, "string");
   } finally {
     (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
   }
@@ -1091,6 +1095,7 @@ test("GET /api/incidents/:id/tracking returns tracking data for the owning repor
     return {
       rows: [{
         id: "incident-1",
+        case_number: "SE-260704-0003",
         client_request_id: "11111111-1111-4111-8111-111111111111",
         dialed_phone: "1669",
         category: "medical",
@@ -1154,10 +1159,17 @@ test("GET /api/incidents/:id/tracking returns tracking data for the owning repor
     assert.equal(calls.length, 1);
     assert.match(String(calls[0]?.[0]), /i\.session_id = \$2/);
     assert.deepEqual(calls[0]?.[1], ["incident-1", "session-owner-1234"]);
+    assert.equal((result as any).incident.id, undefined);
+    assert.equal((result as any).incident.clientRequestId, undefined);
+    assert.equal((result as any).incident.caseNumber, "SE-260704-0003");
     assert.equal((result as any).incident.status, "acknowledged");
     assert.equal((result as any).incident.statusVersion, 1);
+    assert.equal((result as any).statusHistory[0].id, undefined);
+    assert.equal((result as any).statusHistory[0].changedByAdminId, undefined);
     assert.equal((result as any).statusHistory[0].toStatus, "acknowledged");
+    assert.equal((result as any).latestLocation.id, undefined);
     assert.equal((result as any).latestLocation.source, "initial");
+    assert.equal((result as any).locationHistory[0].id, undefined);
     assert.equal((result as any).locationHistory.length, 1);
   } finally {
     (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
@@ -1273,7 +1285,7 @@ test("POST /api/incidents persists request identity, dialed phone, and initial h
     }, reply);
 
     assert.equal(reply.statusCode, 201);
-    assert.equal((result as any).clientRequestId, "11111111-1111-4111-8111-111111111111");
+    assert.equal((result as any).clientRequestId, undefined);
     assert.equal((result as any).dialedPhone, "1669");
 
     const createSql = String(calls[2]?.[0]);
@@ -1310,6 +1322,7 @@ test("POST /api/incidents returns an existing incident without duplicate audit o
         rowCount: 1,
         rows: [{
           id: "incident-existing-1",
+          case_number: "SE-260704-0002",
           client_request_id: "22222222-2222-4222-8222-222222222222",
           dialed_phone: "191",
           category: "police",
@@ -1350,7 +1363,10 @@ test("POST /api/incidents returns an existing incident without duplicate audit o
     }, reply);
 
     assert.equal(reply.statusCode, 200);
-    assert.equal((result as any).id, "incident-existing-1");
+    assert.equal((result as any).id, undefined);
+    assert.equal((result as any).clientRequestId, undefined);
+    assert.equal((result as any).caseNumber, "SE-260704-0002");
+    assert.equal(typeof (result as any).trackingToken, "string");
     assert.equal(calls.length, 3);
     assert.equal(eventCount, 0);
   } finally {
