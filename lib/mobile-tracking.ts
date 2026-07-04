@@ -13,7 +13,8 @@ const WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
 ])
 
 export interface MobileTrackingIncident {
-  id: string
+  caseNumber: string
+  trackingToken: string
   category: string
   status: string
   statusVersion: number
@@ -42,29 +43,29 @@ export interface MobileTrackingResponse {
 
 function buildIncidentUrl(
   baseUrl: string,
-  incidentId: string,
+  caseNumber: string,
   resource: 'tracking' | 'events',
-  sessionId: string
+  trackingToken: string
 ) {
   const base = baseUrl.replace(/\/$/, '')
-  const query = new URLSearchParams({ sessionId })
-  return `${base}/api/incidents/${encodeURIComponent(incidentId)}/${resource}?${query.toString()}`
+  const query = new URLSearchParams({ token: trackingToken })
+  return `${base}/api/incidents/${encodeURIComponent(caseNumber)}/${resource}?${query.toString()}`
 }
 
 export function buildMobileTrackingUrl(
   baseUrl: string,
-  incidentId: string,
-  sessionId: string
+  caseNumber: string,
+  trackingToken: string
 ) {
-  return buildIncidentUrl(baseUrl, incidentId, 'tracking', sessionId)
+  return buildIncidentUrl(baseUrl, caseNumber, 'tracking', trackingToken)
 }
 
 export function buildMobileIncidentEventsUrl(
   baseUrl: string,
-  incidentId: string,
-  sessionId: string
+  caseNumber: string,
+  trackingToken: string
 ) {
-  return buildIncidentUrl(baseUrl, incidentId, 'events', sessionId)
+  return buildIncidentUrl(baseUrl, caseNumber, 'events', trackingToken)
 }
 
 export function isMobileIncidentWorkflowStatus(

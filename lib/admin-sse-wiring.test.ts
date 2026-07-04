@@ -58,10 +58,10 @@ test('admin alert detail action opens the existing dashboard incident detail pan
   assert.match(dashboardPage, /smart-emergency:open-incident-detail/)
   assert.match(dashboardPage, /openIncidentDetail\(incidentId\)/)
 })
-test('admin realtime alert carries incidentId for detail action', async () => {
+test('admin realtime alert carries the public case number for detail action', async () => {
   const source = await readFile(new URL('./use-sse.ts', import.meta.url), 'utf8')
 
-  assert.match(source, /const alert: Alert = \{[\s\S]*incidentId: payload\.id/)
+  assert.match(source, /const alert: Alert = \{[\s\S]*incidentId: payload\.caseNumber \?\? payload\.id/)
 })
 
 test('incident detail panel clears stale tracking while switching incidents', async () => {

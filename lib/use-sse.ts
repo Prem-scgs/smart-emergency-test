@@ -7,6 +7,7 @@ import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
 interface IncidentEventPayload {
   id: string
+  caseNumber?: string
   category: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: string
@@ -183,7 +184,7 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
     message: `${categoryText} - ${areaText}`,
     agencyId,
     category: payload.category as Notification['category'],
-    incidentId: payload.id,
+    incidentId: payload.caseNumber ?? payload.id,
     provinceCode: payload.provinceCode ?? undefined,
     districtCode: payload.districtCode ?? undefined,
     province: payload.province ?? undefined,
@@ -206,7 +207,7 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
     description: `ระดับความรุนแรง ${severityLabel(payload.severity)} สถานะ ${payload.status}`,
     agencyId,
     category: payload.category as Alert['category'],
-    incidentId: payload.id,
+    incidentId: payload.caseNumber ?? payload.id,
     timestamp,
     dismissible: true,
     actionLabel: 'ดูรายละเอียด',

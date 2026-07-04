@@ -12,7 +12,7 @@ import {
 } from './incident-location-share.ts'
 
 const incident = {
-  id: 'incident-123',
+  caseNumber: 'SE-260704-0007',
   category: 'medical',
   province: 'กรุงเทพมหานคร',
   district: 'ปทุมวัน',
@@ -27,8 +27,8 @@ test('builds share API URLs from the emergency gateway', () => {
     '/emergency-api/api/reference/share-channels',
   )
   assert.equal(
-    buildIncidentShareAttemptUrl('/emergency-api', 'incident/123'),
-    '/emergency-api/api/incidents/incident%2F123/share-attempts',
+    buildIncidentShareAttemptUrl('/emergency-api', 'SE-260704-0007'),
+    '/emergency-api/api/incidents/SE-260704-0007/share-attempts',
   )
 })
 
@@ -55,7 +55,7 @@ test('builds a copy fallback from the incident snapshot and optional phone', () 
   const withoutPhone = buildIncidentShareCopyMessage(incident)
   const withPhone = buildIncidentShareCopyMessage({ ...incident, reporterPhone: '0812345678' })
 
-  assert.match(withoutPhone, /หมายเลขเหตุ: incident-123/)
+  assert.match(withoutPhone, /หมายเลขเหตุ: SE-260704-0007/)
   assert.match(withoutPhone, /13\.747800, 100\.535100/)
   assert.doesNotMatch(withoutPhone, /เบอร์ผู้แจ้ง/)
   assert.match(withPhone, /เบอร์ผู้แจ้ง: 0812345678/)

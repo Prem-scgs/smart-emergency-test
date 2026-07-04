@@ -42,6 +42,7 @@ const envSchema = z.object({
     .trim()
     .regex(/^\d{8,15}$/, "WHATSAPP_CENTER_PHONE must contain E.164 digits without +")
     .optional(),
+  TRACKING_TOKEN_SECRET: z.string().trim().min(32).optional(),
 });
 
 export function parseConfig(
@@ -68,6 +69,8 @@ export function parseConfig(
       smsCenterPhone: parsed.SMS_CENTER_PHONE ?? null,
       whatsappCenterPhone: parsed.WHATSAPP_CENTER_PHONE ?? null,
     },
+    trackingTokenSecret:
+      parsed.TRACKING_TOKEN_SECRET ?? "smart-emergency-local-tracking-token-secret",
   };
 }
 

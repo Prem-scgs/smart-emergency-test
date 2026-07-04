@@ -41,5 +41,8 @@ test('mobile call button uses a native tel link while preserving the app call ha
   assert.match(source, /await onCall\(contact\)/)
   assert.match(source, /window\.location\.assign\(telUrl\)/)
   assert.match(mobileAppSource, /return startCallFlow\(contact, incidentCategory\)/)
+  assert.doesNotMatch(mobileAppSource, /EmergencyCallScreen/)
+  assert.doesNotMatch(mobileAppSource, /setScreen\('call'\)/)
+  assert.doesNotMatch(mobileAppSource, /\| 'call'/)
   assert.doesNotMatch(source, /<Button onClick=\{\(\) => onCall\(contact\)\}/)
 })

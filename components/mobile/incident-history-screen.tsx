@@ -26,7 +26,8 @@ import { CallStatus, EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface IncidentHistoryItem {
-  id: string
+  caseNumber: string
+  trackingToken: string
   category: EmergencyCategory
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: string
@@ -42,7 +43,7 @@ interface IncidentHistoryItem {
 
 interface IncidentHistoryScreenProps {
   onBack: () => void
-  onViewTracking?: (incidentId: string, category: EmergencyCategory) => void
+  onViewTracking?: (caseNumber: string, trackingToken: string, category: EmergencyCategory) => void
 }
 
 const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: string; label: string }> = {
@@ -184,9 +185,9 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
 
               return (
                 <Card
-                  key={log.id}
+                  key={log.caseNumber}
                   className="overflow-hidden cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => onViewTracking?.(log.id, log.category)}
+                  onClick={() => onViewTracking?.(log.caseNumber, log.trackingToken, log.category)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">

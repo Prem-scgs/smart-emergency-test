@@ -16,6 +16,7 @@ test("parseConfig returns defaults when env is empty", () => {
       smsCenterPhone: null,
       whatsappCenterPhone: null,
     },
+    trackingTokenSecret: "smart-emergency-local-tracking-token-secret",
   });
 });
 
@@ -27,6 +28,7 @@ test("parseConfig accepts valid overrides", () => {
     LINE_OA_ID: "@smartemergency",
     SMS_CENTER_PHONE: "0812345678",
     WHATSAPP_CENTER_PHONE: "66812345678",
+    TRACKING_TOKEN_SECRET: "x".repeat(32),
   });
 
   assert.deepEqual(result, {
@@ -39,6 +41,7 @@ test("parseConfig accepts valid overrides", () => {
       smsCenterPhone: "0812345678",
       whatsappCenterPhone: "66812345678",
     },
+    trackingTokenSecret: "x".repeat(32),
   });
 });
 

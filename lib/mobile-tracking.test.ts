@@ -7,28 +7,28 @@ import {
   isMobileIncidentWorkflowStatus,
 } from './mobile-tracking.ts'
 
-test('buildMobileTrackingUrl scopes tracking reads by incident and reporter session', () => {
+test('buildMobileTrackingUrl scopes tracking reads by case number and token', () => {
   assert.equal(
-    buildMobileTrackingUrl('http://localhost:4000', 'incident/123', 'session mobile 123'),
-    'http://localhost:4000/api/incidents/incident%2F123/tracking?sessionId=session+mobile+123'
+    buildMobileTrackingUrl('http://localhost:4000', 'SE-260704-0007', 'tracking token 12345678901234567890'),
+    'http://localhost:4000/api/incidents/SE-260704-0007/tracking?token=tracking+token+12345678901234567890'
   )
 })
 
-test('buildMobileIncidentEventsUrl scopes realtime events by incident and reporter session', () => {
+test('buildMobileIncidentEventsUrl scopes realtime events by case number and token', () => {
   assert.equal(
-    buildMobileIncidentEventsUrl('http://localhost:4000', 'incident/123', 'session mobile 123'),
-    'http://localhost:4000/api/incidents/incident%2F123/events?sessionId=session+mobile+123'
+    buildMobileIncidentEventsUrl('http://localhost:4000', 'SE-260704-0007', 'tracking token 12345678901234567890'),
+    'http://localhost:4000/api/incidents/SE-260704-0007/events?token=tracking+token+12345678901234567890'
   )
 })
 
 test('tracking URLs support the relative emergency API proxy base', () => {
   assert.equal(
-    buildMobileTrackingUrl('/emergency-api', 'incident/123', 'session mobile 123'),
-    '/emergency-api/api/incidents/incident%2F123/tracking?sessionId=session+mobile+123'
+    buildMobileTrackingUrl('/emergency-api', 'SE-260704-0007', 'tracking token 12345678901234567890'),
+    '/emergency-api/api/incidents/SE-260704-0007/tracking?token=tracking+token+12345678901234567890'
   )
   assert.equal(
-    buildMobileIncidentEventsUrl('/emergency-api', 'incident/123', 'session mobile 123'),
-    '/emergency-api/api/incidents/incident%2F123/events?sessionId=session+mobile+123'
+    buildMobileIncidentEventsUrl('/emergency-api', 'SE-260704-0007', 'tracking token 12345678901234567890'),
+    '/emergency-api/api/incidents/SE-260704-0007/events?token=tracking+token+12345678901234567890'
   )
 })
 
