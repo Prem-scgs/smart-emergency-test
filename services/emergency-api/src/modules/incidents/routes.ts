@@ -73,6 +73,9 @@ const incidentShareAttemptBody = z.object({
 function rowToIncident(row: Record<string, unknown>) {
   return {
     id: row.id,
+    ...(Object.hasOwn(row, "case_number")
+      ? { caseNumber: row.case_number }
+      : {}),
     ...(Object.hasOwn(row, "client_request_id")
       ? { clientRequestId: row.client_request_id }
       : {}),
@@ -301,6 +304,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -361,6 +365,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -395,6 +400,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.status,
           i.status_version,
@@ -448,6 +454,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -543,6 +550,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.client_request_id,
           i.dialed_phone,
           i.category,
@@ -665,6 +673,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           id,
+          case_number,
           category,
           province,
           district,
@@ -686,6 +695,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const incident = incidentResult.rows[0];
     const message = buildIncidentLocationShareMessage({
       id: incident.id,
+      caseNumber: incident.case_number,
       category: incident.category,
       province: incident.province,
       district: incident.district,
@@ -1033,6 +1043,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -1089,6 +1100,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       `
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.severity,
           i.status,
@@ -1202,11 +1214,49 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
     const result = await pool.query(
       `
-        WITH inserted_incident AS (
+        WITH existing_incident AS (
+          SELECT *
+          FROM incidents
+          WHERE client_request_id = $15
+          LIMIT 1
+        ),
+        next_case AS (
+          INSERT INTO incident_case_counters (category, case_date, last_sequence)
+          SELECT $1, (now() AT TIME ZONE 'Asia/Bangkok')::date, 1
+          WHERE NOT EXISTS (SELECT 1 FROM existing_incident)
+          ON CONFLICT (category, case_date)
+          DO UPDATE SET
+            last_sequence = incident_case_counters.last_sequence + 1,
+            updated_at = now()
+          RETURNING category, case_date, last_sequence AS case_sequence
+        ),
+        case_identity AS (
+          SELECT
+            category,
+            case_date,
+            case_sequence,
+            (
+              CASE category
+                WHEN 'police' THEN 'POL'
+                WHEN 'medical' THEN 'EMS'
+                WHEN 'fire' THEN 'FIR'
+                WHEN 'rescue' THEN 'RES'
+                WHEN 'flood' THEN 'FLD'
+                WHEN 'road-accident' THEN 'RTA'
+                ELSE left(regexp_replace(upper(category), '[^A-Z0-9]', '', 'g') || 'XXX', 3)
+              END
+              || '-' || to_char(case_date, 'YYYYMMDD')
+              || '-' || lpad(case_sequence::text, 4, '0')
+            ) AS case_number
+          FROM next_case
+        ),
+        inserted_incident AS (
           INSERT INTO incidents
-            (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, client_request_id, dialed_phone, status_version, location)
-          VALUES
-            ($1, $2, 'reported', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, ST_SetSRID(ST_MakePoint($6, $5), 4326))
+            (category, severity, status, description, agency_contact_id, latitude, longitude, province_code, province, district_code, district, accuracy, call_status, reporter_phone, session_id, client_request_id, dialed_phone, status_version, location, case_number, case_date, case_sequence)
+          SELECT
+            $1, $2, 'reported', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 0, ST_SetSRID(ST_MakePoint($6, $5), 4326),
+            case_number, case_date, case_sequence
+          FROM case_identity
           ON CONFLICT (client_request_id) WHERE client_request_id IS NOT NULL
           DO NOTHING
           RETURNING *
@@ -1229,10 +1279,9 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
           SELECT inserted_incident.*, true AS was_created
           FROM inserted_incident
           UNION ALL
-          SELECT incidents.*, false AS was_created
-          FROM incidents
-          WHERE incidents.client_request_id = $15
-            AND NOT EXISTS (SELECT 1 FROM inserted_incident)
+          SELECT existing_incident.*, false AS was_created
+          FROM existing_incident
+          WHERE NOT EXISTS (SELECT 1 FROM inserted_incident)
           LIMIT 1
         )
         SELECT selected_incident.*, ${markerColorSql()}
@@ -1341,6 +1390,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         )
         SELECT
           i.id,
+          i.case_number,
           i.category,
           i.severity,
           i.status,

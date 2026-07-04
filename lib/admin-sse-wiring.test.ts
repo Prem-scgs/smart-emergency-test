@@ -73,6 +73,7 @@ test('admin realtime alert carries incidentId for detail action', async () => {
   const source = await readFile(new URL('./use-sse.ts', import.meta.url), 'utf8')
 
   assert.match(source, /const alert: Alert = \{[\s\S]*incidentId: payload\.id/)
+  assert.match(source, /caseNumber: payload\.caseNumber/)
 })
 
 test('incident detail panel clears stale tracking while switching incidents', async () => {

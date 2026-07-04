@@ -26,6 +26,7 @@ import {
 import {
   buildMobileIncidentEventsUrl,
   buildMobileTrackingUrl,
+  getMobileIncidentDisplayNumber,
   isMobileIncidentWorkflowStatus,
   type MobileTrackingResponse,
 } from '@/lib/mobile-tracking'
@@ -39,6 +40,7 @@ import { IncidentLocationShareCard } from './incident-location-share-card'
 
 interface IncidentTrackingScreenProps {
   incidentId: string
+  caseNumber?: string | null
   categoryId: EmergencyCategory
   trackingStatus?: IncidentWorkflowStatus
   trackingHistory?: IncidentTrackingHistoryEntry[]
@@ -49,6 +51,7 @@ interface IncidentTrackingScreenProps {
 
 export function IncidentTrackingScreen({ 
   incidentId, 
+  caseNumber = null,
   categoryId, 
   trackingStatus = 'reported',
   trackingHistory = [],
@@ -115,6 +118,9 @@ export function IncidentTrackingScreen({
     : trackingStatus
   const currentHistory = trackingData?.statusHistory ?? trackingHistory
   const incidentDetail = trackingData?.incident ?? null
+  const incidentDisplayNumber = getMobileIncidentDisplayNumber(
+    incidentDetail ?? { id: incidentId, caseNumber }
+  )
 
   const trackingSteps = buildIncidentTrackingSteps(currentStatus, currentHistory)
   const activeStep = trackingSteps.find(step => step.isActive) ?? trackingSteps[0]
@@ -168,7 +174,7 @@ export function IncidentTrackingScreen({
             </Button>
             <div>
               <h1 className="font-semibold text-foreground">ติดตามสถานะ</h1>
-              <p className="text-xs text-muted-foreground">หมายเลขเหตุ: {incidentId}</p>
+              <p className="text-xs text-muted-foreground">หมายเลขเหตุ: {incidentDisplayNumber}</p>
             </div>
           </div>
           <Button

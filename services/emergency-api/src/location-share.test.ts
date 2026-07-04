@@ -10,6 +10,7 @@ import {
 
 const incident = {
   id: "incident-123",
+  caseNumber: "EMS-20260621-0001",
   category: "medical",
   province: "กรุงเทพมหานคร",
   district: "ปทุมวัน",
@@ -21,12 +22,24 @@ const incident = {
 test("builds one authoritative Thai location message without reporter phone by default", () => {
   const message = buildIncidentLocationShareMessage(incident);
 
-  assert.match(message, /หมายเลขเหตุ: incident-123/);
+  assert.match(message, /หมายเลขเหตุ: EMS-20260621-0001/);
+  assert.doesNotMatch(message, /incident-123/);
   assert.match(message, /ประเภทเหตุ: แพทย์/);
   assert.match(message, /พื้นที่: ปทุมวัน, กรุงเทพมหานคร/);
   assert.match(message, /พิกัด: 13\.747800, 100\.535100/);
   assert.match(message, /https:\/\/maps\.google\.com\/\?q=13\.747800,100\.535100/);
   assert.doesNotMatch(message, /เบอร์ผู้แจ้ง/);
+});
+
+test("falls back to a short internal id when no case number exists", () => {
+  const message = buildIncidentLocationShareMessage({
+    ...incident,
+    id: "deccce88-0c16-4587-ac25-9b5827337c1b",
+    caseNumber: null,
+  });
+
+  assert.match(message, /หมายเลขเหตุ: deccce88/);
+  assert.doesNotMatch(message, /deccce88-0c16-4587-ac25-9b5827337c1b/);
 });
 
 test("includes a validated reporter phone only when supplied", () => {
@@ -39,7 +52,7 @@ test("includes a validated reporter phone only when supplied", () => {
 });
 
 test("builds fixed-recipient URLs for LINE, SMS on both platforms, and WhatsApp", () => {
-  const message = "ตำแหน่งฉุกเฉิน";
+  const message = "ตำแหน่งเหตุฉุกเฉิน";
 
   assert.equal(
     buildLocationShareUrl("line", "@smartemergency", message, "desktop" as never),

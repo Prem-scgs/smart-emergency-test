@@ -14,6 +14,7 @@ const WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
 
 export interface MobileTrackingIncident {
   id: string
+  caseNumber?: string | null
   category: string
   status: string
   statusVersion: number
@@ -65,6 +66,12 @@ export function buildMobileIncidentEventsUrl(
   sessionId: string
 ) {
   return buildIncidentUrl(baseUrl, incidentId, 'events', sessionId)
+}
+
+export function getMobileIncidentDisplayNumber(
+  incident: Pick<MobileTrackingIncident, 'id'> & { caseNumber?: string | null }
+) {
+  return incident.caseNumber ?? incident.id.slice(0, 8)
 }
 
 export function isMobileIncidentWorkflowStatus(

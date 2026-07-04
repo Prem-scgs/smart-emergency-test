@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 
 export interface IncidentMapPoint {
   id: string
+  caseNumber?: string | null
   category: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: string
@@ -81,6 +82,10 @@ function MapViewport({
   }, [isLoaded, map, selectedAreaBounds, selectedIncident, userLocation])
 
   return null
+}
+
+function incidentDisplayNumber(incident: IncidentMapPoint) {
+  return incident.caseNumber ?? incident.id.slice(0, 8)
 }
 
 export function IncidentMap({
@@ -166,6 +171,9 @@ export function IncidentMap({
           <MarkerPopup>
             <div className="flex min-w-44 flex-col gap-1 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
               <p className="font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                {language === 'en' ? 'Case' : 'หมายเลขเหตุ'}: {incidentDisplayNumber(incident)}
+              </p>
               <p className="text-sm text-muted-foreground">
                 {t('incidentMapStatusLabel')}: {getStatusLabel(incident.status)}
               </p>

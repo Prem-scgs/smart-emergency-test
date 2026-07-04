@@ -22,11 +22,13 @@ import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-l
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getMobileIncidentDisplayNumber } from '@/lib/mobile-tracking'
 import { CallStatus, EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface IncidentHistoryItem {
   id: string
+  caseNumber?: string | null
   category: EmergencyCategory
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: string
@@ -202,6 +204,9 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
                         </div>
 
                         <h3 className="font-medium text-foreground">{log.agencyName ?? 'Emergency desk'}</h3>
+                        <p className="mt-1 text-xs font-medium text-muted-foreground">
+                          Case: {getMobileIncidentDisplayNumber(log)}
+                        </p>
 
                         <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">

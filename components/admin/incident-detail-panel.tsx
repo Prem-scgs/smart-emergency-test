@@ -60,6 +60,7 @@ const WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
 
 interface TrackingIncident {
   id: string
+  caseNumber?: string | null
   category: string
   status: string
   statusVersion: number
@@ -104,6 +105,10 @@ function isWorkflowStatus(status: string): status is IncidentWorkflowStatus {
 function workflowStatusLabel(status: IncidentWorkflowStatus, language: AdminLanguage) {
   const meta = getIncidentTrackingStatusMeta(status)
   return language === 'en' ? meta.label : meta.labelTh
+}
+
+function incidentDisplayNumber(incident: TrackingIncident) {
+  return incident.caseNumber ?? incident.id.slice(0, 8)
 }
 
 export function IncidentDetailPanel({
@@ -310,6 +315,9 @@ export function IncidentDetailPanel({
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {tracking.incident.agencyName ?? t('incidentNoAgency')}
+                    </p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {language === 'en' ? 'Case' : 'หมายเลขเหตุ'}: {incidentDisplayNumber(tracking.incident)}
                     </p>
                   </div>
                   <Badge variant="secondary">

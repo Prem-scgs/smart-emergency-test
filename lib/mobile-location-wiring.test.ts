@@ -49,3 +49,14 @@ test('mobile call button uses a native tel link while preserving the app call ha
   assert.doesNotMatch(mobileAppSource, /\| 'call'/)
   assert.doesNotMatch(source, /<Button onClick=\{\(\) => onCall\(contact\)\}/)
 })
+
+test('mobile tracking displays readable case numbers instead of full UUIDs', async () => {
+  const trackingSource = await readFile(
+    new URL('../components/mobile/incident-tracking-screen.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(trackingSource, /getMobileIncidentDisplayNumber/)
+  assert.match(trackingSource, /caseNumber/)
+  assert.doesNotMatch(trackingSource, /หมายเลขเหตุ: \{incidentId\}/)
+})

@@ -9,6 +9,7 @@ export interface ShareChannelAvailability {
 
 export interface IncidentShareSnapshot {
   id: string
+  caseNumber?: string | null
   category: string
   province?: string | null
   district?: string | null
@@ -66,9 +67,10 @@ export function buildIncidentShareCopyMessage(
     timeZone: 'Asia/Bangkok',
   }).format(new Date(incident.createdAt))
   const mapsUrl = buildIncidentShareMapsUrl(incident.latitude, incident.longitude)
+  const displayCaseNumber = incident.caseNumber ?? incident.id.slice(0, 8)
 
   return [
-    `หมายเลขเหตุ: ${incident.id}`,
+    `หมายเลขเหตุ: ${displayCaseNumber}`,
     `ประเภทเหตุ: ${CATEGORY_LABELS[incident.category] ?? incident.category}`,
     `เวลาแจ้ง: ${occurredAt}`,
     area ? `พื้นที่: ${area}` : null,
@@ -86,5 +88,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   medical: 'แพทย์',
   police: 'ตำรวจ',
   rescue: 'กู้ภัย',
+  'road-accident': 'อุบัติเหตุทางถนน',
   road_accident: 'อุบัติเหตุทางถนน',
 }

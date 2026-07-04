@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 
 export interface IncidentQueueItem {
   id: string
+  caseNumber?: string | null
   category: string
   status: string
   severity: 'low' | 'medium' | 'high' | 'critical'
@@ -55,6 +56,10 @@ function locationLabel(incident: IncidentQueueItem, fallback: string) {
   )
 }
 
+function incidentDisplayNumber(incident: IncidentQueueItem) {
+  return incident.caseNumber ?? incident.id.slice(0, 8)
+}
+
 export function IncidentQueue({
   incidents,
   selectedIncidentId,
@@ -98,6 +103,9 @@ export function IncidentQueue({
                   <div className="flex w-full items-start justify-between gap-3">
                     <p className="text-sm font-medium">
                       {categoryLabels[incident.category] ?? incident.category}
+                    </p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {incidentDisplayNumber(incident)}
                     </p>
                     <Badge variant={incident.status === 'closed' ? 'outline' : 'secondary'}>
                       {statusLabel(incident.status, language, t)}

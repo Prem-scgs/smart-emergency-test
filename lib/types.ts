@@ -218,6 +218,7 @@ export interface Notification {
   agencyId?: string
   category?: EmergencyCategory
   incidentId?: string
+  caseNumber?: string | null
   provinceCode?: string
   districtCode?: string
   province?: string
@@ -236,6 +237,7 @@ export interface Alert {
   agencyId?: string
   category?: EmergencyCategory
   incidentId?: string
+  caseNumber?: string | null
   timestamp: Date
   dismissible: boolean
   actionLabel?: string

@@ -48,6 +48,7 @@ interface MobileLocation {
 
 interface LocalTrackingSnapshot {
   incidentId: string
+  caseNumber?: string | null
   status: IncidentWorkflowStatus
   updatedAt: string
   history: IncidentTrackingHistoryEntry[]
@@ -292,7 +293,7 @@ export function MobileApp() {
         throw new Error('Failed to start incident')
       }
 
-      return (await response.json()) as { id: string }
+      return (await response.json()) as { id: string; caseNumber?: string | null }
     },
     [currentLocation, locationStatus]
   )
@@ -311,6 +312,7 @@ export function MobileApp() {
         const incident = await createIncidentForCall(contact, incidentCategory, clientRequestId)
         setLocalTrackingSnapshot({
           incidentId: incident.id,
+          caseNumber: incident.caseNumber ?? null,
           status: 'reported',
           updatedAt: new Date().toISOString(),
           history: [
@@ -452,6 +454,7 @@ export function MobileApp() {
       <>
         <IncidentTrackingScreen
         incidentId={trackingIncidentId}
+        caseNumber={activeTracking?.caseNumber}
         categoryId={selectedCategory}
         trackingStatus={activeTracking?.status}
         trackingHistory={activeTracking?.history}

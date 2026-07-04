@@ -8,6 +8,7 @@ import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
 interface IncidentEventPayload {
   id: string
+  caseNumber?: string | null
   category: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   status: string
@@ -225,6 +226,7 @@ export function buildRealtimeIncidentArtifacts(
   const severityText = severityLabel(payload.severity, language)
   const statusText = statusLabel(payload.status, language)
   const alertSeverity = alertSeverityForIncident(payload.severity)
+  const caseNumber = payload.caseNumber ?? payload.id.slice(0, 8)
   const copy = {
     notificationTitle: language === 'en' ? 'New incident received' : 'มีเหตุใหม่เข้าระบบ',
     criticalTitle: language === 'en' ? 'New critical incident' : 'เหตุวิกฤตใหม่',
@@ -244,6 +246,7 @@ export function buildRealtimeIncidentArtifacts(
     agencyId,
     category: payload.category as Notification['category'],
     incidentId: payload.id,
+    caseNumber: payload.caseNumber,
     provinceCode: payload.provinceCode ?? undefined,
     districtCode: payload.districtCode ?? undefined,
     province: payload.province ?? undefined,
@@ -263,10 +266,11 @@ export function buildRealtimeIncidentArtifacts(
           ? copy.warningTitle
           : copy.infoTitle,
     message: `${categoryText} ${copy.inArea} ${areaText}`,
-    description: `${copy.severityLabel} ${severityText} ${copy.statusLabel} ${statusText}`,
+    description: `${language === 'en' ? 'Case' : 'หมายเลขเหตุ'} ${caseNumber} ${copy.severityLabel} ${severityText} ${copy.statusLabel} ${statusText}`,
     agencyId,
     category: payload.category as Alert['category'],
     incidentId: payload.id,
+    caseNumber: payload.caseNumber,
     timestamp,
     dismissible: true,
     actionLabel: copy.viewDetails,

@@ -9,6 +9,7 @@ export type ShareChannelRecipients = {
 
 type IncidentLocationShareInput = {
   id: string;
+  caseNumber?: string | null;
   category: string;
   province?: string | null;
   district?: string | null;
@@ -43,9 +44,10 @@ function formatIncidentCreatedAt(value: string | Date) {
 
 export function buildIncidentLocationShareMessage(input: IncidentLocationShareInput) {
   const area = [input.district, input.province].filter(Boolean).join(", ");
+  const displayCaseNumber = input.caseNumber ?? input.id.slice(0, 8);
   const lines = [
     "ตำแหน่งเหตุฉุกเฉิน",
-    `หมายเลขเหตุ: ${input.id}`,
+    `หมายเลขเหตุ: ${displayCaseNumber}`,
     `ประเภทเหตุ: ${categoryLabels[input.category] ?? input.category}`,
     `เวลาแจ้ง: ${formatIncidentCreatedAt(input.createdAt)}`,
     area ? `พื้นที่: ${area}` : null,

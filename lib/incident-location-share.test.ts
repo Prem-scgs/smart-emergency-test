@@ -13,6 +13,7 @@ import {
 
 const incident = {
   id: 'incident-123',
+  caseNumber: 'EMS-20260621-0001',
   category: 'medical',
   province: 'กรุงเทพมหานคร',
   district: 'ปทุมวัน',
@@ -55,7 +56,8 @@ test('builds a copy fallback from the incident snapshot and optional phone', () 
   const withoutPhone = buildIncidentShareCopyMessage(incident)
   const withPhone = buildIncidentShareCopyMessage({ ...incident, reporterPhone: '0812345678' })
 
-  assert.match(withoutPhone, /หมายเลขเหตุ: incident-123/)
+  assert.match(withoutPhone, /หมายเลขเหตุ: EMS-20260621-0001/)
+  assert.doesNotMatch(withoutPhone, /incident-123/)
   assert.match(withoutPhone, /13\.747800, 100\.535100/)
   assert.doesNotMatch(withoutPhone, /เบอร์ผู้แจ้ง/)
   assert.match(withPhone, /เบอร์ผู้แจ้ง: 0812345678/)

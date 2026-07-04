@@ -1091,6 +1091,9 @@ test("GET /api/incidents/:id/tracking returns tracking data for the owning repor
     return {
       rows: [{
         id: "incident-1",
+        case_number: "EMS-20260618-0001",
+        case_date: "2026-06-18",
+        case_sequence: 1,
         client_request_id: "11111111-1111-4111-8111-111111111111",
         dialed_phone: "1669",
         category: "medical",
@@ -1155,6 +1158,7 @@ test("GET /api/incidents/:id/tracking returns tracking data for the owning repor
     assert.match(String(calls[0]?.[0]), /i\.session_id = \$2/);
     assert.deepEqual(calls[0]?.[1], ["incident-1", "session-owner-1234"]);
     assert.equal((result as any).incident.status, "acknowledged");
+    assert.equal((result as any).incident.caseNumber, "EMS-20260618-0001");
     assert.equal((result as any).incident.statusVersion, 1);
     assert.equal((result as any).statusHistory[0].toStatus, "acknowledged");
     assert.equal((result as any).latestLocation.source, "initial");
@@ -1289,6 +1293,79 @@ test("POST /api/incidents persists request identity, dialed phone, and initial h
   }
 });
 
+test("POST /api/incidents assigns a readable category case number atomically", async () => {
+  const app = createFakeApp();
+  const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rowCount?: number; rows: Record<string, unknown>[] }>;
+  const originalQuery = queryMock.bind(pool);
+
+  await registerIncidentRoutes(app as any);
+
+  const handler = app.postHandlers.get("/api/incidents");
+  assert.ok(handler);
+
+  const calls: unknown[][] = [];
+  (pool.query as unknown as typeof queryMock) = (async (...args: unknown[]) => {
+    calls.push(args);
+
+    if (calls.length === 1) return { rowCount: 1, rows: [{ "?column?": 1 }] };
+    if (calls.length === 2) return { rowCount: 0, rows: [] };
+    if (calls.length === 3) {
+      return {
+        rowCount: 1,
+        rows: [{
+          id: "incident-case-1",
+          case_number: "EMS-20260704-0001",
+          case_date: "2026-07-04",
+          case_sequence: 1,
+          client_request_id: "33333333-3333-4333-8333-333333333333",
+          dialed_phone: "1669",
+          category: "medical",
+          severity: "high",
+          status: "reported",
+          status_version: 0,
+          latitude: 16.8369,
+          longitude: 100.2365,
+          was_created: true,
+        }],
+      };
+    }
+
+    return { rowCount: 1, rows: [] };
+  }) as typeof queryMock;
+
+  try {
+    const reply = createReplyDouble();
+    const result = await handler?.({
+      id: "req-case-create",
+      ip: "127.0.0.31",
+      log: { error() {} },
+      body: {
+        clientRequestId: "33333333-3333-4333-8333-333333333333",
+        dialedPhone: "1669",
+        category: "medical",
+        severity: "high",
+        latitude: 16.8369,
+        longitude: 100.2365,
+        accuracy: 12,
+        sessionId: "session-case-1234",
+      },
+    }, reply);
+
+    assert.equal(reply.statusCode, 201);
+    assert.equal((result as any).id, "incident-case-1");
+    assert.equal((result as any).caseNumber, "EMS-20260704-0001");
+
+    const createSql = String(calls[2]?.[0]);
+    assert.match(createSql, /incident_case_counters/);
+    assert.match(createSql, /case_number/);
+    assert.match(createSql, /case_date/);
+    assert.match(createSql, /case_sequence/);
+    assert.match(createSql, /EMS/);
+  } finally {
+    (pool.query as unknown as typeof queryMock) = originalQuery as typeof queryMock;
+  }
+});
+
 test("POST /api/incidents returns an existing incident without duplicate audit or SSE", async () => {
   const app = createFakeApp();
   const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rowCount?: number; rows: Record<string, unknown>[] }>;
@@ -1310,6 +1387,9 @@ test("POST /api/incidents returns an existing incident without duplicate audit o
         rowCount: 1,
         rows: [{
           id: "incident-existing-1",
+          case_number: "POL-20260704-0001",
+          case_date: "2026-07-04",
+          case_sequence: 1,
           client_request_id: "22222222-2222-4222-8222-222222222222",
           dialed_phone: "191",
           category: "police",
@@ -1351,6 +1431,7 @@ test("POST /api/incidents returns an existing incident without duplicate audit o
 
     assert.equal(reply.statusCode, 200);
     assert.equal((result as any).id, "incident-existing-1");
+    assert.equal((result as any).caseNumber, "POL-20260704-0001");
     assert.equal(calls.length, 3);
     assert.equal(eventCount, 0);
   } finally {
