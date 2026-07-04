@@ -5,6 +5,7 @@ import { Notification, Alert } from '@/lib/types'
 import { canUserSeeAlert, canUserSeeNotification } from './notification-visibility'
 import { useSse } from '@/lib/use-sse'
 import { useAuth } from '@/lib/auth-context'
+import { useAdminI18n } from '@/lib/admin-i18n'
 
 interface NotificationContextType {
   notifications: Notification[]
@@ -23,6 +24,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth()
+  const { language } = useAdminI18n()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
 
@@ -69,6 +71,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     onAlert: addAlert,
     enabled: !isLoading && isAuthenticated && !!user,
     user,
+    language,
   })
 
   const value: NotificationContextType = {

@@ -69,12 +69,6 @@ interface DashboardContact {
 }
 
 
-interface DashboardSseDebugDetail {
-  status?: 'connecting' | 'connected' | 'disconnected'
-  eventType?: string
-  timestamp?: string
-}
-
 interface MasterLocationOption {
   key: string
   areaType: 'province' | 'district'
@@ -171,15 +165,6 @@ function getPolygonBounds(polygon: Polygon | MultiPolygon | null): MapBounds | n
   ]
 }
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString('th-TH', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 function percent(part: number, total: number) {
   if (total === 0) return 0
   return Math.round((part / total) * 100)
@@ -263,9 +248,6 @@ export default function DashboardPage() {
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sseStatus, setSseStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
-  const [sseEventCount, setSseEventCount] = useState(0)
-  const [lastSseAt, setLastSseAt] = useState<string | null>(null)
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null)
   const [isIncidentDetailOpen, setIsIncidentDetailOpen] = useState(false)
 
@@ -322,34 +304,6 @@ export default function DashboardPage() {
     }
   }, [loadDashboardData])
 
-
-  useEffect(() => {
-    function handleSseStatus(event: Event) {
-      const detail = (event as CustomEvent<DashboardSseDebugDetail>).detail
-      if (!detail?.status) return
-
-      setSseStatus(detail.status)
-      if (detail.timestamp) {
-        setLastSseAt(detail.timestamp)
-      }
-    }
-
-    function handleSseEvent(event: Event) {
-      const detail = (event as CustomEvent<DashboardSseDebugDetail>).detail
-      setSseEventCount(count => count + 1)
-      if (detail?.timestamp) {
-        setLastSseAt(detail.timestamp)
-      }
-    }
-
-    window.addEventListener('smart-emergency:sse-status', handleSseStatus)
-    window.addEventListener('smart-emergency:sse-event', handleSseEvent)
-
-    return () => {
-      window.removeEventListener('smart-emergency:sse-status', handleSseStatus)
-      window.removeEventListener('smart-emergency:sse-event', handleSseEvent)
-    }
-  }, [])
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -528,19 +482,6 @@ export default function DashboardPage() {
   const roleName = isSuperAdmin ? t('roleSuperAdmin') : user?.role === 'agency_admin' ? t('roleAgencyAdmin') : user?.role ?? 'agency'
   const roleLabel = isSuperAdmin ? t('dashboardAllAgenciesScope') : agencyDisplayName
 
-  const sseStatusLabel =
-    sseStatus === 'connected'
-      ? 'connected'
-      : sseStatus === 'disconnected'
-        ? 'disconnected'
-        : 'connecting'
-  const sseStatusTone =
-    sseStatus === 'connected'
-      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-      : sseStatus === 'disconnected'
-        ? 'bg-red-500/10 text-red-300 border-red-500/30'
-        : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-
   const kpis = [
     {
       title: t('dashboardKpiTotalIncidents'),
@@ -665,29 +606,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-
-      <Card className="border-dashed border-primary/30 bg-background/80">
-        <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-medium">{t('dashboardRealtimeDebug')}</p>
-            <p className="text-xs text-muted-foreground">
-              {t('dashboardRealtimeDebugDescription')}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <Badge variant="outline" className={cn('font-mono', sseStatusTone)}>
-              SSE: {sseStatusLabel}
-            </Badge>
-            <Badge variant="outline" className="font-mono">
-              events: {sseEventCount}
-            </Badge>
-            <Badge variant="outline" className="font-mono">
-              last: {lastSseAt ? formatDateTime(lastSseAt) : '-'}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

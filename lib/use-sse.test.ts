@@ -10,11 +10,21 @@ test("useSse keeps the realtime alert and notification contract", async () => {
   const source = await readUseSseSource();
 
   assert.match(source, /export function buildRealtimeIncidentArtifacts/);
-  assert.match(source, /title:\s*'มีเหตุใหม่เข้าระบบ'/);
-  assert.match(source, /'มีเหตุเร่งด่วนใหม่'/);
-  assert.match(source, /actionLabel:\s*'ดูรายละเอียด'/);
+  assert.match(source, /language: AdminLanguage = 'th'/);
+  assert.match(source, /notificationTitle: language === 'en' \? 'New incident received' : 'มีเหตุใหม่เข้าระบบ'/);
+  assert.match(source, /actionLabel:\s*copy\.viewDetails/);
   assert.match(source, /actionUrl:\s*'\/admin\/dashboard'/);
   assert.match(source, /new CustomEvent\('smart-emergency:incident-created'/);
+});
+
+test("useSse localizes realtime alert copy and never renders raw workflow status", async () => {
+  const source = await readUseSseSource();
+
+  assert.match(source, /reported: 'แจ้งเหตุแล้ว'/);
+  assert.match(source, /reported: 'Reported'/);
+  assert.match(source, /const statusText = statusLabel\(payload\.status, language\)/);
+  assert.match(source, /description: `\$\{copy\.severityLabel\} \$\{severityText\} \$\{copy\.statusLabel\} \$\{statusText\}`/);
+  assert.doesNotMatch(source, /description: `[\s\S]*\$\{payload\.status\}/);
 });
 
 test("useSse validates and dispatches status update events", async () => {

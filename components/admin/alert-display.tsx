@@ -23,6 +23,7 @@ import {
   type AdminAlertPreferences,
   type AlertTonePreset,
 } from '@/lib/admin-alert-preferences'
+import { useAdminI18n } from '@/lib/admin-i18n'
 import { useNotifications } from '@/lib/notification-context'
 import { cn } from '@/lib/utils'
 
@@ -136,6 +137,7 @@ function getSeverityConfig(severity: string) {
 
 export function AlertDisplay() {
   const { alerts, clearAlert } = useNotifications()
+  const { t } = useAdminI18n()
   const [activeAlertIndex, setActiveAlertIndex] = useState(0)
   const [preferences, setPreferences] = useState<AdminAlertPreferences>(
     DEFAULT_ADMIN_ALERT_PREFERENCES
@@ -197,7 +199,7 @@ export function AlertDisplay() {
 
           <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
             <AlertDialogTitle>{currentAlert.title}</AlertDialogTitle>
-            <Badge variant={config.badgeVariant}>เหตุใหม่</Badge>
+            <Badge variant={config.badgeVariant}>{t('alertNewIncidentBadge')}</Badge>
           </div>
 
           <AlertDialogDescription className="text-sm leading-6">
@@ -240,13 +242,13 @@ export function AlertDisplay() {
                 </span>
               </>
             ) : (
-              <span className="text-xs text-muted-foreground">แจ้งเตือนล่าสุด</span>
+              <span className="text-xs text-muted-foreground">{t('alertLatest')}</span>
             )}
           </div>
 
           <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
             <AlertDialogCancel onClick={() => clearAlert(currentAlert.id)}>
-              ปิด
+              {t('alertClose')}
             </AlertDialogCancel>
             {currentAlert.actionLabel && (
               <AlertDialogAction

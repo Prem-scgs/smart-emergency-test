@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { buildAdminApiHeaders, buildAdminEventsUrl } from './admin-api'
+import type { AdminLanguage } from './admin-i18n'
 import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from './emergency-api-url'
 import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
@@ -46,6 +47,7 @@ interface UseSseOptions {
   onEvent?: (event: SseEvent) => void
   enabled?: boolean
   user?: AdminUser | null
+  language?: AdminLanguage
 }
 
 type SseDebugStatus = 'connecting' | 'connected' | 'disconnected'
@@ -78,34 +80,77 @@ function emitSseDebugEvent(eventType: string) {
   )
 }
 
-function categoryLabel(category: string) {
-  const labels: Record<string, string> = {
-    police: 'ตำรวจ',
-    medical: 'แพทย์',
-    fire: 'ดับเพลิง',
-    rescue: 'กู้ภัย',
-    flood: 'น้ำท่วม',
-    'road-accident': 'อุบัติเหตุทางถนน',
+function categoryLabel(category: string, language: AdminLanguage) {
+  const labels: Record<AdminLanguage, Record<string, string>> = {
+    th: {
+      police: 'ตำรวจ',
+      medical: 'แพทย์',
+      fire: 'ดับเพลิง',
+      rescue: 'กู้ภัย',
+      flood: 'น้ำท่วม',
+      'road-accident': 'อุบัติเหตุทางถนน',
+    },
+    en: {
+      police: 'Police',
+      medical: 'Medical',
+      fire: 'Fire',
+      rescue: 'Rescue',
+      flood: 'Flood',
+      'road-accident': 'Road accident',
+    },
   }
 
-  return labels[category] ?? category
+  return labels[language][category] ?? category
 }
 
-function severityLabel(severity: string) {
-  const labels: Record<string, string> = {
-    critical: 'วิกฤต',
-    high: 'สูง',
-    medium: 'ปานกลาง',
-    low: 'ต่ำ',
+function severityLabel(severity: string, language: AdminLanguage) {
+  const labels: Record<AdminLanguage, Record<string, string>> = {
+    th: {
+      critical: 'วิกฤต',
+      high: 'สูง',
+      medium: 'ปานกลาง',
+      low: 'ต่ำ',
+    },
+    en: {
+      critical: 'Critical',
+      high: 'High',
+      medium: 'Medium',
+      low: 'Low',
+    },
   }
 
-  return labels[severity] ?? severity
+  return labels[language][severity] ?? severity
 }
 
-function buildAreaText(payload: IncidentEventPayload) {
+function statusLabel(status: string, language: AdminLanguage) {
+  const labels: Record<AdminLanguage, Record<string, string>> = {
+    th: {
+      open: 'เปิดอยู่',
+      reported: 'แจ้งเหตุแล้ว',
+      acknowledged: 'รับเรื่องแล้ว',
+      coordinating: 'กำลังประสานงาน',
+      dispatched: 'ส่งเจ้าหน้าที่แล้ว',
+      on_scene: 'ถึงที่เกิดเหตุ',
+      closed: 'ปิดเรื่องแล้ว',
+    },
+    en: {
+      open: 'Open',
+      reported: 'Reported',
+      acknowledged: 'Acknowledged',
+      coordinating: 'Coordinating',
+      dispatched: 'Dispatched',
+      on_scene: 'On scene',
+      closed: 'Closed',
+    },
+  }
+
+  return labels[language][status] ?? status
+}
+
+function buildAreaText(payload: IncidentEventPayload, language: AdminLanguage) {
   if (payload.areaName) return payload.areaName
   if (payload.district && payload.province) return `${payload.district} ${payload.province}`
-  return payload.province ?? 'ไม่ระบุพื้นที่'
+  return payload.province ?? (language === 'en' ? 'Area not specified' : 'ไม่ระบุพื้นที่')
 }
 
 function alertSeverityForIncident(severity: IncidentEventPayload['severity']): Alert['severity'] {
@@ -166,20 +211,35 @@ export function parseIncidentStatusUpdatedPayload(data: string): IncidentStatusU
   return payload as IncidentStatusUpdatedPayload
 }
 
-export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
+export function buildRealtimeIncidentArtifacts(
+  payload: IncidentEventPayload,
+  language: AdminLanguage = 'th'
+): {
   notification: Notification
   alert: Alert
 } {
   const timestamp = new Date(payload.createdAt)
   const agencyId = payload.category
-  const areaText = buildAreaText(payload)
-  const categoryText = categoryLabel(payload.category)
+  const areaText = buildAreaText(payload, language)
+  const categoryText = categoryLabel(payload.category, language)
+  const severityText = severityLabel(payload.severity, language)
+  const statusText = statusLabel(payload.status, language)
   const alertSeverity = alertSeverityForIncident(payload.severity)
+  const copy = {
+    notificationTitle: language === 'en' ? 'New incident received' : 'มีเหตุใหม่เข้าระบบ',
+    criticalTitle: language === 'en' ? 'New critical incident' : 'เหตุวิกฤตใหม่',
+    warningTitle: language === 'en' ? 'New urgent incident' : 'มีเหตุเร่งด่วนใหม่',
+    infoTitle: language === 'en' ? 'New incident reported' : 'มีเหตุแจ้งเข้าใหม่',
+    inArea: language === 'en' ? 'in' : 'ในพื้นที่',
+    severityLabel: language === 'en' ? 'Severity' : 'ระดับความรุนแรง',
+    statusLabel: language === 'en' ? 'Status' : 'สถานะ',
+    viewDetails: language === 'en' ? 'View details' : 'ดูรายละเอียด',
+  }
 
   const notification: Notification = {
     id: `incident-${payload.id}`,
     type: 'new-incident',
-    title: 'มีเหตุใหม่เข้าระบบ',
+    title: copy.notificationTitle,
     message: `${categoryText} - ${areaText}`,
     agencyId,
     category: payload.category as Notification['category'],
@@ -198,18 +258,18 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
     severity: alertSeverity,
     title:
       alertSeverity === 'critical'
-        ? 'เหตุวิกฤตใหม่'
+        ? copy.criticalTitle
         : alertSeverity === 'warning'
-          ? 'มีเหตุเร่งด่วนใหม่'
-          : 'มีเหตุแจ้งเข้าใหม่',
-    message: `${categoryText} ในพื้นที่ ${areaText}`,
-    description: `ระดับความรุนแรง ${severityLabel(payload.severity)} สถานะ ${payload.status}`,
+          ? copy.warningTitle
+          : copy.infoTitle,
+    message: `${categoryText} ${copy.inArea} ${areaText}`,
+    description: `${copy.severityLabel} ${severityText} ${copy.statusLabel} ${statusText}`,
     agencyId,
     category: payload.category as Alert['category'],
     incidentId: payload.id,
     timestamp,
     dismissible: true,
-    actionLabel: 'ดูรายละเอียด',
+    actionLabel: copy.viewDetails,
     actionUrl: '/admin/dashboard',
   }
 
@@ -217,7 +277,7 @@ export function buildRealtimeIncidentArtifacts(payload: IncidentEventPayload): {
 }
 
 export function useSse(options: UseSseOptions = {}) {
-  const { onNotification, onAlert, onEvent, enabled = true, user = null } = options
+  const { onNotification, onAlert, onEvent, enabled = true, user = null, language = 'th' } = options
   const eventSourceRef = useRef<EventSource | null>(null)
   const connectionStateRef = useRef<SseDebugStatus | null>(null)
   const seenIncidentIdsRef = useRef<Set<string>>(new Set())
@@ -258,7 +318,7 @@ export function useSse(options: UseSseOptions = {}) {
         emitSseDebugEvent('incident.created.poll')
       }
 
-      const { notification, alert } = buildRealtimeIncidentArtifacts(payload)
+      const { notification, alert } = buildRealtimeIncidentArtifacts(payload, language)
 
       onNotification?.(notification)
       onAlert?.(alert)
@@ -409,7 +469,7 @@ export function useSse(options: UseSseOptions = {}) {
         eventSourceRef.current = null
       }
     }
-  }, [enabled, onAlert, onEvent, onNotification, user?.role, user?.agency?.category])
+  }, [enabled, language, onAlert, onEvent, onNotification, user?.role, user?.agency?.category])
 
   return {
     isConnected: eventSourceRef.current?.readyState === 1,

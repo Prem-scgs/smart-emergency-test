@@ -14,8 +14,19 @@ test('admin mounts the canonical SSE hook only in NotificationProvider', async (
 
   assert.match(notificationContext, /import \{ useSse \} from ['"]@\/lib\/use-sse['"]/)
   assert.match(notificationContext, /useSse\(\{[\s\S]*onNotification: addNotification,[\s\S]*onAlert: addAlert,/)
+  assert.match(notificationContext, /const \{ language \} = useAdminI18n\(\)/)
+  assert.match(notificationContext, /language,/)
   assert.doesNotMatch(notificationContext, /WebSocket/)
   assert.doesNotMatch(adminLayout, /useSse/)
+})
+
+test('admin realtime alert shell uses admin i18n labels', async () => {
+  const alertDisplay = await readFile(new URL('../components/admin/alert-display.tsx', import.meta.url), 'utf8')
+
+  assert.match(alertDisplay, /const \{ t \} = useAdminI18n\(\)/)
+  assert.match(alertDisplay, /t\('alertNewIncidentBadge'\)/)
+  assert.match(alertDisplay, /t\('alertLatest'\)/)
+  assert.match(alertDisplay, /t\('alertClose'\)/)
 })
 
 test('realtime event type uses SSE terminology without a WebSocket alias', async () => {
