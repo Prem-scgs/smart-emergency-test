@@ -18,7 +18,6 @@ import { Bar, BarChart, Line, LineChart, XAxis, YAxis } from 'recharts'
 
 import type { IncidentMapPoint } from '@/components/admin/incident-map'
 import { IncidentDetailPanel } from '@/components/admin/incident-detail-panel'
-import { IncidentQueue } from '@/components/admin/incident-queue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,6 +46,7 @@ import {
   useSelectedDashboardAreaBounds,
 } from '../model/hooks'
 import { buildDashboardMapViewModel } from '../model/view-model'
+import { IncidentQueue } from './incident-queue'
 
 const IncidentMap = dynamic(
   () => import('@/components/admin/incident-map').then(mod => mod.IncidentMap),
