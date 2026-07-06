@@ -36,7 +36,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAdminApiHeaders, getBackendAdminScope } from '@/lib/admin-api'
+import { buildAdminApiHeaders, buildAdminApiUrl, getBackendAdminScope } from '@/lib/admin-api'
 import { getAdminStatusChoices, requiresStatusReason } from '@/lib/admin-status-controls'
 import { useAdminI18n, type AdminLanguage } from '@/lib/admin-i18n'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
@@ -140,9 +140,12 @@ export function IncidentDetailPanel({
     try {
       setIsLoading(true)
       setError(null)
-      const response = await fetch(`${API_BASE_URL}/api/incidents/${requestedIncidentId}/tracking`, {
-        headers: buildAdminApiHeaders(user),
-      })
+      const response = await fetch(
+        buildAdminApiUrl(API_BASE_URL, `/api/incidents/${requestedIncidentId}/tracking`, user),
+        {
+          headers: buildAdminApiHeaders(user),
+        }
+      )
 
       if (!response.ok) {
         throw new Error(t('incidentDetailLoadError'))

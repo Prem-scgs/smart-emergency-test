@@ -1,7 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildAdminApiHeaders, buildAdminEventsUrl, getBackendAdminScope } from '../shared/api/admin-api.ts'
+import {
+  buildAdminApiHeaders,
+  buildAdminApiUrl,
+  buildAdminEventsUrl,
+  getBackendAdminScope,
+} from '../shared/api/admin-api.ts'
 
 test('getBackendAdminScope maps super admin role to backend format', () => {
   const scope = getBackendAdminScope({
@@ -114,6 +119,20 @@ test('buildAdminApiHeaders returns backend scope headers', () => {
     'x-admin-role': 'agency_admin',
     'x-admin-category': 'medical',
   })
+})
+
+test('buildAdminApiUrl appends viewer scope query params for Vercel rewrite requests', () => {
+  const url = buildAdminApiUrl('/emergency-api', '/api/incidents/incident-1/tracking', {
+    id: 'user-viewer',
+    email: 'viewer@example.com',
+    name: 'Viewer',
+    role: 'viewer',
+    agencyId: 'agency-police',
+    permissions: [],
+    lastLogin: new Date(),
+  })
+
+  assert.equal(url, '/emergency-api/api/incidents/incident-1/tracking?role=viewer&category=police')
 })
 
 test('buildAdminEventsUrl appends scope as query params for event source', () => {

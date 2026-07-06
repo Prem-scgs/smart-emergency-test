@@ -96,6 +96,13 @@ test('incident detail panel clears stale tracking while switching incidents', as
   assert.match(source, /tracking\.incident\.status === 'closed' \?/)
 })
 
+test('incident detail panel includes admin scope in tracking URL for viewer read-only access', async () => {
+  const source = await readFile(new URL('../components/admin/incident-detail-panel.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /buildAdminApiUrl\(API_BASE_URL, `\/api\/incidents\/\$\{requestedIncidentId\}\/tracking`, user\)/)
+  assert.match(source, /headers: buildAdminApiHeaders\(user\)/)
+})
+
 
 test('notification center renders Thai category labels and opens incident details', async () => {
   const [categoryUtils, notificationCenter] = await Promise.all([

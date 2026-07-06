@@ -39,6 +39,17 @@ export function buildAdminApiHeaders(user: AdminUser | null | undefined): Header
   }
 }
 
+function appendAdminScope(searchParams: URLSearchParams, user: AdminUser | null | undefined) {
+  const scope = getBackendAdminScope(user)
+
+  if (!scope) return
+
+  searchParams.set('role', scope.role)
+  if (scope.category) {
+    searchParams.set('category', scope.category)
+  }
+}
+
 function buildApiUrl(baseUrl: string, path: string, searchParams: URLSearchParams) {
   const base = baseUrl.replace(/\/$/, '')
 
@@ -52,16 +63,16 @@ function buildApiUrl(baseUrl: string, path: string, searchParams: URLSearchParam
   return `${base}${path}${query ? `?${query}` : ''}`
 }
 
-export function buildAdminEventsUrl(baseUrl: string, user: AdminUser | null | undefined) {
-  const scope = getBackendAdminScope(user)
+export function buildAdminApiUrl(baseUrl: string, path: string, user: AdminUser | null | undefined) {
   const searchParams = new URLSearchParams()
+  appendAdminScope(searchParams, user)
 
-  if (scope) {
-    searchParams.set('role', scope.role)
-    if (scope.category) {
-      searchParams.set('category', scope.category)
-    }
-  }
+  return buildApiUrl(baseUrl, path, searchParams)
+}
+
+export function buildAdminEventsUrl(baseUrl: string, user: AdminUser | null | undefined) {
+  const searchParams = new URLSearchParams()
+  appendAdminScope(searchParams, user)
 
   return buildApiUrl(baseUrl, '/api/events', searchParams)
 }
