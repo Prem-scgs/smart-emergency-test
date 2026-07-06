@@ -1,4 +1,5 @@
 export * from './lib/helpers.ts'
+export * from './lib/incident-detail.ts'
 export * from './model/hooks.ts'
 export * from './model/types.ts'
 export * from './model/view-model.ts'

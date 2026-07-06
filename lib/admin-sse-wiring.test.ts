@@ -95,13 +95,25 @@ test('incident detail panel clears stale tracking while switching incidents', as
   assert.match(source, /activeIncidentIdRef\.current = incidentId[\s\S]*setTracking\(null\)[\s\S]*setIsLoading\(true\)/)
   assert.match(source, /if \(activeIncidentIdRef\.current !== requestedIncidentId\) return[\s\S]*setTracking\(payload\)/)
   assert.match(source, /tracking\.incident\.status === 'closed' \?/)
+  assert.match(source, /response\.status === 409[\s\S]*await loadTracking\(\)[\s\S]*setError\(t\('incidentStatusChangedByOther'\)\)/)
+  assert.match(source, /await loadTracking\(\)[\s\S]*onStatusUpdated\(\)[\s\S]*toast\.success\(t\('incidentStatusUpdatedToast'\)\)/)
+  assert.match(source, /smart-emergency:incident-status-updated/)
 })
 
 test('incident detail panel includes admin scope in tracking URL for viewer read-only access', async () => {
-  const source = await readFile(new URL('../components/admin/incident-detail-panel.tsx', import.meta.url), 'utf8')
+  const [source, helper] = await Promise.all([
+    readFile(new URL('../components/admin/incident-detail-panel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../widgets/dashboard-map/lib/incident-detail.ts', import.meta.url), 'utf8'),
+  ])
 
-  assert.match(source, /buildAdminApiUrl\(API_BASE_URL, `\/api\/incidents\/\$\{requestedIncidentId\}\/tracking`, user\)/)
+  assert.match(source, /buildIncidentDetailTrackingUrl\(API_BASE_URL, requestedIncidentId, user\)/)
   assert.match(source, /headers: buildAdminApiHeaders\(user\)/)
+  assert.match(source, /getIncidentDetailStatusChoices\(adminRole, currentStatus\)/)
+  assert.match(source, /buildIncidentStatusUpdateRequest\(\{[\s\S]*incident: tracking\.incident,[\s\S]*toStatus: status,[\s\S]*note,[\s\S]*user,/)
+  assert.match(helper, /buildAdminApiUrl\(apiBaseUrl, `\/api\/incidents\/\$\{incidentId\}\/tracking`, user\)/)
+  assert.match(helper, /\.\.\.buildAdminApiHeaders\(user\)/)
+  assert.match(helper, /expectedVersion: incident\.statusVersion/)
+  assert.match(helper, /if \(role === 'viewer'\) return \[\]/)
 })
 
 

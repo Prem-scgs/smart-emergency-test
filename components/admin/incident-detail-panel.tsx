@@ -36,59 +36,28 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
-import { buildAdminApiHeaders, buildAdminApiUrl, getBackendAdminScope } from '@/lib/admin-api'
-import { getAdminStatusChoices, requiresStatusReason } from '@/lib/admin-status-controls'
-import { useAdminI18n, type AdminLanguage } from '@/lib/admin-i18n'
+import { buildAdminApiHeaders, getBackendAdminScope } from '@/lib/admin-api'
+import { useAdminI18n } from '@/lib/admin-i18n'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { getUserFacingIncidentDescription } from '@/lib/incident-description'
-import {
-  getIncidentTrackingStatusMeta,
-  type IncidentTrackingHistoryEntry,
-  type IncidentWorkflowStatus,
-} from '@/lib/incident-tracking'
-import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import type { IncidentWorkflowStatus } from '@/lib/incident-tracking'
+import { useLocationLookupMaps } from '@/lib/reference-locations'
 import type { AdminUser } from '@/lib/types'
+import {
+  buildIncidentDetailTrackingUrl,
+  buildIncidentStatusUpdateRequest,
+  getIncidentDetailDisplayNumber,
+  getIncidentDetailLocationText,
+  getIncidentDetailStatusChoices,
+  getIncidentDetailStatusLabel,
+  getIncidentStatusUpdateError,
+  isIncidentDetailBackwardTransition,
+  isIncidentDetailWorkflowStatus,
+  shouldShowIncidentCloseWarning,
+  type IncidentDetailTrackingResponse,
+} from '@/widgets/dashboard-map/lib/incident-detail'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
-const WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
-  'reported',
-  'acknowledged',
-  'coordinating',
-  'dispatched',
-  'on_scene',
-  'closed',
-])
-
-interface TrackingIncident {
-  id: string
-  caseNumber?: string | null
-  category: string
-  status: string
-  statusVersion: number
-  description?: string | null
-  dialedPhone?: string | null
-  agencyName?: string | null
-  provinceCode?: string | null
-  province?: string | null
-  districtCode?: string | null
-  district?: string | null
-  latitude: number
-  longitude: number
-  updatedAt: string
-}
-
-interface TrackingResponse {
-  incident: TrackingIncident
-  statusHistory: IncidentTrackingHistoryEntry[]
-  latestLocation: {
-    latitude: number
-    longitude: number
-    accuracy?: number | null
-    source: string
-    createdAt: string
-  } | null
-  locationHistory: unknown[]
-}
 
 interface IncidentDetailPanelProps {
   incidentId: string | null
@@ -97,19 +66,6 @@ interface IncidentDetailPanelProps {
   categoryLabels: Record<string, string>
   onOpenChange: (open: boolean) => void
   onStatusUpdated: () => void
-}
-
-function isWorkflowStatus(status: string): status is IncidentWorkflowStatus {
-  return WORKFLOW_STATUSES.has(status as IncidentWorkflowStatus)
-}
-
-function workflowStatusLabel(status: IncidentWorkflowStatus, language: AdminLanguage) {
-  const meta = getIncidentTrackingStatusMeta(status)
-  return language === 'en' ? meta.label : meta.labelTh
-}
-
-function incidentDisplayNumber(incident: TrackingIncident) {
-  return incident.caseNumber ?? incident.id.slice(0, 8)
 }
 
 export function IncidentDetailPanel({
@@ -122,7 +78,7 @@ export function IncidentDetailPanel({
 }: IncidentDetailPanelProps) {
   const { language, t } = useAdminI18n()
   const { provinceByCode, districtByCode } = useLocationLookupMaps()
-  const [tracking, setTracking] = useState<TrackingResponse | null>(null)
+  const [tracking, setTracking] = useState<IncidentDetailTrackingResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -141,7 +97,7 @@ export function IncidentDetailPanel({
       setIsLoading(true)
       setError(null)
       const response = await fetch(
-        buildAdminApiUrl(API_BASE_URL, `/api/incidents/${requestedIncidentId}/tracking`, user),
+        buildIncidentDetailTrackingUrl(API_BASE_URL, requestedIncidentId, user),
         {
           headers: buildAdminApiHeaders(user),
         }
@@ -151,7 +107,7 @@ export function IncidentDetailPanel({
         throw new Error(t('incidentDetailLoadError'))
       }
 
-      const payload = (await response.json()) as TrackingResponse
+      const payload = (await response.json()) as IncidentDetailTrackingResponse
       if (activeIncidentIdRef.current !== requestedIncidentId) return
 
       setTracking(payload)
@@ -195,16 +151,9 @@ export function IncidentDetailPanel({
   const currentStatus = tracking?.incident.status ?? null
   const adminRole = getBackendAdminScope(user)?.role ?? null
   const statusChoices = useMemo(() => {
-    if (!adminRole || !currentStatus || !isWorkflowStatus(currentStatus)) return []
-    // viewer เปิดดูรายละเอียดได้ แต่ไม่มีสิทธิ์เปลี่ยน workflow/status
-    if (adminRole === 'viewer') return []
-    return getAdminStatusChoices(adminRole, currentStatus)
+    return getIncidentDetailStatusChoices(adminRole, currentStatus)
   }, [adminRole, currentStatus])
-  const isBackwardTransition =
-    currentStatus != null &&
-    isWorkflowStatus(currentStatus) &&
-    targetStatus != null &&
-    requiresStatusReason(currentStatus, targetStatus)
+  const isBackwardTransition = isIncidentDetailBackwardTransition(currentStatus, targetStatus)
 
   useEffect(() => {
     setTargetStatus(currentTarget =>
@@ -215,27 +164,19 @@ export function IncidentDetailPanel({
   }, [statusChoices])
 
   async function updateStatus(status: IncidentWorkflowStatus) {
-    if (!tracking || !isWorkflowStatus(tracking.incident.status)) return
+    if (!tracking || !isIncidentDetailWorkflowStatus(tracking.incident.status)) return
 
     try {
       setIsUpdating(true)
       setError(null)
-      const response = await fetch(
-        `${API_BASE_URL}/api/incidents/${tracking.incident.id}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...buildAdminApiHeaders(user),
-          },
-          body: JSON.stringify({
-            fromStatus: tracking.incident.status,
-            toStatus: status,
-            expectedVersion: tracking.incident.statusVersion,
-            note: note.trim() || null,
-          }),
-        }
-      )
+      const request = buildIncidentStatusUpdateRequest({
+        apiBaseUrl: API_BASE_URL,
+        incident: tracking.incident,
+        toStatus: status,
+        note,
+        user,
+      })
+      const response = await fetch(request.url, request.init)
 
       if (response.status === 409) {
         await loadTracking()
@@ -245,7 +186,7 @@ export function IncidentDetailPanel({
 
       const payload = await response.json()
       if (!response.ok) {
-        throw new Error(payload?.error ?? t('incidentUpdateStatusError'))
+        throw new Error(getIncidentStatusUpdateError(payload, t('incidentUpdateStatusError')))
       }
 
       setNote('')
@@ -262,7 +203,7 @@ export function IncidentDetailPanel({
   function requestStatusUpdate() {
     if (!targetStatus) return
 
-    if (targetStatus === 'closed' && note.trim().length === 0) {
+    if (shouldShowIncidentCloseWarning(targetStatus, note)) {
       setIsCloseWarningOpen(true)
       return
     }
@@ -273,17 +214,13 @@ export function IncidentDetailPanel({
   const locationText = useMemo(() => {
     if (!tracking) return '-'
 
-    const preferThai = language !== 'en'
-    const provinceFromMaster = tracking.incident.provinceCode
-      ? getLocationDisplayName(provinceByCode[tracking.incident.provinceCode], preferThai)
-      : ''
-    const districtFromMaster = tracking.incident.districtCode
-      ? getLocationDisplayName(districtByCode[tracking.incident.districtCode], preferThai)
-      : ''
-    const province = provinceFromMaster || tracking.incident.province
-    const district = districtFromMaster || tracking.incident.district
-
-    return [district, province].filter(Boolean).join(' ') || t('incidentNoArea')
+    return getIncidentDetailLocationText({
+      incident: tracking.incident,
+      provinceByCode,
+      districtByCode,
+      preferThai: language !== 'en',
+      fallback: t('incidentNoArea'),
+    })
   }, [districtByCode, language, provinceByCode, t, tracking])
   const userFacingDescription = getUserFacingIncidentDescription(tracking?.incident.description)
 
@@ -324,12 +261,12 @@ export function IncidentDetailPanel({
                       {tracking.incident.agencyName ?? t('incidentNoAgency')}
                     </p>
                     <p className="text-xs font-medium text-muted-foreground">
-                      {language === 'en' ? 'Case' : 'หมายเลขเหตุ'}: {incidentDisplayNumber(tracking.incident)}
+                      {language === 'en' ? 'Case' : 'หมายเลขเหตุ'}: {getIncidentDetailDisplayNumber(tracking.incident)}
                     </p>
                   </div>
                   <Badge variant="secondary">
-                    {isWorkflowStatus(tracking.incident.status)
-                      ? workflowStatusLabel(tracking.incident.status, language)
+                    {isIncidentDetailWorkflowStatus(tracking.incident.status)
+                      ? getIncidentDetailStatusLabel(tracking.incident.status, language)
                       : tracking.incident.status}
                   </Badge>
                 </div>
@@ -355,7 +292,7 @@ export function IncidentDetailPanel({
                   </p>
                 </div>
 
-                {!isWorkflowStatus(tracking.incident.status) ? (
+                {!isIncidentDetailWorkflowStatus(tracking.incident.status) ? (
                   <p className="text-sm text-destructive">
                     {t('incidentLegacyStatus')}
                   </p>
@@ -367,7 +304,7 @@ export function IncidentDetailPanel({
                         <Select
                           value={targetStatus}
                           onValueChange={value => {
-                            if (value && isWorkflowStatus(value)) {
+                            if (value && isIncidentDetailWorkflowStatus(value)) {
                               setTargetStatus(value)
                               setError(null)
                             }
@@ -375,14 +312,14 @@ export function IncidentDetailPanel({
                         >
                           <SelectTrigger id="incident-target-status" className="w-full">
                             <SelectValue placeholder={t('incidentSelectStatus')}>
-                              {workflowStatusLabel(targetStatus, language)}
+                              {getIncidentDetailStatusLabel(targetStatus, language)}
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectGroup>
                               {statusChoices.map(status => (
                                 <SelectItem key={status} value={status}>
-                                  {workflowStatusLabel(status, language)}
+                                  {getIncidentDetailStatusLabel(status, language)}
                                 </SelectItem>
                               ))}
                             </SelectGroup>
@@ -393,7 +330,7 @@ export function IncidentDetailPanel({
                       <div className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
                         <span>{t('incidentNextStatus')}</span>
                         <span className="font-medium">
-                          {workflowStatusLabel(targetStatus, language)}
+                          {getIncidentDetailStatusLabel(targetStatus, language)}
                         </span>
                       </div>
                     )}
@@ -434,7 +371,7 @@ export function IncidentDetailPanel({
                       disabled={isUpdating || (isBackwardTransition && note.trim().length === 0)}
                     >
                       {isUpdating ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : null}
-                      {t('incidentUpdateToPrefix')}{workflowStatusLabel(targetStatus, language)}
+                      {t('incidentUpdateToPrefix')}{getIncidentDetailStatusLabel(targetStatus, language)}
                     </Button>
                   </div>
                 ) : tracking.incident.status === 'closed' ? (
@@ -446,7 +383,7 @@ export function IncidentDetailPanel({
                 )}
               </section>
 
-              {isWorkflowStatus(tracking.incident.status) ? (
+              {isIncidentDetailWorkflowStatus(tracking.incident.status) ? (
                 <section className="flex flex-col gap-3">
                   <h3 className="text-sm font-semibold">{t('incidentStatusTimeline')}</h3>
                   <IncidentStatusTimeline
