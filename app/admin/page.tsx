@@ -31,14 +31,9 @@ const ROLE_OPTIONS: { value: AdminRole; label: string; description: string }[] =
     description: 'จัดการข้อมูลเฉพาะหน่วยงาน'
   },
   {
-    value: 'operator',
-    label: 'เจ้าหน้าที่ปฏิบัติการ (Operator)',
-    description: 'ดูข้อมูลและรับแจ้งเหตุ'
-  },
-  {
     value: 'viewer',
-    label: 'ผู้ดู (Viewer)',
-    description: 'ดูข้อมูลอย่างเดียว'
+    label: 'ผู้ดูข้อมูล (Viewer)',
+    description: 'ดูข้อมูลเฉพาะหน่วยงานแบบอ่านอย่างเดียว'
   },
 ]
 

@@ -192,6 +192,8 @@ export function IncidentDetailPanel({
   const adminRole = getBackendAdminScope(user)?.role ?? null
   const statusChoices = useMemo(() => {
     if (!adminRole || !currentStatus || !isWorkflowStatus(currentStatus)) return []
+    // viewer เปิดดูรายละเอียดได้ แต่ไม่มีสิทธิ์เปลี่ยน workflow/status
+    if (adminRole === 'viewer') return []
     return getAdminStatusChoices(adminRole, currentStatus)
   }, [adminRole, currentStatus])
   const isBackwardTransition =

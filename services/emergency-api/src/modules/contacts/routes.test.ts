@@ -123,6 +123,78 @@ test("agency admin list only queries contacts in their own category", async () =
   }
 });
 
+test("viewer list only queries contacts in their own category", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+
+  await registerContactRoutes(app as any);
+  const handler = app.getHandlers.get("/api/contacts");
+  assert.ok(handler);
+
+  (pool.query as any) = async (sql: string, values: unknown[] = []) => {
+    calls.push({ sql, values });
+    return { rowCount: 0, rows: [] };
+  };
+
+  try {
+    await handler?.(
+      createRequest({
+        headers: { "x-admin-role": "viewer", "x-admin-category": "medical" },
+        query: {},
+      })
+    );
+
+    assert.deepEqual(calls[0]?.values, ["medical"]);
+    assert.match(calls[0]?.sql ?? "", /category = \$1/);
+  } finally {
+    (pool.query as any) = originalQuery;
+  }
+});
+
+test("viewer cannot create contacts", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+
+  await registerContactRoutes(app as any);
+  const handler = app.postHandlers.get("/api/contacts");
+  assert.ok(handler);
+
+  let queryCalled = false;
+  (pool.query as any) = async () => {
+    queryCalled = true;
+    return { rowCount: 0, rows: [] };
+  };
+
+  try {
+    const reply = createReplyDouble();
+    const result = await handler?.(
+      createRequest({
+        headers: { "x-admin-role": "viewer", "x-admin-category": "medical" },
+        body: {
+          name: "Medical Team",
+          phone: "1669",
+          role: "responder",
+          category: "medical",
+          is24Hours: true,
+          active: true,
+        },
+      }),
+      reply
+    );
+
+    assert.equal(reply.statusCode, 403);
+    assert.equal(queryCalled, false);
+    assert.deepEqual(result, {
+      error: "Contact is outside your admin scope",
+      code: "CONTACT_FORBIDDEN",
+      statusCode: 403,
+    });
+  } finally {
+    (pool.query as any) = originalQuery;
+  }
+});
+
 test("agency admin cannot create contact outside their own category", async () => {
   const app = createFakeApp();
   const originalQuery = pool.query.bind(pool);

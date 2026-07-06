@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { buildApiErrorPayload } from "../../api-error.js";
-import { getMockAdminScope } from "../../admin-scope.js";
+import {
+  getMockAdminScope,
+  isCategoryScopedAdmin,
+  isViewerScope,
+} from "../../admin-scope.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { pool } from "../../db.js";
 
@@ -42,7 +46,7 @@ function isAgencyContactScopeMismatch(
   scope: ReturnType<typeof getMockAdminScope>,
   category: string | null | undefined
 ) {
-  return scope?.role === "agency_admin" && category !== scope.category;
+  return isCategoryScopedAdmin(scope) && category !== scope.category;
 }
 
 function rowToContact(row: Record<string, unknown>) {
@@ -72,7 +76,7 @@ export async function registerContactRoutes(app: FastifyInstance) {
     const scope = getMockAdminScope(request.headers);
     const filters: string[] = [];
     const values: Array<string | boolean> = [];
-    const effectiveCategory = scope?.role === "agency_admin" ? scope.category : query.category;
+    const effectiveCategory = isCategoryScopedAdmin(scope) ? scope.category : query.category;
 
     if (effectiveCategory) {
       values.push(effectiveCategory);
@@ -144,6 +148,12 @@ export async function registerContactRoutes(app: FastifyInstance) {
     const body = contactBody.parse(request.body);
     const scope = getMockAdminScope(request.headers);
 
+    // viewer เป็นบัญชีอ่านอย่างเดียว จึงห้ามแก้ข้อมูล contacts แม้จะอยู่ในหมวดเดียวกัน
+    if (isViewerScope(scope)) {
+      reply.code(403);
+      return buildContactForbiddenPayload();
+    }
+
     if (isAgencyContactScopeMismatch(scope, body.category ?? null)) {
       reply.code(403);
       return buildContactForbiddenPayload();
@@ -198,12 +208,18 @@ export async function registerContactRoutes(app: FastifyInstance) {
     const body = contactBody.parse(request.body);
     const scope = getMockAdminScope(request.headers);
 
+    // viewer เป็นบัญชีอ่านอย่างเดียว จึงห้ามแก้ข้อมูล contacts แม้จะอยู่ในหมวดเดียวกัน
+    if (isViewerScope(scope)) {
+      reply.code(403);
+      return buildContactForbiddenPayload();
+    }
+
     if (isAgencyContactScopeMismatch(scope, body.category ?? null)) {
       reply.code(403);
       return buildContactForbiddenPayload();
     }
 
-    if (scope?.role === "agency_admin") {
+    if (isCategoryScopedAdmin(scope)) {
       const existing = await pool.query("SELECT category FROM contacts WHERE id = $1", [id]);
 
       if (existing.rowCount === 0) {
@@ -283,7 +299,13 @@ export async function registerContactRoutes(app: FastifyInstance) {
     const { id } = paramsWithId.parse(request.params);
     const scope = getMockAdminScope(request.headers);
 
-    if (scope?.role === "agency_admin") {
+    // viewer เป็นบัญชีอ่านอย่างเดียว จึงห้ามลบข้อมูล contacts แม้จะอยู่ในหมวดเดียวกัน
+    if (isViewerScope(scope)) {
+      reply.code(403);
+      return buildContactForbiddenPayload();
+    }
+
+    if (isCategoryScopedAdmin(scope)) {
       const existing = await pool.query("SELECT category FROM contacts WHERE id = $1", [id]);
 
       if (existing.rowCount === 0) {

@@ -1,6 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { getMockAdminScopeFromRequest } from "../../admin-scope.js";
+import {
+  getMockAdminScopeFromRequest,
+  isCategoryScopedAdmin,
+  isViewerScope,
+} from "../../admin-scope.js";
 import { buildApiErrorPayload } from "../../api-error.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { emergencyEvents, emitEmergencyEvent } from "../../events.js";
@@ -155,7 +159,7 @@ function buildReportWhereClause(
   const values: string[] = [reportRangeIntervals[range]];
   const filters = ["i.created_at >= now() - $1::interval"];
 
-  if (adminScope?.role === "agency_admin") {
+  if (isCategoryScopedAdmin(adminScope)) {
     values.push(adminScope.category);
     filters.push(`i.category = $${values.length}`);
   }
@@ -294,7 +298,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const values: string[] = [];
     const filters: string[] = [];
 
-    if (adminScope?.role === "agency_admin") {
+    if (isCategoryScopedAdmin(adminScope)) {
       values.push(adminScope.category);
       filters.push(`i.category = $${values.length}`);
     }
@@ -355,7 +359,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       "i.created_at <= $1::timestamptz",
     ];
 
-    if (adminScope?.role === "agency_admin") {
+    if (isCategoryScopedAdmin(adminScope)) {
       values.push(adminScope.category);
       filters.push(`i.category = $${values.length}`);
       statusFilters.push(`i.category = $${values.length}`);
@@ -445,7 +449,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const values: string[] = [paramsResult.data.id];
     const filters = ["i.id = $1"];
 
-    if (adminScope?.role === "agency_admin") {
+    if (isCategoryScopedAdmin(adminScope)) {
       values.push(adminScope.category);
       filters.push(`i.category = $${values.length}`);
     }
@@ -538,7 +542,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const values: string[] = [paramsResult.data.id];
     const filters = ["i.id = $1"];
 
-    if (adminScope?.role === "agency_admin") {
+    if (isCategoryScopedAdmin(adminScope)) {
       values.push(adminScope.category);
       filters.push(`i.category = $${values.length}`);
     } else if (!adminScope && sessionId) {
@@ -879,6 +883,16 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       );
     }
 
+    // viewer ดูเคสได้แต่ห้ามขยับ workflow/status เพราะเป็นบัญชีอ่านอย่างเดียว
+    if (isViewerScope(adminScope)) {
+      reply.code(403);
+      return buildApiErrorPayload(
+        403,
+        "INCIDENT_STATUS_ACCESS_DENIED",
+        "Viewer role cannot update incident status"
+      );
+    }
+
     const body = bodyResult.data;
     const client = await pool.connect();
     let transactionOpen = false;
@@ -909,7 +923,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
       if (
         !current ||
-        (adminScope.role === "agency_admin" && current.category !== adminScope.category)
+        (isCategoryScopedAdmin(adminScope) && current.category !== adminScope.category)
       ) {
         await client.query("ROLLBACK");
         transactionOpen = false;
@@ -1033,7 +1047,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     const values: string[] = [];
     const filters: string[] = [];
 
-    if (adminScope?.role === "agency_admin") {
+    if (isCategoryScopedAdmin(adminScope)) {
       values.push(adminScope.category);
       filters.push(`i.category = $${values.length}`);
     }
@@ -1363,6 +1377,17 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       request.headers as Record<string, unknown> | undefined,
       request.query as Record<string, unknown> | undefined
     );
+
+    // endpoint นี้บันทึกผลการโทรจาก admin; viewer จึงห้ามเขียนสถานะการโทร
+    if (isViewerScope(adminScope)) {
+      reply.code(403);
+      return buildApiErrorPayload(
+        403,
+        "INCIDENT_CALL_UPDATE_FORBIDDEN",
+        "Viewer role cannot update incident call status"
+      );
+    }
+
     const values: Array<string | null> = [
       paramsResult.data.id,
       body.callStatus,
@@ -1371,7 +1396,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     ];
 
     const updateScopeCondition =
-      adminScope?.role === "agency_admin"
+      isCategoryScopedAdmin(adminScope)
         ? ` AND category = $${values.push(adminScope.category)}`
         : "";
 
@@ -1477,7 +1502,7 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       }
 
       if (
-        adminScope?.role === "agency_admin" &&
+        isCategoryScopedAdmin(adminScope) &&
         (!payload || typeof payload !== "object" || (payload as { category?: unknown }).category !== adminScope.category)
       ) {
         return;

@@ -23,8 +23,17 @@ test("useSse localizes realtime alert copy and never renders raw workflow status
   assert.match(source, /reported: 'แจ้งเหตุแล้ว'/);
   assert.match(source, /reported: 'Reported'/);
   assert.match(source, /const statusText = statusLabel\(payload\.status, language\)/);
-  assert.match(source, /description: `\$\{copy\.severityLabel\} \$\{severityText\} \$\{copy\.statusLabel\} \$\{statusText\}`/);
+  assert.match(source, /description: `[\s\S]*\$\{caseNumber\}[\s\S]*\$\{copy\.severityLabel\} \$\{severityText\} \$\{copy\.statusLabel\} \$\{statusText\}`/);
   assert.doesNotMatch(source, /description: `[\s\S]*\$\{payload\.status\}/);
+});
+
+test("useSse keeps viewer updates passive without popup alerts or notifications", async () => {
+  const source = await readUseSseSource();
+
+  assert.match(source, /const shouldCreateActionableAlert = user\?\.role !== 'viewer'/);
+  assert.match(source, /if \(shouldCreateActionableAlert\) \{[\s\S]*onNotification\?\.\(notification\)[\s\S]*onAlert\?\.\(alert\)[\s\S]*\}/);
+  assert.match(source, /onEvent\?\.\(\{[\s\S]*type: 'new-incident'/);
+  assert.match(source, /new CustomEvent\('smart-emergency:incident-created'/);
 });
 
 test("useSse validates and dispatches status update events", async () => {

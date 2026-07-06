@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import type { AdminUser, Alert, Notification } from './types'
-import { canUserSeeAlert, canUserSeeNotification } from './notification-visibility'
+import { canUserSeeAlert, canUserSeeNotification } from './notification-visibility.ts'
 
 const agencyAdminUser: AdminUser = {
   id: 'user-1',
@@ -21,6 +21,12 @@ const agencyAdminUser: AdminUser = {
   },
   permissions: ['dashboard.view'],
   lastLogin: new Date('2026-06-17T09:00:00.000Z'),
+}
+
+const viewerUser: AdminUser = {
+  ...agencyAdminUser,
+  id: 'viewer-1',
+  role: 'viewer',
 }
 
 test('canUserSeeNotification allows agency users to see same-category notifications even when agencyId differs', () => {
@@ -51,4 +57,30 @@ test('canUserSeeAlert hides alerts from other categories for agency users', () =
   }
 
   assert.equal(canUserSeeAlert(agencyAdminUser, alert), false)
+})
+
+test('viewer does not see actionable notifications or popup alerts', () => {
+  const notification: Notification = {
+    id: 'notif-viewer',
+    type: 'new-incident',
+    title: 'New incident',
+    message: 'Medical - Chiang Mai',
+    agencyId: 'medical',
+    category: 'medical',
+    read: false,
+    timestamp: new Date('2026-06-17T09:00:00.000Z'),
+  }
+  const alert: Alert = {
+    id: 'alert-viewer',
+    severity: 'warning',
+    title: 'New incident',
+    message: 'Medical in Chiang Mai',
+    agencyId: 'medical',
+    category: 'medical',
+    timestamp: new Date('2026-06-17T09:00:00.000Z'),
+    dismissible: true,
+  }
+
+  assert.equal(canUserSeeNotification(viewerUser, notification), false)
+  assert.equal(canUserSeeAlert(viewerUser, alert), false)
 })

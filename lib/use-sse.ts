@@ -323,9 +323,13 @@ export function useSse(options: UseSseOptions = {}) {
       }
 
       const { notification, alert } = buildRealtimeIncidentArtifacts(payload, language)
+      // viewer ต้องเห็นข้อมูลสดแบบ passive เท่านั้น ไม่เด้ง popup/sound/actionable notification
+      const shouldCreateActionableAlert = user?.role !== 'viewer'
 
-      onNotification?.(notification)
-      onAlert?.(alert)
+      if (shouldCreateActionableAlert) {
+        onNotification?.(notification)
+        onAlert?.(alert)
+      }
       onEvent?.({
         type: 'new-incident',
         data: payload,

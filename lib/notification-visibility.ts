@@ -6,6 +6,7 @@ function getUserScopeCategory(user: AdminUser | null) {
 
 export function canUserSeeNotification(user: AdminUser | null, notification: Notification) {
   if (!user) return false
+  if (user.role === 'viewer') return false
   if (user.role === 'super_admin') return true
 
   const scopeCategory = getUserScopeCategory(user)
@@ -22,6 +23,7 @@ export function canUserSeeNotification(user: AdminUser | null, notification: Not
 
 export function canUserSeeAlert(user: AdminUser | null, alert: Alert) {
   if (!user) return false
+  if (user.role === 'viewer') return false
   if (user.role === 'super_admin') return true
 
   const scopeCategory = getUserScopeCategory(user)

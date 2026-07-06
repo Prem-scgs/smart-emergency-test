@@ -9,6 +9,7 @@ type Handler = (request?: any, reply?: any) => Promise<unknown> | unknown;
 function createFakeApp() {
   const postHandlers = new Map<string, Handler>();
   const putHandlers = new Map<string, Handler>();
+  const deleteHandlers = new Map<string, Handler>();
   return {
     get() {},
     post(path: string, handler: Handler) {
@@ -17,9 +18,12 @@ function createFakeApp() {
     put(path: string, handler: Handler) {
       putHandlers.set(path, handler);
     },
-    delete() {},
+    delete(path: string, handler: Handler) {
+      deleteHandlers.set(path, handler);
+    },
     postHandlers,
     putHandlers,
+    deleteHandlers,
   };
 }
 
@@ -146,6 +150,68 @@ test("POST /api/areas writes an audit log after create", async () => {
     assert.equal(calls.length, 2);
     assert.match(String(calls[1]?.[0]), /INSERT INTO audit_logs/);
     assert.equal((result as any).id, "area-1");
+  } finally {
+    (pool.query as any) = originalQuery;
+  }
+});
+
+test("viewer cannot write GIS areas", async () => {
+  const app = createFakeApp();
+  const originalQuery = pool.query.bind(pool);
+
+  await registerAreaRoutes(app as any);
+
+  const postHandler = app.postHandlers.get("/api/areas");
+  const putHandler = app.putHandlers.get("/api/areas/:id");
+  const deleteHandler = app.deleteHandlers.get("/api/areas/:id");
+  assert.ok(postHandler);
+  assert.ok(putHandler);
+  assert.ok(deleteHandler);
+
+  let queryCalled = false;
+  (pool.query as any) = async () => {
+    queryCalled = true;
+    throw new Error("viewer should not write GIS areas");
+  };
+
+  const areaBody = {
+    name: "Zone A",
+    color: "#ef4444",
+    areaType: "response-zone",
+    polygon: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [100.5, 13.7],
+          [100.6, 13.7],
+          [100.6, 13.8],
+          [100.5, 13.8],
+          [100.5, 13.7],
+        ],
+      ],
+    },
+  };
+  const viewerHeaders = { "x-admin-role": "viewer", "x-admin-category": "medical" };
+  const areaParams = { id: "11111111-1111-4111-8111-111111111111" };
+
+  try {
+    for (const [handler, request] of [
+      [postHandler, { headers: viewerHeaders, body: areaBody }],
+      [putHandler, { headers: viewerHeaders, params: areaParams, body: areaBody }],
+      [deleteHandler, { headers: viewerHeaders, params: areaParams }],
+    ] as const) {
+      const reply = createReplyDouble();
+      const result = await handler(request, reply);
+
+      assert.equal(reply.statusCode, 403);
+      assert.deepEqual(result, {
+        error: "Area access denied",
+        code: "AREA_FORBIDDEN",
+        statusCode: 403,
+      });
+    }
+
+    assert.equal(queryCalled, false);
   } finally {
     (pool.query as any) = originalQuery;
   }

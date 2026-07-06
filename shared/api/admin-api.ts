@@ -1,7 +1,7 @@
 import type { AdminUser } from '@/lib/types'
 
 export interface BackendAdminScope {
-  role: 'super_admin' | 'agency_admin'
+  role: 'super_admin' | 'agency_admin' | 'viewer'
   category: string | null
 }
 
@@ -12,8 +12,8 @@ export function getBackendAdminScope(user: AdminUser | null | undefined): Backen
     return { role: 'super_admin', category: null }
   }
 
-  if (user.role === 'agency_admin' && user.agency?.category) {
-    return { role: 'agency_admin', category: user.agency.category }
+  if ((user.role === 'agency_admin' || user.role === 'viewer') && user.agency?.category) {
+    return { role: user.role, category: user.agency.category }
   }
 
   return null

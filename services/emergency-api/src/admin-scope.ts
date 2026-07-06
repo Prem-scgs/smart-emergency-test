@@ -1,6 +1,17 @@
 export type MockAdminScope =
   | { role: "super_admin" }
-  | { role: "agency_admin"; category: string };
+  | { role: "agency_admin"; category: string }
+  | { role: "viewer"; category: string };
+
+export function isCategoryScopedAdmin(scope: MockAdminScope | null | undefined) {
+  return scope?.role === "agency_admin" || scope?.role === "viewer";
+}
+
+export function isViewerScope(
+  scope: MockAdminScope | null | undefined
+): scope is Extract<MockAdminScope, { role: "viewer" }> {
+  return scope?.role === "viewer";
+}
 
 export function getMockAdminScope(headers: Record<string, unknown> | undefined): MockAdminScope | null {
   const roleHeader = headers?.["x-admin-role"];
@@ -13,8 +24,8 @@ export function getMockAdminScope(headers: Record<string, unknown> | undefined):
     return { role: "super_admin" };
   }
 
-  if (role === "agency_admin" && category.length > 0) {
-    return { role: "agency_admin", category };
+  if ((role === "agency_admin" || role === "viewer") && category.length > 0) {
+    return { role, category };
   }
 
   return null;
@@ -36,8 +47,8 @@ export function getMockAdminScopeFromRequest(
     return { role: "super_admin" };
   }
 
-  if (role === "agency_admin" && category.length > 0) {
-    return { role: "agency_admin", category };
+  if ((role === "agency_admin" || role === "viewer") && category.length > 0) {
+    return { role, category };
   }
 
   return null;

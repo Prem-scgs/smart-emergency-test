@@ -73,6 +73,19 @@ filter demo data. This is not production authentication. Do not build new
 security-sensitive behavior on these headers until the real JWT/Auth contract
 from the owning team is integrated.
 
+Current demo roles:
+
+- `super_admin`: can view and manage every category.
+- `agency_admin`: can view and manage incidents/contacts in its own category.
+- `viewer`: must log in, is scoped to one category, and is read-only.
+- `viewer` may receive passive dashboard/queue/map updates through SSE or
+  polling, but must not receive popup alerts, alert sound, actionable
+  notifications, or write access.
+
+The login screen intentionally exposes only `super_admin`, `agency_admin`, and
+`viewer`. Keep `operator` out of the login role options unless the product scope
+is reopened.
+
 ## 4. Verify Before Push
 
 Run backend tests:
@@ -172,6 +185,8 @@ Check:
 - SSE endpoint responds: `GET /api/events`
 - dashboard page open
 - incident creation succeeds
+- login role is not `viewer` when testing popup/sound alerts; viewer receives
+  passive data refresh only
 
 
 ## 6.1 Cloudflare Tunnel for Vercel Demo

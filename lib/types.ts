@@ -203,6 +203,8 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   viewer: [
     'dashboard.view',
     'call-logs.view',
+    'gis.view',
+    'reports.view',
   ],
 }
 

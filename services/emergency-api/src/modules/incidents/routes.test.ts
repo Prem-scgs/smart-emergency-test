@@ -1293,6 +1293,48 @@ test("POST /api/incidents persists request identity, dialed phone, and initial h
   }
 });
 
+test("PATCH /api/incidents/:id/status rejects viewer role before opening a transaction", async () => {
+  const app = createFakeApp();
+  const originalConnect = pool.connect.bind(pool);
+
+  await registerIncidentRoutes(app as any);
+  const handler = app.patchHandlers.get("/api/incidents/:id/status");
+  assert.ok(handler);
+
+  let connectCalled = false;
+  (pool.connect as unknown as typeof originalConnect) = async () => {
+    connectCalled = true;
+    throw new Error("viewer should not open a transaction");
+  };
+
+  try {
+    const reply = createReplyDouble();
+    const result = await handler({
+      params: { id: "incident-status-1" },
+      headers: {
+        "x-admin-role": "viewer",
+        "x-admin-category": "medical",
+      },
+      query: {},
+      body: {
+        fromStatus: "reported",
+        toStatus: "acknowledged",
+        expectedVersion: 0,
+      },
+    }, reply);
+
+    assert.equal(reply.statusCode, 403);
+    assert.equal(connectCalled, false);
+    assert.deepEqual(result, {
+      error: "Viewer role cannot update incident status",
+      code: "INCIDENT_STATUS_ACCESS_DENIED",
+      statusCode: 403,
+    });
+  } finally {
+    (pool.connect as unknown as typeof originalConnect) = originalConnect;
+  }
+});
+
 test("POST /api/incidents assigns a readable category case number atomically", async () => {
   const app = createFakeApp();
   const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rowCount?: number; rows: Record<string, unknown>[] }>;

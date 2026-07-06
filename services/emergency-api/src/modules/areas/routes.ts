@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getMockAdminScope, isViewerScope } from "../../admin-scope.js";
 import { buildApiErrorPayload } from "../../api-error.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { pool } from "../../db.js";
@@ -45,6 +46,10 @@ const resolvePointQuery = z.object({
 const paramsWithId = z.object({
   id: z.string().uuid(),
 });
+
+function buildAreaForbiddenPayload() {
+  return buildApiErrorPayload(403, "AREA_FORBIDDEN", "Area access denied");
+}
 
 function rowToArea(row: Record<string, unknown>) {
   return {
@@ -227,6 +232,14 @@ export async function registerAreaRoutes(app: FastifyInstance) {
 
   app.post("/api/areas", async (request, reply) => {
     const body = areaBody.parse(request.body);
+    const scope = getMockAdminScope(request.headers);
+
+    // viewer เป็นบัญชีอ่านอย่างเดียว จึงห้ามสร้าง/แก้ GIS response zones
+    if (isViewerScope(scope)) {
+      reply.code(403);
+      return buildAreaForbiddenPayload();
+    }
+
     const result = await pool.query(
       `
         INSERT INTO areas (name, color, area_type, polygon)
@@ -256,6 +269,14 @@ export async function registerAreaRoutes(app: FastifyInstance) {
   app.put("/api/areas/:id", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
     const body = areaBody.parse(request.body);
+    const scope = getMockAdminScope(request.headers);
+
+    // viewer เป็นบัญชีอ่านอย่างเดียว จึงห้ามสร้าง/แก้ GIS response zones
+    if (isViewerScope(scope)) {
+      reply.code(403);
+      return buildAreaForbiddenPayload();
+    }
+
     const result = await pool.query(
       `
         UPDATE areas
@@ -294,6 +315,14 @@ export async function registerAreaRoutes(app: FastifyInstance) {
 
   app.delete("/api/areas/:id", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
+    const scope = getMockAdminScope(request.headers);
+
+    // viewer เป็นบัญชีอ่านอย่างเดียว จึงห้ามลบ GIS response zones
+    if (isViewerScope(scope)) {
+      reply.code(403);
+      return buildAreaForbiddenPayload();
+    }
+
     const result = await pool.query("DELETE FROM areas WHERE id = $1", [id]);
 
     if (result.rowCount === 0) {
