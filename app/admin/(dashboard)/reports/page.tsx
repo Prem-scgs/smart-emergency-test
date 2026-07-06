@@ -565,9 +565,9 @@ export default function ReportsPage() {
               }
               html.dark .print-only-report,
               html.dark .print-only-report .report-page {
-                background: #0a0a0a;
-                color: #f5f5f5;
-                color-scheme: dark;
+                background: #ffffff;
+                color: #111827;
+                color-scheme: light;
               }
               html.dark .print-only-report h1,
               html.dark .print-only-report h2,
@@ -576,8 +576,8 @@ export default function ReportsPage() {
               html.dark .print-only-report table,
               html.dark .print-only-report th,
               html.dark .print-only-report td {
-                color: #f5f5f5 !important;
-                border-color: #404040 !important;
+                color: #111827 !important;
+                border-color: #e5e7eb !important;
               }
               html.dark .print-only-report div[style*="#ef4444"] {
                 color: #ef5350 !important;

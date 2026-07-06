@@ -554,9 +554,9 @@ export default function CallLogsPage() {
               }
               html.dark .print-only-call-logs,
               html.dark .print-only-call-logs .call-logs-print-page {
-                background: #0a0a0a;
-                color: #f5f5f5;
-                color-scheme: dark;
+                background: #ffffff;
+                color: #111827;
+                color-scheme: light;
               }
               html.dark .print-only-call-logs h1,
               html.dark .print-only-call-logs h2,
@@ -565,8 +565,8 @@ export default function CallLogsPage() {
               html.dark .print-only-call-logs table,
               html.dark .print-only-call-logs th,
               html.dark .print-only-call-logs td {
-                color: #f5f5f5 !important;
-                border-color: #404040 !important;
+                color: #111827 !important;
+                border-color: #e5e7eb !important;
               }
               html.dark .print-only-call-logs div[style*="#ef4444"] {
                 color: #ef5350 !important;
