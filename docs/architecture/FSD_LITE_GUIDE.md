@@ -142,8 +142,10 @@ Move domains only when there is real work in that area:
   - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
   - `widgets/dashboard-map` also owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
   - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. `components/admin/incident-queue.tsx` is now a compatibility bridge only.
+  - `widgets/dashboard-map` owns `IncidentMap`, its map point props, viewport/geolocation logic, popup display helpers, and selected-area/selected-incident map wiring. `components/admin/incident-map.tsx` is now a compatibility bridge only.
+  - `widgets/dashboard-map` owns the `IncidentDetailPanel` helper/controller slice as of `2ddad8f`, including tracking URL construction, status update payload/error handling, display/location/status helpers, viewer read-only choices, close-warning decisions, and optimistic-concurrency contracts. `components/admin/incident-detail-panel.tsx` still owns the UI shell for now.
 - Route files should stay as shells that provide auth/i18n/reference context and compose the appropriate widget.
 - Keep existing `lib/` bridge files until `rg` confirms old imports are gone.
-- Further moves should be planned separately. The next likely slices are `IncidentMap`, which has viewport/geolocation/bounds complexity, and `IncidentDetailPanel`, which has tracking fetch, status update, and optimistic concurrency logic.
+- Further moves should be planned separately. The next likely dashboard slice is moving the `IncidentDetailPanel` UI shell itself under `widgets/dashboard-map` with a compatibility bridge; it is still the highest-risk UI move because it combines tracking fetch, PATCH status updates, `409` concurrency reloads, toast behavior, viewer guards, and close-warning dialogs.
 - Do not combine FSD moves with behavior changes unless a test or build error requires it.
 - Generated UI files from shadcn/mapcn should normally stay where their generator expects; summarize usage in docs instead of editing generated files heavily.

@@ -205,15 +205,26 @@ GIS/admin map data comes from the API and PostGIS, not frontend-only mock data.
 User-facing UI should show `caseNumber` or a short fallback `id.slice(0, 8)`;
 do not render the full UUID as the incident number.
 
-### Dashboard widget and queue scope
+### Dashboard widget, map, and detail scope
 
 The dashboard route is now a shell that passes auth, i18n, and reference data
 into `widgets/dashboard-map`. That widget owns the dashboard data hook, selected
 incident detail controller, selected-area bounds, map/filter view-model helpers,
-and `IncidentQueue`.
+`IncidentQueue`, and `IncidentMap`.
 
 `components/admin/incident-queue.tsx` is only a compatibility bridge. Do not add
 new queue runtime logic there; add it under `widgets/dashboard-map` instead.
+
+`components/admin/incident-map.tsx` is also only a compatibility bridge. Map
+runtime logic, marker display helpers, viewport behavior, geolocation handling,
+and selected-area bounds wiring belong under `widgets/dashboard-map`.
+
+`components/admin/incident-detail-panel.tsx` still owns the
+`IncidentDetailPanel` UI, but its tracking/status helper and controller
+contracts now belong under `widgets/dashboard-map`. Keep tracking URL
+construction, status update request body/error parsing, viewer read-only status
+choices, close-warning decisions, and `409` reload behavior in the widget detail
+helper/controller slice.
 
 ### Demo API contract summary
 
@@ -391,6 +402,22 @@ Current broad Vercel smoke checklist:
 - Mobile/admin user-facing incident numbers show `caseNumber`, not the full
   UUID.
 - Contacts, GIS, Reports print, and Settings open without crashing.
+
+Latest detail-flow smoke after `2ddad8f`:
+
+- Alert, queue, and map/detail wiring opened the same case on the Vercel test
+  dashboard.
+- `viewer` could open scoped detail but had no status dropdown, update button,
+  or actionable status choices.
+- Matching `agency_admin` could update only to the next workflow status.
+- `super_admin` still saw forward and backward status choices.
+- Backward status transitions still required a note.
+- Closing a case without a summary still opened the confirmation dialog.
+- Successful status update reloaded tracking, refreshed dashboard data, and
+  showed the success toast.
+- Direct stale status PATCH returned `409`; the UI stale path was not manually
+  forced because realtime reloads the detail panel before the stale click in
+  normal use.
 
 ## 7. Current Known Limits
 
