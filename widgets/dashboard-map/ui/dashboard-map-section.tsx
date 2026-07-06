@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis } from 'recharts'
 
-import type { IncidentMapPoint } from '@/components/admin/incident-map'
 import { IncidentDetailPanel } from '@/components/admin/incident-detail-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -46,10 +45,11 @@ import {
   useSelectedDashboardAreaBounds,
 } from '../model/hooks'
 import { buildDashboardMapViewModel } from '../model/view-model'
+import type { IncidentMapPoint } from './incident-map'
 import { IncidentQueue } from './incident-queue'
 
 const IncidentMap = dynamic(
-  () => import('@/components/admin/incident-map').then(mod => mod.IncidentMap),
+  () => import('./incident-map').then(mod => mod.IncidentMap),
   {
     ssr: false,
     loading: () => (

@@ -1,6 +1,6 @@
-import type { IncidentMapPoint } from '@/components/admin/incident-map'
 import type { ComponentType } from 'react'
 import type { AreaPolygon } from '@/entities/area'
+import type { IncidentMapPoint } from '../ui/incident-map'
 
 export type DashboardIncident = IncidentMapPoint & {
   provinceCode?: string | null
