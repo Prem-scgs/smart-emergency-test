@@ -15,6 +15,7 @@ import type { GisBoundary } from '@/components/admin/gis-boundary-map'
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getUserFacingIncidentDescription } from '@/lib/incident-description'
 import { useReferenceCategories } from '@/lib/reference-categories'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
@@ -556,19 +557,23 @@ export default function GISPage() {
                 </div>
               ) : areaIncidents.length > 0 ? (
                 <div className="grid gap-3 md:grid-cols-2">
-                  {areaIncidents.map(incident => (
-                    <div key={incident.id} className="rounded-md border p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {incident.description ?? t('gisNoIncidentDescription')}
-                          </p>
+                  {areaIncidents.map(incident => {
+                    const userFacingDescription = getUserFacingIncidentDescription(incident.description)
+
+                    return (
+                      <div key={incident.id} className="rounded-md border p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {userFacingDescription ?? t('gisNoIncidentDescription')}
+                            </p>
+                          </div>
+                          <Badge variant="outline">{statusLabel(incident.status, t)}</Badge>
                         </div>
-                        <Badge variant="outline">{statusLabel(incident.status, t)}</Badge>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                   <p className="text-sm text-muted-foreground">{t('gisNoIncidents')}</p>

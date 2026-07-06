@@ -40,6 +40,7 @@ import { buildAdminApiHeaders, getBackendAdminScope } from '@/lib/admin-api'
 import { getAdminStatusChoices, requiresStatusReason } from '@/lib/admin-status-controls'
 import { useAdminI18n, type AdminLanguage } from '@/lib/admin-i18n'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getUserFacingIncidentDescription } from '@/lib/incident-description'
 import {
   getIncidentTrackingStatusMeta,
   type IncidentTrackingHistoryEntry,
@@ -281,6 +282,7 @@ export function IncidentDetailPanel({
 
     return [district, province].filter(Boolean).join(' ') || t('incidentNoArea')
   }, [districtByCode, language, provinceByCode, t, tracking])
+  const userFacingDescription = getUserFacingIncidentDescription(tracking?.incident.description)
 
   return (
     <>
@@ -335,9 +337,9 @@ export function IncidentDetailPanel({
                 {tracking.incident.dialedPhone ? (
                   <p className="text-sm">{t('incidentDialedPhone')}{tracking.incident.dialedPhone}</p>
                 ) : null}
-                {tracking.incident.description ? (
+                {userFacingDescription ? (
                   <p className="text-sm text-muted-foreground">
-                    {tracking.incident.description}
+                    {userFacingDescription}
                   </p>
                 ) : null}
               </section>

@@ -22,6 +22,7 @@ import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-l
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getUserFacingIncidentDescription } from '@/lib/incident-description'
 import { getMobileIncidentDisplayNumber } from '@/lib/mobile-tracking'
 import { CallStatus, EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -183,6 +184,7 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
               const category = categories.find(c => c.id === log.category)
               const resolvedStatus = log.callStatus ?? 'cancelled'
               const StatusIcon = statusConfig[resolvedStatus].icon
+              const userFacingDescription = getUserFacingIncidentDescription(log.description)
 
               return (
                 <Card
@@ -224,8 +226,8 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
                           {getHistoryLocationLabel(log)}
                         </div>
 
-                        {log.description ? (
-                          <p className="text-xs text-muted-foreground mt-2 italic">{log.description}</p>
+                        {userFacingDescription ? (
+                          <p className="text-xs text-muted-foreground mt-2 italic">{userFacingDescription}</p>
                         ) : null}
                       </div>
 
