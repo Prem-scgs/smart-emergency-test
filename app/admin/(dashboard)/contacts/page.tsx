@@ -26,8 +26,13 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { buildAdminApiHeaders } from '@/lib/admin-api'
 import {
+  canManageContactForScope,
+  getContactCoverageKind,
   getContactCoverageFromValues,
   getContactCoverageState,
+  getContactDisplayCategoryLabel,
+  getEffectiveContactCategory,
+  getInitialContactCategory,
   getContactRole,
   getSelectOptionLabel,
   isValidContactPhone,
@@ -143,13 +148,13 @@ export default function ContactsPage() {
   const roleScopeLabel = isSuperAdmin ? t('contactsScopeAll') : t('contactsScopePrefix') + roleScopeName
 
   function getContactCategoryLabel(category: string | null | undefined) {
-    if (!category) return t('contactsUnspecifiedAgency')
-    return contactCategories.find(option => option.value === category)?.label ?? category
+    return getContactDisplayCategoryLabel(category, contactCategories, t('contactsUnspecifiedAgency'))
   }
 
   function getContactCoverageLabel(contact: Contact) {
-    if (contact.districtCode || contact.district) return t('contactsCoverageDistrict')
-    if (contact.provinceCode || contact.province) return t('contactsCoverageProvince')
+    const coverageKind = getContactCoverageKind(contact)
+    if (coverageKind === 'district') return t('contactsCoverageDistrict')
+    if (coverageKind === 'province') return t('contactsCoverageProvince')
     return t('contactsCoverageCentral')
   }
 
@@ -226,14 +231,16 @@ export default function ContactsPage() {
         : t('contactsSelectDistrict')
 
   function canManageContact(contact: Contact) {
-    if (isSuperAdmin) return true
-    return user?.role === 'agency_admin' && contact.category === agencyCategory
+    return canManageContactForScope(
+      { isSuperAdmin, role: user?.role, agencyCategory },
+      contact
+    )
   }
 
   function getInitialForm(): ContactFormState {
     return {
       ...emptyForm,
-      category: isSuperAdmin ? emptyForm.category : agencyCategory ?? emptyForm.category,
+      category: getInitialContactCategory(isSuperAdmin, agencyCategory, emptyForm.category),
     }
   }
 
@@ -289,7 +296,7 @@ export default function ContactsPage() {
       return
     }
 
-    const effectiveCategory = isSuperAdmin ? form.category : agencyCategory
+    const effectiveCategory = getEffectiveContactCategory(isSuperAdmin, form.category, agencyCategory)
     if (!effectiveCategory) {
       toast.error(t('contactsNoAgencyError'))
       return
