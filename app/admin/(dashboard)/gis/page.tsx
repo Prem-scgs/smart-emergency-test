@@ -12,6 +12,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import type { GisBoundary } from '@/components/admin/gis-boundary-map'
+import {
+  getAreaDisplayName,
+  getDistrictDisplayName,
+  getProvinceDisplayName,
+} from '@/entities/area'
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
@@ -54,31 +59,6 @@ interface AreaIncident {
   latitude: number
   longitude: number
   createdAt: string
-}
-
-function areaLabel(area: GisBoundary, preferThai: boolean) {
-  const provinceName = preferThai
-    ? area.provinceNameTh ?? area.provinceNameEn
-    : area.provinceNameEn ?? area.provinceNameTh
-  const districtName = preferThai
-    ? area.districtNameTh ?? area.districtNameEn
-    : area.districtNameEn ?? area.districtNameTh
-
-  return area.areaType === 'district'
-    ? `${districtName ?? area.name}, ${provinceName ?? '-'}`
-    : provinceName ?? area.name
-}
-
-function provinceDisplay(area: GisBoundary, preferThai: boolean) {
-  return preferThai
-    ? area.provinceNameTh ?? area.provinceNameEn ?? area.name
-    : area.provinceNameEn ?? area.provinceNameTh ?? area.name
-}
-
-function districtDisplay(area: GisBoundary, preferThai: boolean) {
-  return preferThai
-    ? area.districtNameTh ?? area.districtNameEn ?? area.name
-    : area.districtNameEn ?? area.districtNameTh ?? area.name
 }
 
 function searchableText(area: GisBoundary) {
@@ -237,7 +217,7 @@ export default function GISPage() {
     [provinces, selectedProvinceCode]
   )
   const selectedProvinceLabel = selectedProvince
-    ? provinceDisplay(selectedProvince, preferThai)
+    ? getProvinceDisplayName(selectedProvince, preferThai)
     : isProvinceLoading
       ? t('gisProvinceLoading')
       : t('gisSelectProvince')
@@ -347,7 +327,7 @@ export default function GISPage() {
                 <SelectContent>
                   {provinces.map(province => (
                     <SelectItem key={province.id} value={province.provinceCode ?? province.id}>
-                      {provinceDisplay(province, preferThai)}
+                      {getProvinceDisplayName(province, preferThai)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -369,7 +349,7 @@ export default function GISPage() {
                 size="sm"
                 onClick={() => setSelectedProvinceCode(matchedProvince.provinceCode ?? '')}
               >
-                {t('gisGoProvincePrefix')}{provinceDisplay(matchedProvince, preferThai)}
+                {t('gisGoProvincePrefix')}{getProvinceDisplayName(matchedProvince, preferThai)}
               </Button>
             )}
 
@@ -393,9 +373,9 @@ export default function GISPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-medium">{districtDisplay(area, preferThai)}</p>
+                        <p className="text-sm font-medium">{getDistrictDisplayName(area, preferThai)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {provinceDisplay(area, preferThai)} / {area.districtCode}
+                          {getProvinceDisplayName(area, preferThai)} / {area.districtCode}
                         </p>
                       </div>
                       <Badge variant="outline">{areaTypeLabel(area.areaType, t)}</Badge>
@@ -405,7 +385,7 @@ export default function GISPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {matchedProvince
-                    ? t('gisShowingDistrictsPrefix') + provinceDisplay(matchedProvince, preferThai)
+                    ? t('gisShowingDistrictsPrefix') + getProvinceDisplayName(matchedProvince, preferThai)
                     : t('gisNoDistricts')}
                 </p>
               )}
@@ -418,7 +398,7 @@ export default function GISPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MapPinned className="h-4 w-4" />
-                {selectedProvince ? provinceDisplay(selectedProvince, preferThai) : t('gisProvinceMapFallback')}
+                {selectedProvince ? getProvinceDisplayName(selectedProvince, preferThai) : t('gisProvinceMapFallback')}
               </CardTitle>
               <CardDescription>
                 {t('gisMapDescription')}
@@ -472,7 +452,7 @@ export default function GISPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  {selectedArea ? areaLabel(selectedArea, preferThai) : t('gisSelectedAreaFallback')}
+                  {selectedArea ? getAreaDisplayName(selectedArea, preferThai) : t('gisSelectedAreaFallback')}
                 </CardTitle>
                 <CardDescription>
                   {selectedArea
@@ -486,7 +466,7 @@ export default function GISPage() {
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <p className="text-muted-foreground">{t('gisProvinceLabel')}</p>
-                        <p className="font-medium">{provinceDisplay(selectedArea, preferThai)}</p>
+                        <p className="font-medium">{getProvinceDisplayName(selectedArea, preferThai)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">{t('gisDistrictCode')}</p>

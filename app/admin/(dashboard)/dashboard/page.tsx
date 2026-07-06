@@ -45,9 +45,9 @@ import {
   type ReferenceDistrict,
   type ReferenceProvince,
 } from '@/lib/reference-locations'
+import { getPolygonBounds, type AreaMapBounds, type AreaPolygon } from '@/entities/area'
 import type { EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import type { MultiPolygon, Polygon } from 'geojson'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
@@ -80,10 +80,8 @@ interface MasterLocationOption {
   searchable: string
 }
 
-type MapBounds = [[number, number], [number, number]]
-
 interface DashboardAreaBoundary {
-  polygon: Polygon | MultiPolygon | null
+  polygon: AreaPolygon | null
 }
 
 const IncidentMap = dynamic(
@@ -132,37 +130,6 @@ function selectLabel(label: string) {
 
 function normalizeText(value: string) {
   return value.trim().toLocaleLowerCase('th-TH').normalize('NFC')
-}
-
-function collectLngLatPairs(value: unknown, pairs: Array<[number, number]>) {
-  if (!Array.isArray(value)) return
-
-  if (
-    value.length >= 2 &&
-    typeof value[0] === 'number' &&
-    typeof value[1] === 'number'
-  ) {
-    pairs.push([value[0], value[1]])
-    return
-  }
-
-  value.forEach(item => collectLngLatPairs(item, pairs))
-}
-
-function getPolygonBounds(polygon: Polygon | MultiPolygon | null): MapBounds | null {
-  if (!polygon) return null
-
-  const pairs: Array<[number, number]> = []
-  collectLngLatPairs(polygon.coordinates, pairs)
-  if (pairs.length === 0) return null
-
-  const lngs = pairs.map(pair => pair[0])
-  const lats = pairs.map(pair => pair[1])
-
-  return [
-    [Math.min(...lngs), Math.min(...lats)],
-    [Math.max(...lngs), Math.max(...lats)],
-  ]
 }
 
 function percent(part: number, total: number) {
@@ -244,7 +211,7 @@ export default function DashboardPage() {
   const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
   const [locationQuery, setLocationQuery] = useState('')
   const [selectedLocation, setSelectedLocation] = useState<MasterLocationOption | null>(null)
-  const [selectedLocationBounds, setSelectedLocationBounds] = useState<MapBounds | null>(null)
+  const [selectedLocationBounds, setSelectedLocationBounds] = useState<AreaMapBounds | null>(null)
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

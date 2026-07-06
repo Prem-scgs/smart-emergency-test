@@ -12,8 +12,14 @@ import {
   useMap,
   type MapGeoJSONEvent,
 } from '@/components/ui/map'
+import {
+  buildAreaFeatureCollection,
+  getAreaIncidentSeverityColor,
+  getAreasBounds,
+  type AreaFeatureProperties,
+} from '@/entities/area'
 import { cn } from '@/lib/utils'
-import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson'
+import type { MultiPolygon, Polygon } from 'geojson'
 
 export interface GisBoundary {
   id: string
@@ -61,49 +67,6 @@ interface GisBoundaryMapProps {
 
 const DEFAULT_CENTER: [number, number] = [100.5018, 13.7563]
 
-type AreaFeatureProperties = {
-  id: string
-  name: string
-  color: string
-}
-
-type AreaFeatureCollection = FeatureCollection<Polygon | MultiPolygon, AreaFeatureProperties>
-
-function collectLngLatPairs(value: unknown, pairs: Array<[number, number]>) {
-  if (!Array.isArray(value)) return
-
-  if (
-    value.length >= 2 &&
-    typeof value[0] === 'number' &&
-    typeof value[1] === 'number'
-  ) {
-    pairs.push([value[0], value[1]])
-    return
-  }
-
-  value.forEach(item => collectLngLatPairs(item, pairs))
-}
-
-function getAreasBounds(areas: GisBoundary[]) {
-  const pairs: Array<[number, number]> = []
-
-  areas.forEach((area) => {
-    if (area.polygon) {
-      collectLngLatPairs(area.polygon.coordinates, pairs)
-    }
-  })
-
-  if (pairs.length === 0) return null
-
-  const lngs = pairs.map(pair => pair[0])
-  const lats = pairs.map(pair => pair[1])
-
-  return [
-    [Math.min(...lngs), Math.min(...lats)],
-    [Math.max(...lngs), Math.max(...lats)],
-  ] as [[number, number], [number, number]]
-}
-
 function FitBounds({ areas, selectedAreaId }: { areas: GisBoundary[]; selectedAreaId: string | null }) {
   const { map, isLoaded } = useMap()
 
@@ -119,16 +82,6 @@ function FitBounds({ areas, selectedAreaId }: { areas: GisBoundary[]; selectedAr
   }, [areas, isLoaded, map, selectedAreaId])
 
   return null
-}
-
-function incidentColor(severity: string) {
-  const colors: Record<string, string> = {
-    critical: '#dc2626',
-    high: '#f97316',
-    medium: '#eab308',
-    low: '#22c55e',
-  }
-  return colors[severity] ?? '#64748b'
 }
 
 export function GisBoundaryMap({
@@ -150,32 +103,10 @@ export function GisBoundaryMap({
     name: string
   } | null>(null)
 
-  function getAreaName(area: GisBoundary) {
-    const districtName = preferThai
-      ? area.districtNameTh ?? area.districtNameEn
-      : area.districtNameEn ?? area.districtNameTh
-    const provinceName = preferThai
-      ? area.provinceNameTh ?? area.provinceNameEn
-      : area.provinceNameEn ?? area.provinceNameTh
-
-    return districtName ?? provinceName ?? area.name
-  }
-
-  const features = useMemo<AreaFeatureCollection>(() => ({
-    type: 'FeatureCollection',
-    features: areas
-      .filter((area): area is GisBoundary & { polygon: NonNullable<GisBoundary['polygon']> } => Boolean(area.polygon))
-      .map(area => ({
-      type: 'Feature',
-      id: area.id,
-      properties: {
-        id: area.id,
-        name: getAreaName(area),
-        color: area.color,
-      },
-      geometry: area.polygon,
-    })),
-  }), [areas, preferThai])
+  const features = useMemo(
+    () => buildAreaFeatureCollection(areas, preferThai),
+    [areas, preferThai]
+  )
 
   function handleAreaClick(event: MapGeoJSONEvent<AreaFeatureProperties>) {
     const areaId = event.feature.properties.id
@@ -273,8 +204,8 @@ export function GisBoundaryMap({
                 'block size-5 rounded-full border-2 border-background shadow-md ring-2',
               )}
               style={{
-                backgroundColor: incidentColor(incident.severity),
-                '--tw-ring-color': `${incidentColor(incident.severity)}55`,
+                backgroundColor: getAreaIncidentSeverityColor(incident.severity),
+                '--tw-ring-color': `${getAreaIncidentSeverityColor(incident.severity)}55`,
               } as React.CSSProperties}
             />
           </MarkerContent>
