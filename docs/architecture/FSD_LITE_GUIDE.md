@@ -132,6 +132,16 @@ Move domains only when there is real work in that area:
 
 - `shared/api` owns browser-facing API URL and admin scope helper code.
 - `lib/admin-api.ts` and `lib/emergency-api-url.ts` are bridge exports only.
-- Move larger domains later in small steps: incident first, then contact, area, reports, settings, and mobile tracking.
+- Completed low-risk helper slices:
+  - `shared/config` owns browser-safe emergency API URL fallback helpers.
+  - `shared/realtime` owns SSE URL helpers, event payload validation, and polling fallback helpers.
+  - `entities/incident` owns status workflow/meta/display helpers.
+  - `entities/contact` owns coverage/display/phone/role/scope helpers.
+  - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
+  - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, and sound helpers.
+  - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
+- Route files and components still own React state, fetch effects, UI rendering, and large composition until a separate plan moves them safely.
+- Keep existing `lib/` bridge files until `rg` confirms old imports are gone.
+- Further moves should be planned separately because the next likely slices are larger component/workflow extractions, not pure helpers.
 - Do not combine FSD moves with behavior changes unless a test or build error requires it.
 - Generated UI files from shadcn/mapcn should normally stay where their generator expects; summarize usage in docs instead of editing generated files heavily.

@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `Keep important flow docs aligned with the Vercel/Cloudflare demo and current case-number flow`
-- Next action: `Run a fresh smoke test after Vercel redeploy: mobile creates incident -> admin alert/queue/map update -> tracking shows case number`
+- Current task: `Post FSD-lite helper-slice smoke test and docs cleanup`
+- Next action: `Run a broad Vercel smoke test: mobile creates incident -> admin alert/queue/map update -> tracking shows case number -> viewer read-only detail -> contacts/GIS/reports/settings open`
 
 ## Status Guide
 
@@ -97,6 +97,7 @@ Use this file to track production-readiness work without touching the auth imple
   - `pnpm build` passed
   - dashboard and GIS pages loaded
   - realtime incident event flow emitted successfully
+  - FSD-lite helper slices completed and verified on Vercel test through `036f815`: `shared/config`, `shared/realtime`, `entities/incident`, `entities/contact`, `entities/area`, `features/incident-alert`, and `widgets/dashboard-map`
 
 ## Notes
 
