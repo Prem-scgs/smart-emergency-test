@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 // @ts-ignore -- executed directly by Node 24's TypeScript support
-import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from '../shared/api/emergency-api-url.ts'
+import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from '../shared/config/emergency-api.ts'
 
 test('uses the same-origin emergency gateway by default', () => {
   assert.equal(

@@ -63,7 +63,7 @@ test('admin realtime uses the dedicated SSE helper and REST polling helper', asy
   const source = await readFile(new URL('./use-sse.ts', import.meta.url), 'utf8')
 
   assert.match(source, /new EventSource\(buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), user\)\)/)
-  assert.match(source, /buildApiUrl\(getEmergencyApiBaseUrl\(\), `\/api\/incidents\/recent\?\$\{searchParams\.toString\(\)\}`\)/)
+  assert.match(source, /buildRealtimeApiUrl\(getEmergencyApiBaseUrl\(\), `\/api\/incidents\/recent\?\$\{searchParams\.toString\(\)\}`\)/)
 })
 
 test('admin alert detail action opens the existing dashboard incident detail panel', async () => {

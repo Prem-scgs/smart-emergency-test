@@ -6,6 +6,10 @@ async function readUseSseSource() {
   return readFile(new URL("./use-sse.ts", import.meta.url), "utf8");
 }
 
+async function readIncidentEventsSource() {
+  return readFile(new URL("../shared/realtime/incident-events.ts", import.meta.url), "utf8");
+}
+
 test("useSse keeps the realtime alert and notification contract", async () => {
   const source = await readUseSseSource();
 
@@ -47,9 +51,11 @@ test("useSse keeps viewer updates passive without popup alerts or notifications"
 
 test("useSse validates and dispatches status update events", async () => {
   const source = await readUseSseSource();
+  const incidentEventsSource = await readIncidentEventsSource();
 
-  assert.match(source, /export function parseIncidentStatusUpdatedPayload/);
-  assert.match(source, /throw new Error\('Invalid incident status event'\)/);
+  assert.match(source, /parseIncidentStatusUpdatedPayload\(event\.data\)/);
+  assert.match(incidentEventsSource, /export function parseIncidentStatusUpdatedPayload/);
+  assert.match(incidentEventsSource, /throw new Error\('Invalid incident status event'\)/);
   assert.match(source, /new CustomEvent\('smart-emergency:incident-status-updated'/);
   assert.match(source, /const versionKey = `\$\{payload\.id\}:\$\{payload\.statusVersion\}`/);
   assert.match(source, /seenStatusVersionsRef\.current\.has\(versionKey\)/);

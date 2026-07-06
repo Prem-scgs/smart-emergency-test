@@ -6,7 +6,7 @@ import {
   buildMobileIncidentEventsUrl,
   buildMobileTrackingUrl,
   isMobileIncidentWorkflowStatus,
-} from './mobile-tracking.ts'
+} from '../shared/realtime/mobile-tracking.ts'
 
 test('buildMobileTrackingUrl scopes tracking reads by incident and reporter session', () => {
   assert.equal(
