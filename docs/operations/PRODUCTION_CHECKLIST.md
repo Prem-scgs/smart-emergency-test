@@ -4,9 +4,9 @@ Use this file to track production-readiness work without touching the auth imple
 
 ## Current Focus
 
-- Current phase: `Phase 3 - Database Readiness`
-- Current task: `Harden schema with foreign keys, DB-level checks, and list-query indexes`
-- Next action: `Decide whether to verify from a clean reset next or write backup/restore notes first`
+- Current phase: `Phase 5 - Realtime and Demo Flow Stability`
+- Current task: `Keep important flow docs aligned with the Vercel/Cloudflare demo and current case-number flow`
+- Next action: `Run a fresh smoke test after Vercel redeploy: mobile creates incident -> admin alert/queue/map update -> tracking shows case number`
 
 ## Status Guide
 
@@ -20,6 +20,7 @@ Use this file to track production-readiness work without touching the auth imple
 - [-] Replace remaining main-flow mock usage with DB/API data
 - [x] Add `GET /api/incidents/:id`
 - [x] Update mobile tracking to read incident detail directly
+- [x] Add display case numbers while keeping UUID as internal API id
 - [ ] Make mobile/admin/backend use one shared category source
 - [ ] Make province/district/location lookup use one shared source
 - [x] Reduce duplicate fetches for reference categories and locations
@@ -54,9 +55,11 @@ Use this file to track production-readiness work without touching the auth imple
 
 ## Phase 5 - Realtime and Dashboard Stability
 
-- [ ] Verify admin receives new incident notifications reliably
-- [ ] Verify SSE reconnect behavior
-- [ ] Prevent duplicate notifications
+- [-] Verify admin receives new incident notifications reliably
+- [-] Verify SSE reconnect behavior
+- [x] Add REST polling fallback for `/api/incidents/recent`
+- [x] Prevent duplicate notifications across SSE and polling by incident id / status version
+- [x] Keep `viewer` passive: scoped live refresh only, no popup/sound/actionable notifications
 - [ ] Define which alert severities should play sound
 - [ ] Complete loading / empty / error states in main admin pages
 - [ ] Verify role-scoped filtering across dashboard widgets
@@ -84,6 +87,9 @@ Use this file to track production-readiness work without touching the auth imple
 ## Verification Log
 
 - Latest known verified items:
+  - Vercel test demo passed after Cloudflare tunnel CORS/rewrite fix: iPhone mobile Call created a new incident and Admin saw it through polling fallback
+  - `020_incident_case_number.sql` added `caseNumber` display ids and was verified on Vercel test flow
+  - Viewer role was narrowed to read-only/passive realtime behavior
   - `pnpm db:migrate:db-readiness` passed
   - DB query confirmed new foreign keys, check constraints, and indexes exist
   - `pnpm test:api` passed
