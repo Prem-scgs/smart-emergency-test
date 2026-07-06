@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `Post FSD-lite helper-slice smoke test and docs cleanup`
-- Next action: `Run a broad Vercel smoke test: mobile creates incident -> admin alert/queue/map update -> tracking shows case number -> viewer read-only detail -> contacts/GIS/reports/settings open`
+- Current task: `FSD-lite helper slices and broad Vercel smoke test completed`
+- Next action: `Choose the next scope: pause refactor for demo handoff, document API/backup contracts, or plan a larger component/domain extraction`
 
 ## Status Guide
 
@@ -98,6 +98,8 @@ Use this file to track production-readiness work without touching the auth imple
   - dashboard and GIS pages loaded
   - realtime incident event flow emitted successfully
   - FSD-lite helper slices completed and verified on Vercel test through `036f815`: `shared/config`, `shared/realtime`, `entities/incident`, `entities/contact`, `entities/area`, `features/incident-alert`, and `widgets/dashboard-map`
+  - Broad Vercel smoke after `ef4f5b0` passed: mobile incident create, duplicate request guard, polling fallback, mobile tracking case number, viewer read-only detail/status guard, dashboard map-points case number, contacts/incident viewer scope, call result update, and main admin pages
+  - UI smoke was checked by เปรม after deploy: admin popup/detail/map/report-print paths passed
 
 ## Notes
 
