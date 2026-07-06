@@ -140,7 +140,8 @@ Move domains only when there is real work in that area:
   - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
   - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, and sound helpers.
   - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
-- Route files and components still own React state, fetch effects, UI rendering, and large composition until a separate plan moves them safely.
+  - `widgets/dashboard-map` also owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
+- Route files should stay as shells that provide auth/i18n/reference context and compose the appropriate widget.
 - Keep existing `lib/` bridge files until `rg` confirms old imports are gone.
 - Further moves should be planned separately because the next likely slices are larger component/workflow extractions, not pure helpers.
 - Do not combine FSD moves with behavior changes unless a test or build error requires it.

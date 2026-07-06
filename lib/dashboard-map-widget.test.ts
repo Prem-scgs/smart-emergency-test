@@ -2,6 +2,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  buildDashboardMapViewModel,
+} from '../widgets/dashboard-map/model/view-model.ts'
+import {
   buildDashboardLocationOptions,
   filterDashboardLocationOptions,
   filterDashboardMapIncidents,
@@ -9,7 +12,7 @@ import {
   localizeDashboardMapIncidents,
   normalizeDashboardMapText,
   type DashboardLocationOption,
-} from '../widgets/dashboard-map/index.ts'
+} from '../widgets/dashboard-map/lib/helpers.ts'
 import type { ReferenceDistrict, ReferenceProvince } from './reference-locations.ts'
 
 const provinces: ReferenceProvince[] = [
@@ -154,4 +157,54 @@ test('dashboard map localization uses master locations and falls back to outside
 test('dashboard map display number uses case number with short id fallback', () => {
   assert.equal(getIncidentMapDisplayNumber(incidents[0]), 'POL-20260706-0002')
   assert.equal(getIncidentMapDisplayNumber({ id: 'b863c8a0-83c9', caseNumber: null }), 'b863c8a0')
+})
+
+test('dashboard map view model preserves role scope, KPI counts, and chart data', () => {
+  const Icon = () => null
+  const viewModel = buildDashboardMapViewModel({
+    incidents,
+    contacts: [
+      { id: 'contact-police', name: 'Police', phone: '191', category: 'police', active: true },
+      { id: 'contact-fire', name: 'Fire', phone: '199', category: 'fire', active: true },
+    ],
+    isSuperAdmin: false,
+    allowedCategories: ['police'],
+    categoryFilter: 'all',
+    normalizedLocationQuery: '',
+    selectedLocation: null,
+    provinceByCode: { '65': provinces[0] },
+    districtByCode: { '6501': districts[0] },
+    preferThai: true,
+    outsideAreaLabel: 'นอกพื้นที่รับผิดชอบ',
+    categoryLabelMap: { police: 'ตำรวจ', fire: 'ดับเพลิง' },
+    agencyDisplayName: 'ตำรวจ',
+    scopeOwnAgencyLabel: 'เฉพาะหน่วยงาน ',
+    allAgenciesFilteredLabel: 'ทุกหน่วยงานตามตัวกรอง',
+    kpiLabels: {
+      totalIncidents: 'เหตุทั้งหมด',
+      openIncidents: 'เหตุเปิดอยู่',
+      activeContacts: 'เบอร์ติดต่อ',
+      closureRate: 'อัตราปิดเหตุ',
+      criticalSuffix: ' วิกฤต',
+      noCritical: 'ไม่มีเหตุวิกฤต',
+      contactsPrefix: 'ใช้งาน ',
+      contactsSuffix: ' รายการ',
+      closedSuffix: ' ปิดแล้ว',
+    },
+    icons: {
+      phone: Icon,
+      alert: Icon,
+      building: Icon,
+      check: Icon,
+    },
+  })
+
+  assert.deepEqual(viewModel.roleIncidents.map(incident => incident.id), [incidents[0].id])
+  assert.deepEqual(viewModel.roleContacts.map(contact => contact.id), ['contact-police'])
+  assert.equal(viewModel.localizedVisibleIncidents[0].areaName, 'เมืองพิษณุโลก พิษณุโลก')
+  assert.equal(viewModel.kpis[0].value, '1')
+  assert.equal(viewModel.kpis[2].description, 'ใช้งาน 1 รายการ')
+  assert.deepEqual(viewModel.categoryChartData, [{ category: 'ตำรวจ', calls: 1 }])
+  assert.deepEqual(viewModel.areaChartData, [{ area: 'เมืองพิษณุโลก พิษณุโลก', calls: 1 }])
+  assert.equal(viewModel.hourlyData.reduce((sum, row) => sum + row.calls, 0), 1)
 })

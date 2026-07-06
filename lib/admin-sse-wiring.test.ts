@@ -67,10 +67,10 @@ test('admin realtime uses the dedicated SSE helper and REST polling helper', asy
 })
 
 test('admin alert detail action opens the existing dashboard incident detail panel', async () => {
-  const [alertDisplay, alertFeature, dashboardPage, types] = await Promise.all([
+  const [alertDisplay, alertFeature, dashboardMapHooks, types] = await Promise.all([
     readFile(new URL('../components/admin/alert-display.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../features/incident-alert/lib/navigation.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../app/admin/(dashboard)/dashboard/page.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../widgets/dashboard-map/model/hooks.ts', import.meta.url), 'utf8'),
     readFile(typesPath, 'utf8'),
   ])
 
@@ -78,8 +78,8 @@ test('admin alert detail action opens the existing dashboard incident detail pan
   assert.match(alertDisplay, /clearAlert\(currentAlert\.id\)[\s\S]*window\.setTimeout\(\(\) =>/)
   assert.match(alertDisplay, /openIncidentDetailFromAlert\(incidentId\)/)
   assert.match(alertFeature, /smart-emergency:pending-incident-detail/)
-  assert.match(dashboardPage, /smart-emergency:open-incident-detail/)
-  assert.match(dashboardPage, /openIncidentDetail\(incidentId\)/)
+  assert.match(dashboardMapHooks, /smart-emergency:open-incident-detail/)
+  assert.match(dashboardMapHooks, /openIncidentDetail\(incidentId\)/)
 })
 test('admin realtime alert carries incidentId for detail action', async () => {
   const source = await readFile(new URL('../features/incident-alert/lib/artifacts.ts', import.meta.url), 'utf8')
