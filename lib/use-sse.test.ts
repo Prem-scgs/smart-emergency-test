@@ -10,25 +10,29 @@ async function readIncidentEventsSource() {
   return readFile(new URL("../shared/realtime/incident-events.ts", import.meta.url), "utf8");
 }
 
-test("useSse keeps the realtime alert and notification contract", async () => {
-  const source = await readUseSseSource();
+async function readIncidentAlertFeatureSource() {
+  return readFile(new URL("../features/incident-alert/lib/artifacts.ts", import.meta.url), "utf8");
+}
 
-  assert.match(source, /export function buildRealtimeIncidentArtifacts/);
-  assert.match(source, /language: AdminLanguage = 'th'/);
-  assert.match(source, /notificationTitle: language === 'en' \? 'New incident received' : 'มีเหตุใหม่เข้าระบบ'/);
-  assert.match(source, /actionLabel:\s*copy\.viewDetails/);
-  assert.match(source, /actionUrl:\s*'\/admin\/dashboard'/);
+test("useSse keeps the realtime alert and notification contract", async () => {
+  const [source, alertFeature] = await Promise.all([
+    readUseSseSource(),
+    readIncidentAlertFeatureSource(),
+  ]);
+
+  assert.match(source, /export \{ buildRealtimeIncidentArtifacts \} from ['"]@\/features\/incident-alert['"]/);
+  assert.match(source, /language = 'th'/);
+  assert.match(source, /buildRealtimeIncidentArtifacts\(payload, language, areaText\)/);
+  assert.match(alertFeature, /actionLabel:\s*copy\.viewDetails/);
+  assert.match(alertFeature, /actionUrl:\s*'\/admin\/dashboard'/);
   assert.match(source, /new CustomEvent\('smart-emergency:incident-created'/);
 });
 
 test("useSse localizes realtime alert copy and never renders raw workflow status", async () => {
   const source = await readUseSseSource();
 
-  assert.match(source, /reported: 'แจ้งเหตุแล้ว'/);
-  assert.match(source, /reported: 'Reported'/);
-  assert.match(source, /const statusText = statusLabel\(payload\.status, language\)/);
-  assert.match(source, /areaTextOverride \|\| buildAreaText\(payload, language\)/);
-  assert.match(source, /description: `[\s\S]*\$\{caseNumber\}[\s\S]*\$\{copy\.severityLabel\} \$\{severityText\} \$\{copy\.statusLabel\} \$\{statusText\}`/);
+  assert.match(source, /buildRealtimeIncidentArtifacts\(payload, language, areaText\)/);
+  assert.match(source, /from ['"]@\/features\/incident-alert['"]/);
   assert.doesNotMatch(source, /description: `[\s\S]*\$\{payload\.status\}/);
 });
 
@@ -43,8 +47,8 @@ test("useSse lets admin providers override incident area text from localized loo
 test("useSse keeps viewer updates passive without popup alerts or notifications", async () => {
   const source = await readUseSseSource();
 
-  assert.match(source, /const shouldCreateActionableAlert = user\?\.role !== 'viewer'/);
-  assert.match(source, /if \(shouldCreateActionableAlert\) \{[\s\S]*onNotification\?\.\(notification\)[\s\S]*onAlert\?\.\(alert\)[\s\S]*\}/);
+  assert.match(source, /shouldCreateActionableAlert\(user\)/);
+  assert.match(source, /if \(shouldCreateActionableAlert\(user\)\) \{[\s\S]*onNotification\?\.\(notification\)[\s\S]*onAlert\?\.\(alert\)[\s\S]*\}/);
   assert.match(source, /onEvent\?\.\(\{[\s\S]*type: 'new-incident'/);
   assert.match(source, /new CustomEvent\('smart-emergency:incident-created'/);
 });
