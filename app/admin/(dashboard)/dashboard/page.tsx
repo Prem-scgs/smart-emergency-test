@@ -39,15 +39,20 @@ import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
 import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
 import { useReferenceCategories } from '@/lib/reference-categories'
 import {
-  getLocationDisplayName,
   useLocationLookupMaps,
   useReferenceLocations,
-  type ReferenceDistrict,
-  type ReferenceProvince,
 } from '@/lib/reference-locations'
 import { getPolygonBounds, type AreaMapBounds, type AreaPolygon } from '@/entities/area'
 import type { EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import {
+  buildDashboardLocationOptions,
+  filterDashboardLocationOptions,
+  filterDashboardMapIncidents,
+  localizeDashboardMapIncidents,
+  normalizeDashboardMapText,
+  type DashboardLocationOption,
+} from '@/widgets/dashboard-map'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
@@ -68,17 +73,6 @@ interface DashboardContact {
   active: boolean
 }
 
-
-interface MasterLocationOption {
-  key: string
-  areaType: 'province' | 'district'
-  label: string
-  provinceCode: string | null
-  province: string
-  districtCode: string | null
-  district: string | null
-  searchable: string
-}
 
 interface DashboardAreaBoundary {
   polygon: AreaPolygon | null
@@ -128,67 +122,9 @@ function selectLabel(label: string) {
   )
 }
 
-function normalizeText(value: string) {
-  return value.trim().toLocaleLowerCase('th-TH').normalize('NFC')
-}
-
 function percent(part: number, total: number) {
   if (total === 0) return 0
   return Math.round((part / total) * 100)
-}
-
-function buildLocationOptions(
-  provinces: ReferenceProvince[],
-  districts: ReferenceDistrict[],
-  preferThai: boolean
-): MasterLocationOption[] {
-  const provinceOptions = provinces.map(province => {
-    const provinceName = getLocationDisplayName(province, preferThai)
-    return {
-      key: `province-${province.provinceCode ?? province.id}`,
-      areaType: 'province' as const,
-      label: provinceName,
-      provinceCode: province.provinceCode ?? null,
-      province: provinceName,
-      districtCode: null,
-      district: null,
-      searchable: normalizeText(
-        [provinceName, province.nameEn ?? '', province.provinceCode ?? ''].join(' ')
-      ),
-    }
-  })
-
-  const districtOptions = districts.map(district => {
-    const provinceName =
-      (preferThai
-        ? district.provinceNameTh ?? district.provinceNameEn
-        : district.provinceNameEn ?? district.provinceNameTh) ??
-      district.provinceCode ??
-      '-'
-    const districtName = getLocationDisplayName(district, preferThai)
-
-    return {
-      key: `district-${district.districtCode ?? district.id}-${district.provinceCode ?? 'na'}`,
-      areaType: 'district' as const,
-      label: `${districtName} ${provinceName}`,
-      provinceCode: district.provinceCode ?? null,
-      province: provinceName,
-      districtCode: district.districtCode ?? null,
-      district: districtName,
-      searchable: normalizeText(
-        [
-          districtName,
-          provinceName,
-          district.nameEn ?? '',
-          district.provinceNameEn ?? '',
-          district.districtCode ?? '',
-          district.provinceCode ?? '',
-        ].join(' ')
-      ),
-    }
-  })
-
-  return [...districtOptions, ...provinceOptions]
 }
 
 export default function DashboardPage() {
@@ -210,7 +146,7 @@ export default function DashboardPage() {
   const [contacts, setContacts] = useState<DashboardContact[]>([])
   const [categoryFilter, setCategoryFilter] = useState<EmergencyCategory | 'all'>('all')
   const [locationQuery, setLocationQuery] = useState('')
-  const [selectedLocation, setSelectedLocation] = useState<MasterLocationOption | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<DashboardLocationOption | null>(null)
   const [selectedLocationBounds, setSelectedLocationBounds] = useState<AreaMapBounds | null>(null)
   const [isLocationMenuOpen, setIsLocationMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -360,84 +296,35 @@ export default function DashboardPage() {
   }, [agencyFilters, categoryFilter])
 
   const locationOptions = useMemo(
-    () => buildLocationOptions(provinces, districts, preferThai),
+    () => buildDashboardLocationOptions(provinces, districts, preferThai),
     [districts, preferThai, provinces]
   )
   const isLocationLoading = isLoadingProvinces || isLoadingDistricts
 
-  const normalizedLocationQuery = normalizeText(locationQuery)
+  const normalizedLocationQuery = normalizeDashboardMapText(locationQuery)
 
-  const filteredLocationOptions = useMemo(() => {
-    const source = locationOptions
-    if (normalizedLocationQuery.length === 0) return source.slice(0, 12)
-    return source.filter(option => option.searchable.includes(normalizedLocationQuery)).slice(0, 20)
-  }, [locationOptions, normalizedLocationQuery])
+  const filteredLocationOptions = useMemo(
+    () => filterDashboardLocationOptions(locationOptions, normalizedLocationQuery),
+    [locationOptions, normalizedLocationQuery]
+  )
 
   const visibleIncidents = useMemo(() => {
-    return roleIncidents.filter(incident => {
-      const matchesCategory = categoryFilter === 'all' || incident.category === categoryFilter
-
-      const provinceCode = incident.provinceCode?.trim() ?? ''
-      const province = normalizeText(incident.province ?? '')
-      const districtCode = incident.districtCode?.trim() ?? ''
-      const district = normalizeText(incident.district ?? '')
-      const areaName = normalizeText(incident.areaName ?? '')
-      const locationHaystack = [areaName, district, province, provinceCode, districtCode]
-        .join(' ')
-        .trim()
-
-      let matchesLocation = true
-
-      if (selectedLocation) {
-        if (selectedLocation.areaType === 'province') {
-          matchesLocation =
-            (selectedLocation.provinceCode != null &&
-              selectedLocation.provinceCode.length > 0 &&
-              provinceCode === selectedLocation.provinceCode) ||
-            province.includes(normalizeText(selectedLocation.province))
-        } else {
-          matchesLocation =
-            (((selectedLocation.provinceCode != null &&
-              selectedLocation.provinceCode.length > 0 &&
-              provinceCode === selectedLocation.provinceCode) ||
-              province.includes(normalizeText(selectedLocation.province))) &&
-              ((selectedLocation.districtCode != null &&
-                selectedLocation.districtCode.length > 0 &&
-                districtCode === selectedLocation.districtCode) ||
-                [district, areaName].some(value =>
-                  value.includes(normalizeText(selectedLocation.district ?? selectedLocation.label))
-                )))
-        }
-      } else if (normalizedLocationQuery.length > 0) {
-        matchesLocation = locationHaystack.includes(normalizedLocationQuery)
-      }
-
-      return matchesCategory && matchesLocation
-    })
+    return filterDashboardMapIncidents(
+      roleIncidents,
+      categoryFilter,
+      normalizedLocationQuery,
+      selectedLocation
+    )
   }, [categoryFilter, normalizedLocationQuery, roleIncidents, selectedLocation])
 
   const localizedVisibleIncidents = useMemo(() => {
-    return visibleIncidents.map(incident => {
-      const provinceFromMaster = incident.provinceCode
-        ? getLocationDisplayName(provinceByCode[incident.provinceCode], preferThai)
-        : ''
-      const districtFromMaster = incident.districtCode
-        ? getLocationDisplayName(districtByCode[incident.districtCode], preferThai)
-        : ''
-      const province = provinceFromMaster || incident.province
-      const district = districtFromMaster || incident.district
-      const areaName =
-        [district, province].filter(Boolean).join(' ') ||
-        incident.areaName ||
-        t('dashboardOutsideArea')
-
-      return {
-        ...incident,
-        province,
-        district,
-        areaName,
-      }
-    })
+    return localizeDashboardMapIncidents(
+      visibleIncidents,
+      provinceByCode,
+      districtByCode,
+      preferThai,
+      t('dashboardOutsideArea')
+    )
   }, [districtByCode, preferThai, provinceByCode, t, visibleIncidents])
 
   const openIncidents = localizedVisibleIncidents.filter(incident => incident.status !== 'closed')
@@ -534,7 +421,7 @@ export default function DashboardPage() {
     }
   }
 
-  function handleLocationSelect(option: MasterLocationOption) {
+  function handleLocationSelect(option: DashboardLocationOption) {
     setSelectedLocation(option)
     setLocationQuery(option.label)
     setIsLocationMenuOpen(false)

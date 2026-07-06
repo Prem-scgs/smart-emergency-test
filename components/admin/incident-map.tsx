@@ -5,6 +5,7 @@ import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, useMap } from 
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { getIncidentTrackingStatusMeta, type IncidentWorkflowStatus } from '@/lib/incident-tracking'
 import { cn } from '@/lib/utils'
+import { getIncidentMapDisplayNumber } from '@/widgets/dashboard-map'
 
 export interface IncidentMapPoint {
   id: string
@@ -82,10 +83,6 @@ function MapViewport({
   }, [isLoaded, map, selectedAreaBounds, selectedIncident, userLocation])
 
   return null
-}
-
-function incidentDisplayNumber(incident: IncidentMapPoint) {
-  return incident.caseNumber ?? incident.id.slice(0, 8)
 }
 
 export function IncidentMap({
@@ -172,7 +169,7 @@ export function IncidentMap({
             <div className="flex min-w-44 flex-col gap-1 rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
               <p className="font-medium">{categoryLabels[incident.category] ?? incident.category}</p>
               <p className="text-xs font-medium text-muted-foreground">
-                {language === 'en' ? 'Case' : 'หมายเลขเหตุ'}: {incidentDisplayNumber(incident)}
+                {language === 'en' ? 'Case' : 'หมายเลขเหตุ'}: {getIncidentMapDisplayNumber(incident)}
               </p>
               <p className="text-sm text-muted-foreground">
                 {t('incidentMapStatusLabel')}: {getStatusLabel(incident.status)}
