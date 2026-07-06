@@ -78,7 +78,15 @@ export function restoreStoredAdminUser(raw: string | null): AdminUser | null {
 
   try {
     const parsed = JSON.parse(raw) as Omit<AdminUser, 'lastLogin'> & { lastLogin?: string | Date }
-    const agency = parsed.agency ?? AGENCIES.find(candidate => candidate.id === parsed.agencyId)
+    const normalizedAgencyId = parsed.agencyId?.startsWith('agency-')
+      ? parsed.agencyId.slice('agency-'.length)
+      : parsed.agencyId
+    const agency =
+      parsed.agency ??
+      AGENCIES.find(candidate =>
+        candidate.id === normalizedAgencyId ||
+        candidate.category === normalizedAgencyId
+      )
 
     return {
       ...parsed,

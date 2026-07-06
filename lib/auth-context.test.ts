@@ -53,3 +53,21 @@ test('restoreStoredAdminUser rehydrates agency from agencyId for legacy viewer s
   assert.equal(user?.agencyId, 'police')
   assert.equal(user?.agency?.category, 'police')
 })
+
+test('restoreStoredAdminUser rehydrates agency from prefixed legacy agencyId', () => {
+  const user = restoreStoredAdminUser(
+    JSON.stringify({
+      id: 'viewer-legacy-prefixed',
+      email: 'viewer@example.com',
+      name: 'Viewer',
+      role: 'viewer',
+      agencyId: 'agency-medical',
+      permissions: ['dashboard.view'],
+      lastLogin: '2026-07-06T10:00:00.000Z',
+    })
+  )
+
+  assert.ok(user)
+  assert.equal(user?.agencyId, 'agency-medical')
+  assert.equal(user?.agency?.category, 'medical')
+})

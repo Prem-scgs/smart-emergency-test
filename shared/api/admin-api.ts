@@ -5,6 +5,13 @@ export interface BackendAdminScope {
   category: string | null
 }
 
+function normalizeLegacyAgencyCategory(category: string | undefined) {
+  if (!category) return null
+
+  // Session รุ่นเก่าเคยเก็บ agencyId เป็น agency-medical แต่ backend ต้องการ category จริงคือ medical
+  return category.startsWith('agency-') ? category.slice('agency-'.length) : category
+}
+
 export function getBackendAdminScope(user: AdminUser | null | undefined): BackendAdminScope | null {
   if (!user) return null
 
@@ -14,7 +21,7 @@ export function getBackendAdminScope(user: AdminUser | null | undefined): Backen
 
   if (user.role === 'agency_admin' || user.role === 'viewer') {
     // Session เก่าบางเครื่องเก็บไว้แค่ agencyId; fallback นี้ทำให้ viewer ยังส่ง scope เพื่ออ่าน detail ได้
-    const category = user.agency?.category ?? user.agencyId
+    const category = normalizeLegacyAgencyCategory(user.agency?.category ?? user.agencyId)
     if (category) return { role: user.role, category }
   }
 
