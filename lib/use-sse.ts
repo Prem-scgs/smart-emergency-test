@@ -6,7 +6,7 @@ import type { AdminLanguage } from './admin-i18n'
 import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from './emergency-api-url'
 import { Alert, Notification, SseEvent, type AdminUser } from './types'
 
-interface IncidentEventPayload {
+export interface IncidentEventPayload {
   id: string
   caseNumber?: string | null
   category: string
@@ -46,6 +46,7 @@ interface UseSseOptions {
   onNotification?: (notification: Notification) => void
   onAlert?: (alert: Alert) => void
   onEvent?: (event: SseEvent) => void
+  formatAreaText?: (payload: IncidentEventPayload, language: AdminLanguage) => string | null | undefined
   enabled?: boolean
   user?: AdminUser | null
   language?: AdminLanguage
@@ -214,14 +215,15 @@ export function parseIncidentStatusUpdatedPayload(data: string): IncidentStatusU
 
 export function buildRealtimeIncidentArtifacts(
   payload: IncidentEventPayload,
-  language: AdminLanguage = 'th'
+  language: AdminLanguage = 'th',
+  areaTextOverride?: string | null
 ): {
   notification: Notification
   alert: Alert
 } {
   const timestamp = new Date(payload.createdAt)
   const agencyId = payload.category
-  const areaText = buildAreaText(payload, language)
+  const areaText = areaTextOverride || buildAreaText(payload, language)
   const categoryText = categoryLabel(payload.category, language)
   const severityText = severityLabel(payload.severity, language)
   const statusText = statusLabel(payload.status, language)
@@ -281,7 +283,15 @@ export function buildRealtimeIncidentArtifacts(
 }
 
 export function useSse(options: UseSseOptions = {}) {
-  const { onNotification, onAlert, onEvent, enabled = true, user = null, language = 'th' } = options
+  const {
+    onNotification,
+    onAlert,
+    onEvent,
+    formatAreaText,
+    enabled = true,
+    user = null,
+    language = 'th',
+  } = options
   const eventSourceRef = useRef<EventSource | null>(null)
   const connectionStateRef = useRef<SseDebugStatus | null>(null)
   const seenIncidentIdsRef = useRef<Set<string>>(new Set())
@@ -322,7 +332,8 @@ export function useSse(options: UseSseOptions = {}) {
         emitSseDebugEvent('incident.created.poll')
       }
 
-      const { notification, alert } = buildRealtimeIncidentArtifacts(payload, language)
+      const areaText = formatAreaText?.(payload, language)
+      const { notification, alert } = buildRealtimeIncidentArtifacts(payload, language, areaText)
       // viewer ต้องเห็นข้อมูลสดแบบ passive เท่านั้น ไม่เด้ง popup/sound/actionable notification
       const shouldCreateActionableAlert = user?.role !== 'viewer'
 
@@ -477,7 +488,16 @@ export function useSse(options: UseSseOptions = {}) {
         eventSourceRef.current = null
       }
     }
-  }, [enabled, language, onAlert, onEvent, onNotification, user?.role, user?.agency?.category])
+  }, [
+    enabled,
+    formatAreaText,
+    language,
+    onAlert,
+    onEvent,
+    onNotification,
+    user?.role,
+    user?.agency?.category,
+  ])
 
   return {
     isConnected: eventSourceRef.current?.readyState === 1,

@@ -6,6 +6,8 @@ import { canUserSeeAlert, canUserSeeNotification } from './notification-visibili
 import { useSse } from '@/lib/use-sse'
 import { useAuth } from '@/lib/auth-context'
 import { useAdminI18n } from '@/lib/admin-i18n'
+import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import type { IncidentEventPayload } from '@/lib/use-sse'
 
 interface NotificationContextType {
   notifications: Notification[]
@@ -25,6 +27,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth()
   const { language } = useAdminI18n()
+  const { provinceByCode, districtByCode } = useLocationLookupMaps()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [alerts, setAlerts] = useState<Alert[]>([])
 
@@ -65,10 +68,25 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setAlerts([])
   }, [])
 
+  const formatIncidentAreaText = useCallback(
+    (payload: IncidentEventPayload) => {
+      const preferThai = language === 'th'
+      const province = payload.provinceCode ? provinceByCode[payload.provinceCode] : undefined
+      const district = payload.districtCode ? districtByCode[payload.districtCode] : undefined
+      const provinceLabel = getLocationDisplayName(province, preferThai) || payload.province || ''
+      const districtLabel = getLocationDisplayName(district, preferThai) || payload.district || ''
+
+      // alert popup ต้องใช้ master location ตามภาษาปัจจุบัน ไม่ใช้ชื่ออังกฤษที่ mobile เคยส่งมาเป็นหลัก
+      return [districtLabel, provinceLabel].filter(Boolean).join(' ') || null
+    },
+    [districtByCode, language, provinceByCode]
+  )
+
   // Setup SSE connection
   useSse({
     onNotification: addNotification,
     onAlert: addAlert,
+    formatAreaText: formatIncidentAreaText,
     enabled: !isLoading && isAuthenticated && !!user,
     user,
     language,

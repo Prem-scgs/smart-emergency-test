@@ -199,9 +199,9 @@ export function MobileApp() {
         longitude: nextLocation.longitude,
         accuracy: nextLocation.accuracy,
         provinceCode: resolved.provinceCode ?? undefined,
-        province: resolved.provinceNameEn ?? '',
+        province: resolved.provinceNameTh ?? resolved.provinceNameEn ?? '',
         districtCode: resolved.districtCode ?? undefined,
-        district: resolved.districtNameEn ?? '',
+        district: resolved.districtNameTh ?? resolved.districtNameEn ?? '',
         lastUpdated: new Date(),
       }
 

@@ -14,10 +14,21 @@ test('admin mounts the canonical SSE hook only in NotificationProvider', async (
 
   assert.match(notificationContext, /import \{ useSse \} from ['"]@\/lib\/use-sse['"]/)
   assert.match(notificationContext, /useSse\(\{[\s\S]*onNotification: addNotification,[\s\S]*onAlert: addAlert,/)
+  assert.match(notificationContext, /formatAreaText: formatIncidentAreaText/)
   assert.match(notificationContext, /const \{ language \} = useAdminI18n\(\)/)
   assert.match(notificationContext, /language,/)
   assert.doesNotMatch(notificationContext, /WebSocket/)
   assert.doesNotMatch(adminLayout, /useSse/)
+})
+
+test('admin realtime alert formats area names from localized reference lookups', async () => {
+  const notificationContext = await readFile(notificationContextPath, 'utf8')
+
+  assert.match(notificationContext, /useLocationLookupMaps/)
+  assert.match(notificationContext, /getLocationDisplayName\(province, preferThai\)/)
+  assert.match(notificationContext, /getLocationDisplayName\(district, preferThai\)/)
+  assert.match(notificationContext, /payload\.provinceCode \? provinceByCode\[payload\.provinceCode\]/)
+  assert.match(notificationContext, /payload\.districtCode \? districtByCode\[payload\.districtCode\]/)
 })
 
 test('admin realtime alert shell uses admin i18n labels', async () => {

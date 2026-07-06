@@ -23,8 +23,17 @@ test("useSse localizes realtime alert copy and never renders raw workflow status
   assert.match(source, /reported: 'แจ้งเหตุแล้ว'/);
   assert.match(source, /reported: 'Reported'/);
   assert.match(source, /const statusText = statusLabel\(payload\.status, language\)/);
+  assert.match(source, /areaTextOverride \|\| buildAreaText\(payload, language\)/);
   assert.match(source, /description: `[\s\S]*\$\{caseNumber\}[\s\S]*\$\{copy\.severityLabel\} \$\{severityText\} \$\{copy\.statusLabel\} \$\{statusText\}`/);
   assert.doesNotMatch(source, /description: `[\s\S]*\$\{payload\.status\}/);
+});
+
+test("useSse lets admin providers override incident area text from localized lookups", async () => {
+  const source = await readUseSseSource();
+
+  assert.match(source, /formatAreaText\?: \(payload: IncidentEventPayload, language: AdminLanguage\)/);
+  assert.match(source, /const areaText = formatAreaText\?\.\(payload, language\)/);
+  assert.match(source, /buildRealtimeIncidentArtifacts\(payload, language, areaText\)/);
 });
 
 test("useSse keeps viewer updates passive without popup alerts or notifications", async () => {
