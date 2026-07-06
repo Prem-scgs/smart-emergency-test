@@ -205,6 +205,44 @@ GIS/admin map data comes from the API and PostGIS, not frontend-only mock data.
 User-facing UI should show `caseNumber` or a short fallback `id.slice(0, 8)`;
 do not render the full UUID as the incident number.
 
+### Dashboard widget and queue scope
+
+The dashboard route is now a shell that passes auth, i18n, and reference data
+into `widgets/dashboard-map`. That widget owns the dashboard data hook, selected
+incident detail controller, selected-area bounds, map/filter view-model helpers,
+and `IncidentQueue`.
+
+`components/admin/incident-queue.tsx` is only a compatibility bridge. Do not add
+new queue runtime logic there; add it under `widgets/dashboard-map` instead.
+
+### Demo API contract summary
+
+These are the main API paths used by the current demo flow:
+
+- `GET /health`: API health check.
+- `POST /api/incidents`: creates an incident idempotently by `clientRequestId`
+  and returns the internal `id` plus display `caseNumber`.
+- `GET /api/incidents/recent?since=<cursor>&limit=50`: polling fallback for
+  new incidents and status updates.
+- `GET /api/incidents/:id/tracking?sessionId=<mobile-session-id>`: mobile
+  reporter-owned tracking view.
+- `GET /api/incidents/:id/tracking?role=<role>&category=<category>`: admin
+  scoped detail view, including read-only `viewer`.
+- `PATCH /api/incidents/:id/status`: admin status update with optimistic
+  concurrency through `expectedVersion`.
+- `GET /api/incidents/map-points`: dashboard/GIS incident markers with
+  `caseNumber` and area metadata.
+- `GET /api/events?role=<role>&category=<category>`: admin SSE stream.
+- `GET /api/contacts` and contact write endpoints: role-scoped emergency
+  contact data.
+- `GET /api/areas`, `GET /api/areas/resolve-point`,
+  `GET /api/areas/:id/contacts`, and `GET /api/areas/:id/incidents`: GIS and
+  area lookup data.
+
+UUID stays as the internal API id. User-facing screens should display
+`caseNumber` first, then short `id.slice(0, 8)` fallback only when older data has
+no case number.
+
 ## 4. Verify Before Push
 
 Run backend tests:
@@ -340,6 +378,19 @@ Smoke checks:
 curl https://<your-tunnel>.trycloudflare.com/health
 curl https://smart-emergency-test.vercel.app/emergency-api/health
 ```
+
+Current broad Vercel smoke checklist:
+
+- Mobile/iPhone `Call` creates an incident and does not show
+  `failed to start incident`.
+- Admin `super_admin` or matching `agency_admin` receives one alert, one queue
+  item, and one map marker for the same case.
+- Alert, queue, and map all open the same detail panel.
+- `viewer` can see scoped dashboard/queue/map/detail data but cannot update
+  status and must not receive popup, sound, or actionable notification.
+- Mobile/admin user-facing incident numbers show `caseNumber`, not the full
+  UUID.
+- Contacts, GIS, Reports print, and Settings open without crashing.
 
 ## 7. Current Known Limits
 

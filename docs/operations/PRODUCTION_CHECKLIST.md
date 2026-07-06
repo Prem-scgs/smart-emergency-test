@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite helper slices and broad Vercel smoke test completed`
-- Next action: `Choose the next scope: pause refactor for demo handoff, document API/backup contracts, or plan a larger component/domain extraction`
+- Current task: `FSD-lite dashboard widget and IncidentQueue slices passed Vercel test`
+- Next action: `Choose whether to pause for demo handoff, document backup/API contracts deeper, or plan the next high-risk slice: IncidentMap or IncidentDetailPanel`
 
 ## Status Guide
 
@@ -32,7 +32,7 @@ Use this file to track production-readiness work without touching the auth imple
 - [-] Validate critical inputs on all write endpoints
 - [-] Validate `latitude` / `longitude` / phone / status / category / area codes
 - [ ] Review endpoint response fields for consistency
-- [ ] Document current API contract in repo docs
+- [x] Document current demo API contract in the runbook
 
 ## Phase 3 - Database Readiness
 
@@ -62,7 +62,7 @@ Use this file to track production-readiness work without touching the auth imple
 - [x] Keep `viewer` passive: scoped live refresh only, no popup/sound/actionable notifications
 - [ ] Define which alert severities should play sound
 - [ ] Complete loading / empty / error states in main admin pages
-- [ ] Verify role-scoped filtering across dashboard widgets
+- [x] Verify role-scoped filtering across dashboard widgets
 
 ## Phase 6 - Logging, Security, and Ops
 
@@ -100,6 +100,12 @@ Use this file to track production-readiness work without touching the auth imple
   - FSD-lite helper slices completed and verified on Vercel test through `036f815`: `shared/config`, `shared/realtime`, `entities/incident`, `entities/contact`, `entities/area`, `features/incident-alert`, and `widgets/dashboard-map`
   - Broad Vercel smoke after `ef4f5b0` passed: mobile incident create, duplicate request guard, polling fallback, mobile tracking case number, viewer read-only detail/status guard, dashboard map-points case number, contacts/incident viewer scope, call result update, and main admin pages
   - UI smoke was checked by เปรม after deploy: admin popup/detail/map/report-print paths passed
+  - Dashboard widget extraction passed on Vercel test after `1cf7f87`: dashboard data hook, detail controller, selected-area bounds, queue/map/detail wiring, and iPhone mobile create -> admin alert path
+  - IncidentQueue slice passed on Vercel test after `63c9b17`: queue implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and viewer/detail/queue behavior remained correct
+
+Vercel test note:
+
+- The test frontend is deployed on Vercel, but the Fastify API and PostgreSQL/PostGIS database still run from เปรม's machine through the Cloudflare tunnel. If that machine, Docker API, DB, or cloudflared is off, the Vercel frontend can load while live API data fails.
 
 ## Notes
 

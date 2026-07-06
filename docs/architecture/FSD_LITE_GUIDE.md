@@ -53,8 +53,8 @@ features/contact-management/contact form validation and CRUD workflow
 features/location-sharing/  share location card and provider URL generation
 features/report-export/     CSV/PDF/print export actions
 
-widgets/dashboard-map/      dashboard map, markers, selected incident panel
-widgets/incident-queue/     incident list/queue panel
+widgets/dashboard-map/      dashboard map section, incident queue, dashboard data and detail wiring
+widgets/incident-queue/     reserved only if the queue is split out of dashboard-map later
 widgets/gis-browser/        GIS area list and boundary map composition
 widgets/admin-shell/        admin layout composition if split later
 ```
@@ -141,8 +141,9 @@ Move domains only when there is real work in that area:
   - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, and sound helpers.
   - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
   - `widgets/dashboard-map` also owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
+  - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. `components/admin/incident-queue.tsx` is now a compatibility bridge only.
 - Route files should stay as shells that provide auth/i18n/reference context and compose the appropriate widget.
 - Keep existing `lib/` bridge files until `rg` confirms old imports are gone.
-- Further moves should be planned separately because the next likely slices are larger component/workflow extractions, not pure helpers.
+- Further moves should be planned separately. The next likely slices are `IncidentMap`, which has viewport/geolocation/bounds complexity, and `IncidentDetailPanel`, which has tracking fetch, status update, and optimistic concurrency logic.
 - Do not combine FSD moves with behavior changes unless a test or build error requires it.
 - Generated UI files from shadcn/mapcn should normally stay where their generator expects; summarize usage in docs instead of editing generated files heavily.
