@@ -563,6 +563,25 @@ export default function ReportsPage() {
                 background: #ffffff;
                 page-break-after: always;
               }
+              html.dark .print-only-report,
+              html.dark .print-only-report .report-page {
+                background: #0a0a0a;
+                color: #f5f5f5;
+                color-scheme: dark;
+              }
+              html.dark .print-only-report h1,
+              html.dark .print-only-report h2,
+              html.dark .print-only-report p,
+              html.dark .print-only-report div,
+              html.dark .print-only-report table,
+              html.dark .print-only-report th,
+              html.dark .print-only-report td {
+                color: #f5f5f5 !important;
+                border-color: #404040 !important;
+              }
+              html.dark .print-only-report div[style*="#ef4444"] {
+                color: #ef5350 !important;
+              }
               .print-only-report .report-page:last-child {
                 page-break-after: auto;
               }

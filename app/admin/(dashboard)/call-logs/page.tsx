@@ -552,6 +552,25 @@ export default function CallLogsPage() {
                 background: #ffffff;
                 page-break-after: always;
               }
+              html.dark .print-only-call-logs,
+              html.dark .print-only-call-logs .call-logs-print-page {
+                background: #0a0a0a;
+                color: #f5f5f5;
+                color-scheme: dark;
+              }
+              html.dark .print-only-call-logs h1,
+              html.dark .print-only-call-logs h2,
+              html.dark .print-only-call-logs p,
+              html.dark .print-only-call-logs div,
+              html.dark .print-only-call-logs table,
+              html.dark .print-only-call-logs th,
+              html.dark .print-only-call-logs td {
+                color: #f5f5f5 !important;
+                border-color: #404040 !important;
+              }
+              html.dark .print-only-call-logs div[style*="#ef4444"] {
+                color: #ef5350 !important;
+              }
               .print-only-call-logs .call-logs-print-page:last-child {
                 page-break-after: auto;
               }
