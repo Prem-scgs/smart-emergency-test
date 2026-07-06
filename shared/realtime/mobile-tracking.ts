@@ -1,16 +1,9 @@
 import type {
   IncidentTrackingHistoryEntry,
   IncidentWorkflowStatus,
-} from '@/lib/incident-tracking'
-
-const WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
-  'reported',
-  'acknowledged',
-  'coordinating',
-  'dispatched',
-  'on_scene',
-  'closed',
-])
+} from '../../entities/incident/model/tracking.ts'
+import { isIncidentWorkflowStatus } from '../../entities/incident/model/tracking.ts'
+import { getIncidentDisplayNumber } from '../../entities/incident/lib/display.ts'
 
 export interface MobileTrackingIncident {
   id: string
@@ -71,11 +64,11 @@ export function buildMobileIncidentEventsUrl(
 export function getMobileIncidentDisplayNumber(
   incident: Pick<MobileTrackingIncident, 'id'> & { caseNumber?: string | null }
 ) {
-  return incident.caseNumber ?? incident.id.slice(0, 8)
+  return getIncidentDisplayNumber(incident)
 }
 
 export function isMobileIncidentWorkflowStatus(
   value: unknown
 ): value is IncidentWorkflowStatus {
-  return typeof value === 'string' && WORKFLOW_STATUSES.has(value as IncidentWorkflowStatus)
+  return isIncidentWorkflowStatus(value)
 }

@@ -6,13 +6,15 @@ import {
   getNextIncidentTrackingStatus,
   getIncidentTrackingProgressPercent,
   getIncidentTrackingStatusMeta,
-} from './incident-tracking.ts'
+  isIncidentWorkflowStatus,
+} from '../entities/incident/model/tracking.ts'
 
 test('getIncidentTrackingStatusMeta returns approved Thai workflow copy', () => {
   assert.deepEqual(getIncidentTrackingStatusMeta('reported'), {
     label: 'Reported',
     labelTh: 'แจ้งเหตุแล้ว',
     description: 'ระบบบันทึกเหตุและกำลังรอหน่วยงานรับเรื่อง',
+    descriptionEn: 'The incident has been recorded and is waiting for an agency response',
   })
 })
 
@@ -44,4 +46,11 @@ test('getNextIncidentTrackingStatus returns the next approved status', () => {
   assert.equal(getNextIncidentTrackingStatus('reported'), 'acknowledged')
   assert.equal(getNextIncidentTrackingStatus('on_scene'), 'closed')
   assert.equal(getNextIncidentTrackingStatus('closed'), null)
+})
+
+test('isIncidentWorkflowStatus accepts only approved workflow statuses', () => {
+  assert.equal(isIncidentWorkflowStatus('reported'), true)
+  assert.equal(isIncidentWorkflowStatus('on_scene'), true)
+  assert.equal(isIncidentWorkflowStatus('open'), false)
+  assert.equal(isIncidentWorkflowStatus(undefined), false)
 })
