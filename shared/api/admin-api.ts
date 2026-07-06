@@ -12,8 +12,10 @@ export function getBackendAdminScope(user: AdminUser | null | undefined): Backen
     return { role: 'super_admin', category: null }
   }
 
-  if ((user.role === 'agency_admin' || user.role === 'viewer') && user.agency?.category) {
-    return { role: user.role, category: user.agency.category }
+  if (user.role === 'agency_admin' || user.role === 'viewer') {
+    // Session เก่าบางเครื่องเก็บไว้แค่ agencyId; fallback นี้ทำให้ viewer ยังส่ง scope เพื่ออ่าน detail ได้
+    const category = user.agency?.category ?? user.agencyId
+    if (category) return { role: user.role, category }
   }
 
   return null

@@ -78,9 +78,13 @@ export function restoreStoredAdminUser(raw: string | null): AdminUser | null {
 
   try {
     const parsed = JSON.parse(raw) as Omit<AdminUser, 'lastLogin'> & { lastLogin?: string | Date }
+    const agency = parsed.agency ?? AGENCIES.find(candidate => candidate.id === parsed.agencyId)
 
     return {
       ...parsed,
+      // Session เก่าอาจมีแค่ agencyId ทำให้ viewer ไม่ส่ง category scope ไป backend
+      // ต้องเติม agency กลับมาเพื่อให้ read-only detail ใช้สิทธิ์ตามหมวดได้ถูกต้อง
+      agency,
       lastLogin: parsed.lastLogin ? new Date(parsed.lastLogin) : new Date(),
     }
   } catch {

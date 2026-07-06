@@ -62,6 +62,20 @@ test('getBackendAdminScope maps viewer role to category-scoped backend format', 
   assert.deepEqual(scope, { role: 'viewer', category: 'medical' })
 })
 
+test('getBackendAdminScope falls back to agencyId for legacy viewer sessions', () => {
+  const scope = getBackendAdminScope({
+    id: 'user-viewer-legacy',
+    email: 'viewer@example.com',
+    name: 'Viewer',
+    role: 'viewer',
+    agencyId: 'police',
+    permissions: [],
+    lastLogin: new Date(),
+  })
+
+  assert.deepEqual(scope, { role: 'viewer', category: 'police' })
+})
+
 test('buildAdminApiHeaders returns backend scope headers', () => {
   const headers = buildAdminApiHeaders({
     id: 'user-2',
