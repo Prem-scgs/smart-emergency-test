@@ -1,7 +1,7 @@
 import { buildAdminApiHeaders, buildAdminApiUrl } from '../../../shared/api/admin-api.ts'
-import { getAdminStatusChoices, requiresStatusReason } from '../../../lib/admin-status-controls.ts'
 import type { AdminLanguage } from '../../../lib/admin-i18n.tsx'
 import {
+  INCIDENT_TRACKING_STATUS_ORDER,
   getIncidentTrackingStatusMeta,
   type IncidentTrackingHistoryEntry,
   type IncidentWorkflowStatus,
@@ -73,6 +73,32 @@ export function getIncidentDetailStatusLabel(status: IncidentWorkflowStatus, lan
   return language === 'en' ? meta.label : meta.labelTh
 }
 
+function getIncidentDetailAdminStatusChoices(
+  role: 'super_admin' | 'agency_admin',
+  currentStatus: IncidentWorkflowStatus
+) {
+  const currentIndex = INCIDENT_TRACKING_STATUS_ORDER.indexOf(currentStatus)
+
+  if (role === 'agency_admin') {
+    return INCIDENT_TRACKING_STATUS_ORDER.slice(currentIndex + 1, currentIndex + 2)
+  }
+
+  return [
+    ...INCIDENT_TRACKING_STATUS_ORDER.slice(currentIndex + 1),
+    ...INCIDENT_TRACKING_STATUS_ORDER.slice(0, currentIndex),
+  ]
+}
+
+function doesIncidentDetailStatusRequireReason(
+  fromStatus: IncidentWorkflowStatus,
+  toStatus: IncidentWorkflowStatus
+) {
+  return (
+    INCIDENT_TRACKING_STATUS_ORDER.indexOf(toStatus) <
+    INCIDENT_TRACKING_STATUS_ORDER.indexOf(fromStatus)
+  )
+}
+
 export function getIncidentDetailDisplayNumber(incident: Pick<IncidentDetailTrackingIncident, 'id' | 'caseNumber'>) {
   return incident.caseNumber ?? incident.id.slice(0, 8)
 }
@@ -112,7 +138,7 @@ export function getIncidentDetailStatusChoices(
   if (!role || !currentStatus || !isIncidentDetailWorkflowStatus(currentStatus)) return []
   // viewer เปิดดูรายละเอียดได้ แต่ไม่มีสิทธิ์เปลี่ยน workflow/status
   if (role === 'viewer') return []
-  return getAdminStatusChoices(role, currentStatus)
+  return getIncidentDetailAdminStatusChoices(role, currentStatus)
 }
 
 export function isIncidentDetailBackwardTransition(
@@ -123,7 +149,7 @@ export function isIncidentDetailBackwardTransition(
     currentStatus != null &&
     isIncidentDetailWorkflowStatus(currentStatus) &&
     targetStatus != null &&
-    requiresStatusReason(currentStatus, targetStatus)
+    doesIncidentDetailStatusRequireReason(currentStatus, targetStatus)
   )
 }
 

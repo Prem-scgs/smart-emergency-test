@@ -77,6 +77,14 @@ test('incident detail location text prefers master locations before incident fal
 test('incident detail status choices preserve viewer, agency, and super admin rules', () => {
   assert.deepEqual(getIncidentDetailStatusChoices('viewer', 'reported'), [])
   assert.deepEqual(getIncidentDetailStatusChoices('agency_admin', 'dispatched'), ['on_scene'])
+  assert.deepEqual(getIncidentDetailStatusChoices('agency_admin', 'closed'), [])
+  assert.deepEqual(getIncidentDetailStatusChoices('super_admin', 'closed'), [
+    'reported',
+    'acknowledged',
+    'coordinating',
+    'dispatched',
+    'on_scene',
+  ])
   assert.deepEqual(getIncidentDetailStatusChoices('super_admin', 'on_scene'), [
     'closed',
     'reported',
@@ -91,6 +99,7 @@ test('incident detail close warning and backward note rules match current behavi
   assert.equal(shouldShowIncidentCloseWarning('closed', 'summary'), false)
   assert.equal(isIncidentDetailBackwardTransition('closed', 'on_scene'), true)
   assert.equal(isIncidentDetailBackwardTransition('on_scene', 'closed'), false)
+  assert.equal(isIncidentDetailBackwardTransition('reported', 'acknowledged'), false)
 })
 
 test('incident detail status update body keeps expected version and normalized note', () => {
