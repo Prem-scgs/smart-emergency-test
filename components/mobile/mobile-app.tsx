@@ -24,8 +24,8 @@ import { CallStatus, EmergencyCategory, EmergencyContact } from '@/lib/types'
 import { toast } from 'sonner'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { buildIncidentCallUpdatePayload, buildIncidentCreatePayload } from '@/lib/mobile-incident'
-import { type IncidentTrackingHistoryEntry, type IncidentWorkflowStatus } from '@/lib/incident-tracking'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { type IncidentTrackingHistoryEntry, type IncidentWorkflowStatus } from '@/entities/incident'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { getLocationFailureStatus, type LocationLockStatus } from '@/lib/mobile-location'
 
 type Screen =

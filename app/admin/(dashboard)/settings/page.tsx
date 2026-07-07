@@ -47,7 +47,7 @@ import {
   useAdminI18n,
 } from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
-import { getEmergencyApiBaseUrl } from "@/lib/emergency-api-url"
+import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const ORGANIZATION_SETTINGS_UPDATED_EVENT = "smart-emergency:organization-settings-updated"

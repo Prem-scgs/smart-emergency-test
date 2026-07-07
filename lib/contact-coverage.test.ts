@@ -91,9 +91,3 @@ test('contact category helpers preserve create and save category behavior', () =
   assert.equal(getEffectiveContactCategory(false, 'fire', 'medical'), 'medical')
   assert.equal(getEffectiveContactCategory(false, 'fire', null), null)
 })
-
-test('legacy lib bridge still exports contact helpers', async () => {
-  const bridge = await import('./contact-coverage.ts')
-  assert.equal(bridge.normalizeContactPhone('081-234-5678'), '0812345678')
-  assert.equal(bridge.getContactCoverageState('central', '65', '6501').coverage, 'central')
-})

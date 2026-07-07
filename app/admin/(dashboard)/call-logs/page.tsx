@@ -51,7 +51,7 @@ import { buildAdminApiHeaders } from "@/lib/admin-api"
 import { useAdminI18n } from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
 import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from "@/lib/emergency-category-utils"
-import { getEmergencyApiBaseUrl } from "@/lib/emergency-api-url"
+import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 import type { CallStatus, EmergencyCategory } from "@/lib/types"
 import { cn } from "@/lib/utils"
 

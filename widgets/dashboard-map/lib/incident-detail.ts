@@ -5,7 +5,7 @@ import {
   getIncidentTrackingStatusMeta,
   type IncidentTrackingHistoryEntry,
   type IncidentWorkflowStatus,
-} from '../../../lib/incident-tracking.ts'
+} from '../../../entities/incident/model/tracking.ts'
 import type { AdminUser } from '../../../lib/types.ts'
 
 const INCIDENT_DETAIL_WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([

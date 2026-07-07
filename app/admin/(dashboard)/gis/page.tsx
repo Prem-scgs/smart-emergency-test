@@ -19,8 +19,8 @@ import {
 } from '@/entities/area'
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
-import { getUserFacingIncidentDescription } from '@/lib/incident-description'
+import { getUserFacingIncidentDescription } from '@/entities/incident'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { useReferenceCategories } from '@/lib/reference-categories'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()

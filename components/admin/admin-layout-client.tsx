@@ -35,7 +35,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/s
 import { buildAdminApiHeaders } from '@/lib/admin-api'
 import { useAdminI18n, type AdminI18nKey } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'
 
 import { NotificationBell } from './notification-bell'

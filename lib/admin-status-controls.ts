@@ -1,7 +1,7 @@
 import {
   INCIDENT_TRACKING_STATUS_ORDER,
   type IncidentWorkflowStatus,
-} from './incident-tracking.ts'
+} from '../entities/incident/model/tracking.ts'
 
 export type StatusAdminRole = 'agency_admin' | 'super_admin'
 

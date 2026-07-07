@@ -38,11 +38,11 @@ import {
   isValidContactPhone,
   normalizeContactPhone,
   type ContactCoverage,
-} from '@/lib/contact-coverage'
+} from '@/entities/contact'
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
 import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { useReferenceCategories } from '@/lib/reference-categories'
 import {
   getLocationCanonicalName,

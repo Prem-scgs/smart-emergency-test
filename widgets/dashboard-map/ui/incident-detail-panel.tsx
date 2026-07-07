@@ -38,9 +38,8 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { buildAdminApiHeaders, getBackendAdminScope } from '@/lib/admin-api'
 import { useAdminI18n } from '@/lib/admin-i18n'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
-import { getUserFacingIncidentDescription } from '@/lib/incident-description'
-import type { IncidentWorkflowStatus } from '@/lib/incident-tracking'
+import { getUserFacingIncidentDescription, type IncidentWorkflowStatus } from '@/entities/incident'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { useLocationLookupMaps } from '@/lib/reference-locations'
 import type { AdminUser } from '@/lib/types'
 import {

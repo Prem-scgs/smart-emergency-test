@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { EmergencyCategory } from './types'
-import { getEmergencyApiBaseUrl } from './emergency-api-url'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 
 export interface ReferenceCategory {
   id: EmergencyCategory

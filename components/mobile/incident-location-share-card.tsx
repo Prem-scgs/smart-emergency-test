@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import {
   buildIncidentShareAttemptUrl,
   buildIncidentShareCopyMessage,

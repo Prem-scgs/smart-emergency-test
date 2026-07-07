@@ -6,7 +6,7 @@ import {
   buildIncidentTrackingSteps,
   type IncidentTrackingHistoryEntry,
   type IncidentWorkflowStatus,
-} from '@/lib/incident-tracking'
+} from '@/entities/incident'
 import { cn } from '@/lib/utils'
 
 interface IncidentStatusTimelineProps {

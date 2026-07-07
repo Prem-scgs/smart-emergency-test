@@ -22,7 +22,7 @@ import {
   getIncidentTrackingProgressPercent,
   type IncidentTrackingHistoryEntry,
   type IncidentWorkflowStatus,
-} from '@/lib/incident-tracking'
+} from '@/entities/incident'
 import {
   buildMobileIncidentEventsUrl,
   buildMobileTrackingUrl,
@@ -33,7 +33,7 @@ import {
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
-import { getEmergencyApiBaseUrl } from '@/lib/emergency-api-url'
+import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'
 import { EmergencyCategory } from '@/lib/types'
 import { IncidentLocationShareCard } from './incident-location-share-card'
