@@ -10,7 +10,7 @@ import {
 import { useSse } from '@/lib/use-sse'
 import { useAuth } from '@/lib/auth-context'
 import { useAdminI18n } from '@/lib/admin-i18n'
-import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
 import type { IncidentEventPayload } from '@/lib/use-sse'
 
 interface NotificationContextType {

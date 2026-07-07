@@ -37,7 +37,7 @@ Use these paths for new or moved code:
 ```txt
 shared/api/                 API URL helpers, fetch wrappers, admin headers
 shared/realtime/            SSE client helpers, polling fallback utilities
-shared/reference/           reference data loaders and display helpers used across admin/mobile
+shared/reference/           category reference data loaders and display helpers used across admin/mobile
 shared/i18n/                dictionaries, translation helpers, locale preference
 shared/config/              browser-safe config and feature flags
 shared/ui/                  reusable UI primitives that are not tied to one domain
@@ -142,7 +142,7 @@ Move domains only when there is real work in that area:
 - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
 - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, and alert/notification/SSE types.
 - `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.
-- `shared/location` owns shared location value types.
+- `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
 - `_legacy/lib/location-share.ts` owns the legacy-only SMS/Google Maps share helper; root `lib/location-share.ts` was removed after `rg` confirmed only legacy code still used it.
 - `lib/types.ts` was removed after `rg` confirmed no imports remained; use the canonical owners directly.

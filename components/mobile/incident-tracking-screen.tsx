@@ -30,7 +30,7 @@ import {
   isMobileIncidentWorkflowStatus,
   type MobileTrackingResponse,
 } from '@/shared/realtime/mobile-tracking'
-import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'

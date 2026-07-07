@@ -13,7 +13,7 @@ import {
   normalizeDashboardMapText,
   type DashboardLocationOption,
 } from '../widgets/dashboard-map/lib/helpers.ts'
-import type { ReferenceDistrict, ReferenceProvince } from './reference-locations.ts'
+import type { ReferenceDistrict, ReferenceProvince } from '../shared/location/reference-locations.ts'
 
 const provinces: ReferenceProvince[] = [
   {

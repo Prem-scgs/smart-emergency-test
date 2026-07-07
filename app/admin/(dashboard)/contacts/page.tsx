@@ -48,7 +48,7 @@ import {
   getLocationDisplayName,
   useLocationLookupMaps,
   useReferenceLocations,
-} from '@/lib/reference-locations'
+} from '@/shared/location'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 

@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { getLocationDisplayName, useReferenceLocations } from '@/lib/reference-locations'
+import { getLocationDisplayName, useReferenceLocations } from '@/shared/location'
 import { locationStatusMessage, type LocationLockStatus } from '@/lib/mobile-location'
 import { cn } from '@/lib/utils'
 

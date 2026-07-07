@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { getEmergencyApiBaseUrl } from '../shared/config/emergency-api.ts'
+import { getEmergencyApiBaseUrl } from '../config/emergency-api.ts'
 
 export interface ReferenceProvince {
   id: string

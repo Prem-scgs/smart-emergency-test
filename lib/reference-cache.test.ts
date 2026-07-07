@@ -11,7 +11,7 @@ import {
   loadReferenceDistricts,
   loadReferenceLocationLookups,
   loadReferenceProvinces,
-} from "./reference-locations.ts";
+} from "../shared/location/reference-locations.ts";
 
 test("loadReferenceCategories deduplicates concurrent fetches", async () => {
   __resetReferenceCategoryCache();

@@ -40,7 +40,7 @@ import { buildAdminApiHeaders, getBackendAdminScope } from '@/shared/api/admin-a
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { getUserFacingIncidentDescription, type IncidentWorkflowStatus } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { useLocationLookupMaps } from '@/lib/reference-locations'
+import { useLocationLookupMaps } from '@/shared/location'
 import type { AdminUser } from '@/shared/auth'
 import {
   buildIncidentDetailTrackingUrl,

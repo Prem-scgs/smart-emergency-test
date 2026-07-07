@@ -8,7 +8,7 @@ import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/
 import {
   useLocationLookupMaps,
   useReferenceLocations,
-} from '@/lib/reference-locations'
+} from '@/shared/location'
 import { DashboardMapSection } from '@/widgets/dashboard-map'
 
 export default function DashboardPage() {

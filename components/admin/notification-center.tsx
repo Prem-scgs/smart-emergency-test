@@ -5,7 +5,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { buildAdminCategoryCollections, getEmergencyCategoryLabel, useReferenceCategories } from '@/shared/reference'
 import { useNotifications } from '@/lib/notification-context'
-import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
+import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
 import { cn } from '@/lib/utils'
 
 
