@@ -219,12 +219,10 @@ new queue runtime logic there; add it under `widgets/dashboard-map` instead.
 runtime logic, marker display helpers, viewport behavior, geolocation handling,
 and selected-area bounds wiring belong under `widgets/dashboard-map`.
 
-`components/admin/incident-detail-panel.tsx` still owns the
-`IncidentDetailPanel` UI, but its tracking/status helper and controller
-contracts now belong under `widgets/dashboard-map`. Keep tracking URL
-construction, status update request body/error parsing, viewer read-only status
-choices, close-warning decisions, and `409` reload behavior in the widget detail
-helper/controller slice.
+`components/admin/incident-detail-panel.tsx` is also only a compatibility
+bridge. `IncidentDetailPanel` UI, tracking URL construction, status update
+request body/error parsing, viewer read-only status choices, close-warning
+decisions, and `409` reload behavior belong under `widgets/dashboard-map`.
 
 ### Demo API contract summary
 
@@ -403,7 +401,7 @@ Current broad Vercel smoke checklist:
   UUID.
 - Contacts, GIS, Reports print, and Settings open without crashing.
 
-Latest detail-flow smoke after `2ddad8f`:
+Latest detail-flow smoke after `7ed88fd`:
 
 - Alert, queue, and map/detail wiring opened the same case on the Vercel test
   dashboard.
@@ -415,9 +413,8 @@ Latest detail-flow smoke after `2ddad8f`:
 - Closing a case without a summary still opened the confirmation dialog.
 - Successful status update reloaded tracking, refreshed dashboard data, and
   showed the success toast.
-- Direct stale status PATCH returned `409`; the UI stale path was not manually
-  forced because realtime reloads the detail panel before the stale click in
-  normal use.
+- The detail panel UI now lives under `widgets/dashboard-map`; the legacy
+  `components/admin/incident-detail-panel.tsx` path remains as a bridge.
 
 ## 7. Current Known Limits
 

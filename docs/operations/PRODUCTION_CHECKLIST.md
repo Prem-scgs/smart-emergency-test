@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite dashboard widget passed through IncidentMap and IncidentDetailPanel helper/controller slices on Vercel test`
-- Next action: `Choose whether to move IncidentDetailPanel UI into the widget with a bridge, pause for demo handoff, or document backup/API contracts deeper`
+- Current task: `FSD-lite dashboard widget owns IncidentQueue, IncidentMap, and IncidentDetailPanel UI after Vercel test`
+- Next action: `Choose whether to pause for demo handoff, document backup/API contracts deeper, or plan bridge cleanup only where rg confirms old imports are gone`
 
 ## Status Guide
 
@@ -104,6 +104,7 @@ Use this file to track production-readiness work without touching the auth imple
   - IncidentQueue slice passed on Vercel test after `63c9b17`: queue implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and viewer/detail/queue behavior remained correct
   - IncidentMap slice passed on Vercel test after `36c87b3`: map implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and marker/popup/selected-area behavior remained correct
   - IncidentDetailPanel helper/controller slice passed on Vercel test after `2ddad8f`: viewer detail read-only, agency next-status update, super admin forward/backward choices, backward note guard, close-without-summary confirmation, alert-to-detail, and status success reload/toast flow were verified
+  - IncidentDetailPanel UI shell slice passed on Vercel test after `7ed88fd`: detail panel implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and alert/queue/map detail flows remained correct
 
 Vercel test note:
 
