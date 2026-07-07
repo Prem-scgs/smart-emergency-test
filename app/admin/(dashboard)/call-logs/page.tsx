@@ -53,7 +53,7 @@ import { useAuth } from "@/lib/auth-context"
 import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from "@/lib/emergency-category-utils"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 import type { EmergencyCategory } from "@/entities/incident"
-import type { CallStatus } from "@/lib/types"
+import type { CallStatus } from "@/entities/call"
 import { cn } from "@/lib/utils"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()

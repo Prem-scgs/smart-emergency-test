@@ -1,51 +1,11 @@
 import type { EmergencyCategory, EmergencyCategoryInfo } from '../entities/incident/model/category'
+import type { CallLog } from '../entities/call'
+import type { Location } from '../shared/location'
 
 export type { EmergencyCategory, EmergencyCategoryInfo } from '../entities/incident/model/category'
-
-// Location Types
-export interface Location {
-  latitude: number
-  longitude: number
-  provinceCode?: string
-  province: string
-  districtCode?: string
-  district: string
-  subdistrict?: string
-  accuracy: number
-  lastUpdated: Date
-}
-
-// Emergency Contact Types
-export interface EmergencyContact {
-  id: string
-  agencyName: string
-  phoneNumber: string
-  category: EmergencyCategory
-  provinceCode?: string
-  province: string
-  districtCode?: string
-  district: string
-  distance?: number
-  status: 'active' | 'inactive'
-  is24Hours: boolean
-  coordinates?: {
-    latitude: number
-    longitude: number
-  }
-}
-
-// Call Log Types
-export type CallStatus = 'connected' | 'busy' | 'no-answer' | 'wrong-number' | 'cancelled'
-
-export interface CallLog {
-  id: string
-  date: Date
-  incidentType: EmergencyCategory
-  agency: EmergencyContact
-  location: Location
-  status: CallStatus
-  notes?: string
-}
+export type { EmergencyContact } from '../entities/contact'
+export type { CallLog, CallStatus } from '../entities/call'
+export type { Location } from '../shared/location'
 
 // User Types
 export interface UserProfile {

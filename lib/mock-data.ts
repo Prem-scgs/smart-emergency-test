@@ -1,7 +1,7 @@
 import type { EmergencyCategoryInfo } from '@/entities/incident'
+import type { CallLog } from '@/entities/call'
+import type { EmergencyContact } from '@/entities/contact'
 import type {
-  EmergencyContact,
-  CallLog,
   DashboardStats,
   UserProfile
 } from './types'
