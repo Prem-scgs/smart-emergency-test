@@ -2,7 +2,7 @@
 
 Smart Emergency uses FSD-lite for new frontend code. The goal is to keep route files small, make domain ownership visible, and avoid adding more runtime code to `lib/`.
 
-อ่านคู่กับ [CODE_CONVENTIONS_TH.md](CODE_CONVENTIONS_TH.md) เสมอ เพราะหลังจากนี้การเพิ่มหรือแก้ logic สำคัญต้องอัปเดต comment/docs ที่เกี่ยวข้องด้วย
+อ่านคู่กับ [CODE_CONVENTIONS_TH.md](CODE_CONVENTIONS_TH.md) เสมอ เพราะการเพิ่มหรือแก้ logic สำคัญต้องอัปเดต comment/docs ที่เกี่ยวข้องด้วย
 
 ## Layers
 
@@ -11,7 +11,8 @@ Smart Emergency uses FSD-lite for new frontend code. The goal is to keep route f
 - `features/`: user workflows and actions, such as incident alert handling, status update, contact management, location sharing, or report export.
 - `entities/`: domain objects, types, and mappers, such as incident, contact, area, category, agency, and admin user.
 - `shared/`: cross-domain utilities, UI primitives, API helpers, config, i18n, realtime helpers, and small pure utilities.
-- `lib/`: compatibility bridge only while the existing codebase is migrated. Do not add new runtime logic here.
+- `lib/`: compatibility bridge/re-export only while the existing codebase is migrated. Do not add new runtime logic here.
+- `_legacy/`: old code kept for reference or legacy-only tests. Production code should not import from `_legacy`.
 
 ## Dependency Direction
 
@@ -74,7 +75,7 @@ If the answer is unclear, do not create the file yet. Rename or split the respon
 Allowed in `lib/`:
 
 ```ts
-export { getEmergencyApiBaseUrl } from '@/shared/api/emergency-api-url'
+export { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 ```
 
 Not allowed in `lib/`:
@@ -131,21 +132,25 @@ Move domains only when there is real work in that area:
 ## Current Migration Notes
 
 - `shared/api` owns browser-facing API URL and admin scope helper code.
-- `lib/admin-api.ts` and `lib/emergency-api-url.ts` are bridge exports only.
-- Completed low-risk helper slices:
-  - `shared/config` owns browser-safe emergency API URL fallback helpers.
-  - `shared/realtime` owns SSE URL helpers, event payload validation, and polling fallback helpers.
-  - `entities/incident` owns status workflow/meta/display helpers.
-  - `entities/contact` owns coverage/display/phone/role/scope helpers.
-  - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
-  - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, and sound helpers.
-  - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
-  - `widgets/dashboard-map` also owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
-  - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. The old `components/admin/incident-queue.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
-  - `widgets/dashboard-map` owns `IncidentMap`, its map point props, viewport/geolocation logic, popup display helpers, and selected-area/selected-incident map wiring. The old `components/admin/incident-map.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
-  - `widgets/dashboard-map` owns `IncidentDetailPanel` UI and helper/controller code as of `7ed88fd`, including tracking URL construction, status update payload/error handling, display/location/status helpers, viewer read-only choices, close-warning decisions, and optimistic-concurrency contracts. The old `components/admin/incident-detail-panel.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
+- `shared/config` owns browser-safe emergency API URL fallback helpers.
+- `shared/realtime` owns SSE URL helpers, event payload validation, and polling fallback helpers.
+- `entities/incident` owns status workflow/meta/display helpers and emergency category types.
+- `entities/contact` owns coverage/display/phone/role/scope helpers and emergency contact types.
+- `entities/call` owns call status and call log types.
+- `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
+- `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, and alert/notification/SSE types.
+- `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.
+- `shared/location` owns shared location value types.
+- `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
+- `lib/types.ts` is now a compatibility re-export layer only; it has no local type definitions after `f918f0f`.
+- Root `lib/mock-data.ts` was removed after `465d5d9`; the legacy-only mock profile now lives in `_legacy/lib/mock-user-profile.ts`.
+- `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
+- `widgets/dashboard-map` owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
+- `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. The old `components/admin/incident-queue.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
+- `widgets/dashboard-map` owns `IncidentMap`, its map point props, viewport/geolocation logic, popup display helpers, and selected-area/selected-incident map wiring. The old `components/admin/incident-map.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
+- `widgets/dashboard-map` owns `IncidentDetailPanel` UI and helper/controller code as of `7ed88fd`, including tracking URL construction, status update payload/error handling, display/location/status helpers, viewer read-only choices, close-warning decisions, and optimistic-concurrency contracts. The old `components/admin/incident-detail-panel.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
 - Route files should stay as shells that provide auth/i18n/reference context and compose the appropriate widget.
-- Keep existing `lib/` bridge files until `rg` confirms old imports are gone.
+- Keep only necessary compatibility bridge/re-export files in `lib/`; run `rg` before removing any bridge and verify build/tests after removal.
 - Further moves should be planned separately. The main dashboard map widget now owns queue, map, and detail panel UI; do not remove compatibility bridges until `rg` confirms there are no old runtime imports and build/tests pass.
 - Do not combine FSD moves with behavior changes unless a test or build error requires it.
 - Generated UI files from shadcn/mapcn should normally stay where their generator expects; summarize usage in docs instead of editing generated files heavily.

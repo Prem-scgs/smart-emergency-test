@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite dashboard widget owns IncidentQueue, IncidentMap, and IncidentDetailPanel UI after Vercel test`
-- Next action: `Choose whether to pause for demo handoff, document backup/API contracts deeper, or plan bridge cleanup only where rg confirms old imports are gone`
+- Current task: `FSD-lite types cleanup is verified through f918f0f`
+- Next action: `Pause at the verified checkpoint or plan the next docs/refactor slice only after rg confirms scope`
 
 ## Status Guide
 
@@ -17,7 +17,7 @@ Use this file to track production-readiness work without touching the auth imple
 
 ## Phase 1 - Data Flow and API Completeness
 
-- [-] Replace remaining main-flow mock usage with DB/API data
+- [x] Remove root `lib/mock-data.ts` from the main runtime layer
 - [x] Add `GET /api/incidents/:id`
 - [x] Update mobile tracking to read incident detail directly
 - [x] Add display case numbers while keeping UUID as internal API id
@@ -105,6 +105,9 @@ Use this file to track production-readiness work without touching the auth imple
   - IncidentMap slice passed on Vercel test after `36c87b3`: map implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and marker/popup/selected-area behavior remained correct
   - IncidentDetailPanel helper/controller slice passed on Vercel test after `2ddad8f`: viewer detail read-only, agency next-status update, super admin forward/backward choices, backward note guard, close-without-summary confirmation, alert-to-detail, and status success reload/toast flow were verified
   - IncidentDetailPanel UI shell slice passed on Vercel test after `7ed88fd`: detail panel implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and alert/queue/map detail flows remained correct
+  - Types Wave 4 passed on Vercel test after `9c81f63`: contact, call, and location types moved to canonical FSD-lite owners while `lib/types.ts` remained a compatibility re-export layer
+  - Root mock data cleanup passed on Vercel test after `465d5d9`: `lib/mock-data.ts` was removed and the remaining legacy mock profile moved under `_legacy`
+  - Types Wave 5 passed on Vercel test after `f918f0f`: legacy user profile types moved under `_legacy`, and `lib/types.ts` now has no local type definitions
 
 Vercel test note:
 
