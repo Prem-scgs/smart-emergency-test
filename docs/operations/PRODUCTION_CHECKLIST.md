@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite auth context cleanup is locally verified in this change set`
-- Next action: `Wait for commit/push instruction, then push to prem only after tests/build pass`
+- Current task: `FSD-lite auth context cleanup was pushed after a4a84c3`
+- Next action: `Wait for Vercel test confirmation after deploy commit a4a84c3`
 
 ## Status Guide
 
@@ -117,7 +117,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Incident location share helper cleanup passed on Vercel test after `1f33c67`: production incident location share helpers moved from root `lib/` to `features/location-sharing`
   - Notification context cleanup pushed after `efcf4db`: `features/incident-alert` now owns `NotificationProvider` and `useNotifications`
   - Admin SSE hook cleanup pushed after `299daa0`: `features/incident-alert` now owns the admin `useSse` hook while `shared/realtime` still owns pure payload validators and polling constants
-  - Auth context cleanup locally verified in this change set: `shared/auth` now owns `AuthProvider`, `useAuth`, agency registry data, and restore guards; `operator` stale sessions are rejected and the supported admin roles are `super_admin`, `agency_admin`, and `viewer`
+  - Auth context cleanup pushed after `a4a84c3`: `shared/auth` now owns `AuthProvider`, `useAuth`, agency registry data, and restore guards; `operator` stale sessions are rejected and the supported admin roles are `super_admin`, `agency_admin`, and `viewer`
 
 Vercel test note:
 
