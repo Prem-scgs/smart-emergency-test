@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { mockUserProfile } from "../../lib/mock-data";
+import { mockUserProfile } from "./mock-user-profile.ts";
 import {
   __resetUserProfileCache,
   loadMockUserProfile,
-} from "./user-profile";
+} from "./user-profile.ts";
 
 test("loadMockUserProfile returns API data and deduplicates concurrent fetches", async () => {
   __resetUserProfileCache();
