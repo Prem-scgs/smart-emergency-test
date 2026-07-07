@@ -142,7 +142,7 @@ Move domains only when there is real work in that area:
 - `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.
 - `shared/location` owns shared location value types.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
-- `lib/types.ts` is now a compatibility re-export layer only; it has no local type definitions after `f918f0f`.
+- `lib/types.ts` was removed after `rg` confirmed no imports remained; use the canonical owners directly.
 - Root `lib/mock-data.ts` was removed after `465d5d9`; the legacy-only mock profile now lives in `_legacy/lib/mock-user-profile.ts`.
 - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
 - `widgets/dashboard-map` owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.

@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite types cleanup is verified through f918f0f`
-- Next action: `Pause at the verified checkpoint or plan the next docs/refactor slice only after rg confirms scope`
+- Current task: `FSD-lite type bridge cleanup is locally verified after 77a2ee0`
+- Next action: `Wait for commit/push instruction, then push to prem only`
 
 ## Status Guide
 
@@ -108,6 +108,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Types Wave 4 passed on Vercel test after `9c81f63`: contact, call, and location types moved to canonical FSD-lite owners while `lib/types.ts` remained a compatibility re-export layer
   - Root mock data cleanup passed on Vercel test after `465d5d9`: `lib/mock-data.ts` was removed and the remaining legacy mock profile moved under `_legacy`
   - Types Wave 5 passed on Vercel test after `f918f0f`: legacy user profile types moved under `_legacy`, and `lib/types.ts` now has no local type definitions
+  - Type bridge cleanup locally verified after `77a2ee0`: `lib/types.ts` was removed after `rg` confirmed no `@/lib/types` imports remained, so source now uses canonical type owners directly
 
 Vercel test note:
 
