@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import type { AdminUser } from './types'
+import type { AdminUser } from '../shared/auth/index.ts'
 import {
   canUserSeeAlert,
   canUserSeeNotification,

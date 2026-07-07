@@ -20,7 +20,7 @@ import {
   type Notification,
   type SseEvent,
 } from '@/features/incident-alert'
-import type { AdminUser } from './types'
+import type { AdminUser } from '@/shared/auth'
 
 export type { IncidentEventPayload } from '@/shared/realtime/incident-events'
 export { buildRealtimeIncidentArtifacts } from '@/features/incident-alert'

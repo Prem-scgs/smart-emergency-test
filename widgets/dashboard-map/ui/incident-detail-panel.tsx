@@ -41,7 +41,7 @@ import { useAdminI18n } from '@/lib/admin-i18n'
 import { getUserFacingIncidentDescription, type IncidentWorkflowStatus } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { useLocationLookupMaps } from '@/lib/reference-locations'
-import type { AdminUser } from '@/lib/types'
+import type { AdminUser } from '@/shared/auth'
 import {
   buildIncidentDetailTrackingUrl,
   buildIncidentStatusUpdateRequest,

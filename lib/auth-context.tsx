@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
 import type { EmergencyCategory } from '@/entities/incident'
-import type { AdminUser, AdminRole, Agency, AuthState } from './types'
-import { ROLE_PERMISSIONS } from './types'
+import type { AdminUser, AdminRole, Agency, AuthState } from '@/shared/auth'
+import { ROLE_PERMISSIONS } from '@/shared/auth'
 
 const ADMIN_USER_STORAGE_KEY = 'admin_user'
 

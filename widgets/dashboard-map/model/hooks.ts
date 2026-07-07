@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPolygonBounds, type AreaMapBounds } from '@/entities/area'
 import { buildAdminApiHeaders } from '@/shared/api/admin-api'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import type { AdminUser } from '@/lib/types'
+import type { AdminUser } from '@/shared/auth'
 import type { DashboardLocationOption } from '../lib/helpers'
 import type { DashboardAreaBoundary, DashboardContact, DashboardIncident } from './types'
 

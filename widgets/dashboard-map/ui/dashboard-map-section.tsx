@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AdminI18nKey, AdminLanguage } from '@/lib/admin-i18n'
 import type { EmergencyCategory } from '@/entities/incident'
-import type { Agency, AdminUser } from '@/lib/types'
+import type { Agency, AdminUser } from '@/shared/auth'
 import { cn } from '@/lib/utils'
 import {
   buildDashboardLocationOptions,

@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { useAuth, AGENCIES } from '@/lib/auth-context'
-import { AdminRole } from '@/lib/types'
+import type { AdminRole } from '@/shared/auth'
 
 const ROLE_OPTIONS: { value: AdminRole; label: string; description: string }[] = [
   {

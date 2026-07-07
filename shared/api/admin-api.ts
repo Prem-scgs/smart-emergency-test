@@ -1,4 +1,4 @@
-import type { AdminUser } from '@/lib/types'
+import type { AdminUser } from '@/shared/auth'
 
 export interface BackendAdminScope {
   role: 'super_admin' | 'agency_admin' | 'viewer'

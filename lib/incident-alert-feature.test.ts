@@ -9,7 +9,7 @@ import {
   type Alert,
   type Notification,
 } from '../features/incident-alert/index.ts'
-import type { AdminUser } from './types.ts'
+import type { AdminUser } from '../shared/auth/index.ts'
 import type { IncidentEventPayload } from '../shared/realtime/incident-events.ts'
 
 const medicalAgency = {

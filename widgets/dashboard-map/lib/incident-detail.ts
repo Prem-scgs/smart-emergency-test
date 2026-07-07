@@ -6,7 +6,7 @@ import {
   type IncidentTrackingHistoryEntry,
   type IncidentWorkflowStatus,
 } from '../../../entities/incident/model/tracking.ts'
-import type { AdminUser } from '../../../lib/types.ts'
+import type { AdminUser } from '../../../shared/auth/index.ts'
 
 const INCIDENT_DETAIL_WORKFLOW_STATUSES = new Set<IncidentWorkflowStatus>([
   'reported',
