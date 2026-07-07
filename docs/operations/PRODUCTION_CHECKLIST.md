@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite admin i18n cleanup was pushed after 193406f`
-- Next action: `Wait for Vercel test confirmation after deploy commit 193406f`
+- Current task: `FSD-lite IncidentStatusTimeline cleanup is locally verified`
+- Next action: `Commit/push the IncidentStatusTimeline cleanup to prem when requested`
 
 ## Status Guide
 
@@ -119,6 +119,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Admin SSE hook cleanup pushed after `299daa0`: `features/incident-alert` now owns the admin `useSse` hook while `shared/realtime` still owns pure payload validators and polling constants
   - Auth context cleanup passed on Vercel test after `3741306`: `shared/auth` now owns `AuthProvider`, `useAuth`, agency registry data, and restore guards; `operator` stale sessions are rejected and the supported admin roles are `super_admin`, `agency_admin`, and `viewer`
   - Admin i18n cleanup pushed after `193406f`: `shared/i18n/admin` now owns `AdminI18nProvider`, `useAdminI18n`, language preference constants, and split Thai/English dictionaries while preserving the existing preference key and language-change event
+  - IncidentStatusTimeline cleanup locally verified: timeline UI moved from `components/admin` to `widgets/dashboard-map/ui`, `IncidentDetailPanel` now imports it from the widget-local path, and targeted tests/build passed
 
 Vercel test note:
 

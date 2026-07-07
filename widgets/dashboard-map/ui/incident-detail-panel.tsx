@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { LoaderCircle, MapPin, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { IncidentStatusTimeline } from '@/components/admin/incident-status-timeline'
+import { IncidentStatusTimeline } from './incident-status-timeline'
 import {
   AlertDialog,
   AlertDialogAction,
