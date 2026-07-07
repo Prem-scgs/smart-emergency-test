@@ -39,7 +39,7 @@ import {
   getStoredAdminAlertPreferences,
   saveAdminAlertPreferences,
   type AlertTonePreset,
-} from "@/lib/admin-alert-preferences"
+} from "@/features/incident-alert"
 import { buildAdminApiHeaders } from "@/shared/api/admin-api"
 import {
   ADMIN_LANGUAGE_CHANGE_EVENT,

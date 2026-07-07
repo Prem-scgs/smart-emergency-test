@@ -20,9 +20,10 @@ import {
   ADMIN_ALERT_PREFERENCES_EVENT,
   DEFAULT_ADMIN_ALERT_PREFERENCES,
   getStoredAdminAlertPreferences,
+  openIncidentDetailFromAlert,
+  playAlertTone,
   type AdminAlertPreferences,
-} from '@/lib/admin-alert-preferences'
-import { openIncidentDetailFromAlert, playAlertTone } from '@/features/incident-alert'
+} from '@/features/incident-alert'
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { useNotifications } from '@/lib/notification-context'
 import { cn } from '@/lib/utils'

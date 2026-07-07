@@ -1,6 +1,6 @@
 'use client'
 
-import type { AlertTonePreset } from '@/lib/admin-alert-preferences'
+import type { AlertTonePreset } from './preferences.ts'
 
 export function playAlertTone(preset: AlertTonePreset) {
   if (typeof window === 'undefined') return

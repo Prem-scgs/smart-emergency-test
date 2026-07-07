@@ -138,7 +138,7 @@ Move domains only when there is real work in that area:
 - `entities/contact` owns coverage/display/phone/role/scope helpers and emergency contact types.
 - `entities/call` owns call status and call log types.
 - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
-- `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, and alert/notification/SSE types.
+- `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, and alert/notification/SSE types.
 - `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.
 - `shared/location` owns shared location value types.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
