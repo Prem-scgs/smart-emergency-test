@@ -33,7 +33,7 @@ import {
   DialogFooter
 } from '@/components/ui/dialog'
 import { loadMockUserProfile } from '../lib/user-profile'
-import { PersonalEmergencyContact, UserProfile } from '@/lib/types'
+import type { PersonalEmergencyContact, UserProfile } from '../lib/user-profile-types'
 import { toast } from 'sonner'
 
 interface UserProfileScreenProps {

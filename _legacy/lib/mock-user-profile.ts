@@ -1,4 +1,4 @@
-import type { UserProfile } from '../../lib/types.ts'
+import type { UserProfile } from './user-profile-types.ts'
 
 export const mockUserProfile: UserProfile = {
   id: '1',

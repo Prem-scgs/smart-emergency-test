@@ -1,6 +1,6 @@
 import { getEmergencyApiBaseUrl } from '../../shared/config/emergency-api.ts'
 import { mockUserProfile } from './mock-user-profile.ts'
-import type { UserProfile } from '../../lib/types.ts'
+import type { UserProfile } from './user-profile-types.ts'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 
