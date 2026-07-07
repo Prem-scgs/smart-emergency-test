@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { AlertCircle, CheckCircle2, Loader2, Shield } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { locationStatusMessage, type LocationLockStatus } from '@/lib/mobile-location'
+import { locationStatusMessage, type LocationLockStatus } from '@/features/mobile-incident'
 
 interface SplashScreenProps {
   locationStatus: LocationLockStatus

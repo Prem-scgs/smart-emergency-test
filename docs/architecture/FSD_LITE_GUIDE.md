@@ -50,6 +50,7 @@ entities/category/          emergency category metadata and labels
 entities/admin-user/        admin role/scope helpers after real auth contract lands
 
 features/incident-alert/    admin alert popup, sound behavior, duplicate guards
+features/mobile-incident/   mobile incident payloads, GPS lock status helpers, reporter session storage
 features/status-update/     update status workflow and version conflict handling
 features/contact-management/contact form validation and CRUD workflow
 features/location-sharing/  share location card and provider URL generation
@@ -141,6 +142,7 @@ Move domains only when there is real work in that area:
 - `entities/call` owns call status and call log types.
 - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
 - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, and alert/notification/SSE types.
+- `features/mobile-incident` owns mobile incident create/call payload helpers, mobile GPS lock status helpers, and reporter session/phone localStorage helpers.
 - `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.
 - `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.

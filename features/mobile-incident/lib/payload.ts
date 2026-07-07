@@ -1,6 +1,6 @@
-import type { EmergencyCategory } from '@/entities/incident'
 import type { CallStatus } from '@/entities/call'
 import type { EmergencyContact } from '@/entities/contact'
+import type { EmergencyCategory } from '@/entities/incident'
 
 interface MobileIncidentLocation {
   latitude: number

@@ -32,7 +32,7 @@ import {
 } from '@/shared/realtime/mobile-tracking'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
-import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
+import { getOrCreateReporterSessionId } from '@/features/mobile-incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'
 import type { EmergencyCategory } from '@/entities/incident'

@@ -24,11 +24,15 @@ import type { EmergencyCategory } from '@/entities/incident'
 import type { CallStatus } from '@/entities/call'
 import type { EmergencyContact } from '@/entities/contact'
 import { toast } from 'sonner'
-import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
-import { buildIncidentCallUpdatePayload, buildIncidentCreatePayload } from '@/lib/mobile-incident'
+import {
+  buildIncidentCallUpdatePayload,
+  buildIncidentCreatePayload,
+  getLocationFailureStatus,
+  getOrCreateReporterSessionId,
+  type LocationLockStatus,
+} from '@/features/mobile-incident'
 import { type IncidentTrackingHistoryEntry, type IncidentWorkflowStatus } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { getLocationFailureStatus, type LocationLockStatus } from '@/lib/mobile-location'
 
 type Screen =
   | 'splash'

@@ -6,7 +6,7 @@ import {
   buildIncidentCreatePayload,
   buildIncidentCallUpdatePayload,
   normalizeReporterPhone,
-} from './mobile-incident.ts'
+} from '../features/mobile-incident/lib/payload.ts'
 import type { EmergencyCategory } from '@/entities/incident'
 import type { EmergencyContact } from '@/entities/contact'
 
@@ -35,7 +35,7 @@ const baseLocation = {
 
 test('buildIncidentCreatePayload creates immediate alert payload when call starts', () => {
   const payload = buildIncidentCreatePayload({
-    category: 'medical',
+    category: 'medical' as EmergencyCategory,
     contact: baseContact,
     location: baseLocation,
     sessionId: 'session-12345678',

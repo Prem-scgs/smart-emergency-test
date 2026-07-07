@@ -5,7 +5,7 @@ import { MapPin, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getLocationDisplayName, useReferenceLocations } from '@/shared/location'
-import { locationStatusMessage, type LocationLockStatus } from '@/lib/mobile-location'
+import { locationStatusMessage, type LocationLockStatus } from '@/features/mobile-incident'
 import { cn } from '@/lib/utils'
 
 interface LocationData {
