@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { EmergencyCategory } from '@/lib/types'
+import type { EmergencyCategory } from '@/entities/incident'
 import type {
   DashboardAreaChartRow,
   DashboardCategoryChartRow,

@@ -7,7 +7,8 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
-import { EmergencyCategory, EmergencyContact } from '@/lib/types'
+import type { EmergencyCategory } from '@/entities/incident'
+import type { EmergencyContact } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 const iconMap: Record<string, LucideIcon> = {

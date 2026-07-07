@@ -7,7 +7,8 @@ import {
   buildIncidentCallUpdatePayload,
   normalizeReporterPhone,
 } from './mobile-incident.ts'
-import type { EmergencyCategory, EmergencyContact } from './types'
+import type { EmergencyCategory } from '@/entities/incident'
+import type { EmergencyContact } from './types'
 
 const baseContact: EmergencyContact = {
   id: 'contact-1',

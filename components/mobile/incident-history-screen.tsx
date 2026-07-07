@@ -24,7 +24,8 @@ import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getUserFacingIncidentDescription } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { getMobileIncidentDisplayNumber } from '@/shared/realtime/mobile-tracking'
-import { CallStatus, EmergencyCategory } from '@/lib/types'
+import type { EmergencyCategory } from '@/entities/incident'
+import type { CallStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface IncidentHistoryItem {

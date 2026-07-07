@@ -1,25 +1,6 @@
-// Emergency Category Types
-export type EmergencyCategory = 
-  | 'police'
-  | 'medical'
-  | 'fire'
-  | 'rescue'
-  | 'flood'
-  | 'road-accident'
-  | 'child'
-  | 'elderly'
-  | 'animal'
-  | 'tourist'
+import type { EmergencyCategory, EmergencyCategoryInfo } from '../entities/incident/model/category'
 
-export interface EmergencyCategoryInfo {
-  id: EmergencyCategory
-  name: string
-  description: string
-  icon: string
-  color: string
-  bgColor: string
-  recommendedAgency: string
-}
+export type { EmergencyCategory, EmergencyCategoryInfo } from '../entities/incident/model/category'
 
 // Location Types
 export interface Location {

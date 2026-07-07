@@ -3,7 +3,7 @@
 import { Ambulance, Bug, Car, Flame, HeartHandshake, LifeBuoy, Luggage, ShieldAlert, Waves, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
-import { EmergencyCategory } from '@/lib/types'
+import type { EmergencyCategory } from '@/entities/incident'
 import { cn } from '@/lib/utils'
 
 const iconMap: Record<string, LucideIcon> = {

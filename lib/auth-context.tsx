@@ -1,7 +1,9 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
-import { AdminUser, AdminRole, Agency, AuthState, ROLE_PERMISSIONS, EmergencyCategory } from './types'
+import type { EmergencyCategory } from '@/entities/incident'
+import type { AdminUser, AdminRole, Agency, AuthState } from './types'
+import { ROLE_PERMISSIONS } from './types'
 
 const ADMIN_USER_STORAGE_KEY = 'admin_user'
 

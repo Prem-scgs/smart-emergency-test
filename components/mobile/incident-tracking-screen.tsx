@@ -35,7 +35,7 @@ import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'
-import { EmergencyCategory } from '@/lib/types'
+import type { EmergencyCategory } from '@/entities/incident'
 import { IncidentLocationShareCard } from './incident-location-share-card'
 
 interface IncidentTrackingScreenProps {

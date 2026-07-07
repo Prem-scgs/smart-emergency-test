@@ -1,9 +1,9 @@
-import { 
-  EmergencyCategoryInfo, 
-  EmergencyContact, 
-  CallLog, 
+import type { EmergencyCategoryInfo } from '@/entities/incident'
+import type {
+  EmergencyContact,
+  CallLog,
   DashboardStats,
-  UserProfile 
+  UserProfile
 } from './types'
 
 export const emergencyCategories: EmergencyCategoryInfo[] = [
