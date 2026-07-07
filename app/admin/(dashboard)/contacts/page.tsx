@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { buildAdminApiHeaders } from '@/lib/admin-api'
+import { buildAdminApiHeaders } from '@/shared/api/admin-api'
 import {
   canManageContactForScope,
   getContactCoverageKind,

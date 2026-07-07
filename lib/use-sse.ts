@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { buildAdminApiHeaders, buildAdminEventsUrl } from './admin-api'
+import { buildAdminApiHeaders, buildAdminEventsUrl } from '../shared/api/admin-api.ts'
 import type { AdminLanguage } from './admin-i18n'
 import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from '@/shared/config/emergency-api'
 import {

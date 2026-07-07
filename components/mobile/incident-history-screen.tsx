@@ -23,7 +23,7 @@ import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getUserFacingIncidentDescription } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { getMobileIncidentDisplayNumber } from '@/lib/mobile-tracking'
+import { getMobileIncidentDisplayNumber } from '@/shared/realtime/mobile-tracking'
 import { CallStatus, EmergencyCategory } from '@/lib/types'
 import { cn } from '@/lib/utils'
 

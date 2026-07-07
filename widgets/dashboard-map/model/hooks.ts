@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getPolygonBounds, type AreaMapBounds } from '@/entities/area'
-import { buildAdminApiHeaders } from '@/lib/admin-api'
+import { buildAdminApiHeaders } from '@/shared/api/admin-api'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import type { AdminUser } from '@/lib/types'
 import type { DashboardLocationOption } from '../lib/helpers'

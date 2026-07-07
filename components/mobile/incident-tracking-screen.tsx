@@ -29,7 +29,7 @@ import {
   getMobileIncidentDisplayNumber,
   isMobileIncidentWorkflowStatus,
   type MobileTrackingResponse,
-} from '@/lib/mobile-tracking'
+} from '@/shared/realtime/mobile-tracking'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'

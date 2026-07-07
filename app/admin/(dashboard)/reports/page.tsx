@@ -53,7 +53,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { buildAdminApiHeaders } from "@/lib/admin-api"
+import { buildAdminApiHeaders } from "@/shared/api/admin-api"
 import { useAdminI18n } from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"

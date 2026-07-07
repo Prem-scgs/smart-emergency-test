@@ -21,7 +21,7 @@ import {
   type IncidentShareChannel,
   type ShareChannelAvailability,
 } from '@/lib/incident-location-share'
-import type { MobileTrackingIncident } from '@/lib/mobile-tracking'
+import type { MobileTrackingIncident } from '@/shared/realtime/mobile-tracking'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 
 interface IncidentLocationShareCardProps {

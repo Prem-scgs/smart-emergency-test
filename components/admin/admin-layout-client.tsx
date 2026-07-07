@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { buildAdminApiHeaders } from '@/lib/admin-api'
+import { buildAdminApiHeaders } from '@/shared/api/admin-api'
 import { useAdminI18n, type AdminI18nKey } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
