@@ -7,7 +7,7 @@ const notificationContextPath = new URL(
   import.meta.url
 )
 const adminRootLayoutPath = new URL('../app/admin/layout.tsx', import.meta.url)
-const adminLayoutPath = new URL('../components/admin/admin-layout-client.tsx', import.meta.url)
+const adminLayoutPath = new URL('../widgets/admin-shell/ui/admin-layout-client.tsx', import.meta.url)
 const incidentAlertTypesPath = new URL('../features/incident-alert/model/types.ts', import.meta.url)
 
 test('admin mounts the canonical SSE hook only in NotificationProvider', async () => {
@@ -132,7 +132,7 @@ test('incident detail panel includes admin scope in tracking URL for viewer read
 test('notification center renders Thai category labels and opens incident details', async () => {
   const [categoryUtils, notificationCenter] = await Promise.all([
     readFile(new URL('../shared/reference/emergency-category.ts', import.meta.url), 'utf8'),
-    readFile(new URL('../components/admin/notification-center.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../widgets/admin-shell/ui/notification-center.tsx', import.meta.url), 'utf8'),
   ])
 
   assert.match(categoryUtils, /medical: 'แพทย์'/)

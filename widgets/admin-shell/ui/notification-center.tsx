@@ -1,5 +1,5 @@
 'use client'
-import { X, Trash2, CheckCheck } from 'lucide-react'
+import { Trash2, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -7,7 +7,6 @@ import { useNotifications } from '@/features/incident-alert/model/notification-c
 import { buildAdminCategoryCollections, getEmergencyCategoryLabel, useReferenceCategories } from '@/shared/reference'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
 import { cn } from '@/shared/utils'
-
 
 const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
 const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
@@ -99,7 +98,6 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                   )}
                   onClick={() => handleMarkAsRead(notification.id)}
                 >
-                  {/* Indicator dot */}
                   <div className="flex-shrink-0 mt-1">
                     {!notification.read ? (
                       <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -108,7 +106,6 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                     )}
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="text-sm font-medium truncate">
@@ -135,7 +132,6 @@ export function NotificationCenter({ isOpen, onOpenChange }: NotificationCenterP
                     )}
                   </div>
 
-                  {/* Action */}
                   {notification.actionUrl && (
                     <Button
                       variant="outline"

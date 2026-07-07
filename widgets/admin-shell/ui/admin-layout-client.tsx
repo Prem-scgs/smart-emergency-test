@@ -5,16 +5,11 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
-  BarChart3,
   Building2,
   ChevronLeft,
-  FileText,
-  LayoutDashboard,
   LogOut,
-  MapPin,
   Menu,
   Moon,
-  Phone,
   Settings,
   Shield,
   Sun,
@@ -32,37 +27,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { buildAdminApiHeaders } from '@/shared/api/admin-api'
-import { useAdminI18n, type AdminI18nKey } from '@/shared/i18n/admin'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { useAuth } from '@/shared/auth'
-import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/shared/utils'
 
+import { adminShellSidebarItems } from '../model/navigation'
+import { useOrganizationSettings } from '../model/organization-settings'
+import { getAdminShellRoleBadgeInfo } from '../model/role-badge'
 import { NotificationBell } from './notification-bell'
-
-const sidebarItems = [
-  { href: '/admin/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-  { href: '/admin/contacts', labelKey: 'contacts', icon: Phone, permission: 'contacts.view' },
-  { href: '/admin/call-logs', labelKey: 'callLogs', icon: FileText, permission: 'call-logs.view' },
-  { href: '/admin/gis', labelKey: 'gis', icon: MapPin, permission: 'gis.view' },
-  { href: '/admin/reports', labelKey: 'reports', icon: BarChart3, permission: 'reports.view' },
-  { href: '/admin/settings', labelKey: 'settingsTitle', icon: Settings, permission: 'settings.view' },
-] as const
-
-const API_BASE_URL = getEmergencyApiBaseUrl()
-const ORGANIZATION_SETTINGS_UPDATED_EVENT = 'smart-emergency:organization-settings-updated'
-
-interface OrganizationSettings {
-  systemName: string
-  organizationName: string
-  timezone: string
-}
-
-const DEFAULT_ORGANIZATION_SETTINGS: OrganizationSettings = {
-  systemName: 'Smart Emergency',
-  organizationName: 'ศูนย์บัญชาการเหตุฉุกเฉิน',
-  timezone: 'Asia/Bangkok',
-}
 
 interface AdminLayoutClientProps {
   children: React.ReactNode
@@ -74,12 +46,12 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const { theme, setTheme } = useTheme()
   const { t } = useAdminI18n()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [organizationSettings, setOrganizationSettings] = useState(DEFAULT_ORGANIZATION_SETTINGS)
 
   const { user, isAuthenticated, isLoading, hasPermission, logout, canViewAllAgencies } = useAuth()
+  const organizationSettings = useOrganizationSettings(user, isAuthenticated)
 
   const visibleMenuItems = useMemo(() => {
-    return sidebarItems.filter(item => hasPermission(item.permission))
+    return adminShellSidebarItems.filter(item => hasPermission(item.permission))
   }, [hasPermission])
 
   const handleLogout = () => {
@@ -92,37 +64,6 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
       router.replace('/admin')
     }
   }, [isAuthenticated, isLoading, router])
-
-  useEffect(() => {
-    if (!isAuthenticated || !user) return
-
-    let cancelled = false
-
-    async function loadOrganizationSettings() {
-      try {
-        const response = await fetch(API_BASE_URL + '/api/admin/organization-settings', {
-          headers: buildAdminApiHeaders(user),
-        })
-        if (!response.ok) throw new Error('organization settings unavailable')
-        const data = (await response.json()) as { settings: OrganizationSettings }
-        if (!cancelled) {
-          setOrganizationSettings(data.settings)
-        }
-      } catch {
-        if (!cancelled) {
-          setOrganizationSettings(DEFAULT_ORGANIZATION_SETTINGS)
-        }
-      }
-    }
-
-    void loadOrganizationSettings()
-    window.addEventListener(ORGANIZATION_SETTINGS_UPDATED_EVENT, loadOrganizationSettings)
-
-    return () => {
-      cancelled = true
-      window.removeEventListener(ORGANIZATION_SETTINGS_UPDATED_EVENT, loadOrganizationSettings)
-    }
-  }, [isAuthenticated, user])
 
   if (isLoading) {
     return (
@@ -139,14 +80,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const getRoleBadge = () => {
     if (!user) return null
 
-    const roleLabels: Record<string, { labelKey: AdminI18nKey; variant: 'default' | 'secondary' | 'outline' }> = {
-      super_admin: { labelKey: 'roleSuperAdmin', variant: 'default' },
-      agency_admin: { labelKey: 'roleAgencyAdmin', variant: 'secondary' },
-      viewer: { labelKey: 'roleViewer', variant: 'outline' },
-    }
-
-    const roleInfo = roleLabels[user.role]
-    if (!roleInfo) return null
+    const roleInfo = getAdminShellRoleBadgeInfo(user.role)
 
     return (
       <Badge variant={roleInfo.variant} className="text-xs">
