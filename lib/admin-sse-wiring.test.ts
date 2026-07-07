@@ -17,7 +17,7 @@ test('admin mounts the canonical SSE hook only in NotificationProvider', async (
     readFile(adminRootLayoutPath, 'utf8'),
   ])
 
-  assert.match(notificationContext, /import \{ useSse \} from ['"]@\/lib\/use-sse['"]/)
+  assert.match(notificationContext, /import \{ useSse \} from ['"]\.\/use-sse['"]/)
   assert.match(notificationContext, /useSse\(\{[\s\S]*onNotification: addNotification,[\s\S]*onAlert: addAlert,/)
   assert.match(notificationContext, /formatAreaText: formatIncidentAreaText/)
   assert.match(notificationContext, /const \{ language \} = useAdminI18n\(\)/)
@@ -69,7 +69,10 @@ test('admin realtime requires authenticated admin state before opening SSE', asy
 })
 
 test('admin realtime uses the dedicated SSE helper and REST polling helper', async () => {
-  const source = await readFile(new URL('./use-sse.ts', import.meta.url), 'utf8')
+  const source = await readFile(
+    new URL('../features/incident-alert/model/use-sse.ts', import.meta.url),
+    'utf8'
+  )
 
   assert.match(source, /new EventSource\(buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), user\)\)/)
   assert.match(source, /buildRealtimeApiUrl\(getEmergencyApiBaseUrl\(\), `\/api\/incidents\/recent\?\$\{searchParams\.toString\(\)\}`\)/)

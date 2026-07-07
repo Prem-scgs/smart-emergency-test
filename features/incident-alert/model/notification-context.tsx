@@ -5,7 +5,7 @@ import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location
 import type { IncidentEventPayload } from '@/shared/realtime/incident-events'
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
-import { useSse } from '@/lib/use-sse'
+import { useSse } from './use-sse'
 import { canUserSeeAlert, canUserSeeNotification } from '../lib/visibility.ts'
 import type { Alert, Notification } from './types.ts'
 

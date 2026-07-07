@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { buildAdminApiHeaders, buildAdminEventsUrl } from '../shared/api/admin-api.ts'
-import type { AdminLanguage } from './admin-i18n'
+import { buildAdminApiHeaders, buildAdminEventsUrl } from '@/shared/api/admin-api'
+import type { AdminLanguage } from '@/lib/admin-i18n'
 import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from '@/shared/config/emergency-api'
 import {
   buildRealtimeApiUrl,
@@ -13,15 +13,13 @@ import {
   type IncidentEventPayload,
   type SseDebugStatus,
 } from '@/shared/realtime/incident-events'
-import {
-  buildRealtimeIncidentArtifacts,
-} from '@/features/incident-alert/lib/artifacts'
-import { shouldCreateActionableAlert } from '@/features/incident-alert/lib/visibility'
-import type { Alert, Notification, SseEvent } from '@/features/incident-alert/model/types'
+import { buildRealtimeIncidentArtifacts } from '../lib/artifacts.ts'
+import { shouldCreateActionableAlert } from '../lib/visibility.ts'
+import type { Alert, Notification, SseEvent } from './types.ts'
 import type { AdminUser } from '@/shared/auth'
 
 export type { IncidentEventPayload } from '@/shared/realtime/incident-events'
-export { buildRealtimeIncidentArtifacts } from '@/features/incident-alert/lib/artifacts'
+export { buildRealtimeIncidentArtifacts } from '../lib/artifacts.ts'
 
 interface UseSseOptions {
   onNotification?: (notification: Notification) => void
