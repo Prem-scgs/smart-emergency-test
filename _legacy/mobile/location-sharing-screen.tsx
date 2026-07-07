@@ -19,7 +19,7 @@ import {
   buildSmsLocationShareUrl,
   formatLocationCoordinates,
   type LocationShareLocation,
-} from '@/lib/location-share'
+} from '../lib/location-share'
 
 interface LocationSharingScreenProps {
   onBack: () => void

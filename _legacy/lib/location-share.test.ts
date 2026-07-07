@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-// @ts-ignore -- executed by node with tsx from the backend workspace
+// @ts-ignore -- executed by node with tsx from the workspace test command
 import { buildSmsLocationShareUrl } from './location-share.ts'
 
 test('buildSmsLocationShareUrl encodes the resolved area, coordinates and Google Maps link', () => {
