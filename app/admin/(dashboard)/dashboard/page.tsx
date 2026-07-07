@@ -4,8 +4,7 @@ import { useMemo } from 'react'
 
 import { useAdminI18n } from '@/lib/admin-i18n'
 import { useAuth } from '@/lib/auth-context'
-import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
-import { useReferenceCategories } from '@/lib/reference-categories'
+import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import {
   useLocationLookupMaps,
   useReferenceLocations,

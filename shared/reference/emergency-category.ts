@@ -1,7 +1,7 @@
 "use client"
 
-import type { EmergencyCategory } from '@/entities/incident'
-import { FALLBACK_REFERENCE_CATEGORIES, getCategoryDisplayLabel, type ReferenceCategory } from './reference-categories'
+import type { EmergencyCategory } from '../../entities/incident'
+import { FALLBACK_REFERENCE_CATEGORIES, getCategoryDisplayLabel, type ReferenceCategory } from './categories'
 
 export const emergencyCategoryLabelsTh: Record<EmergencyCategory, string> = {
   police: 'ตำรวจ',

@@ -31,7 +31,7 @@ import {
   type MobileTrackingResponse,
 } from '@/shared/realtime/mobile-tracking'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
-import { getCategoryDisplayLabel, useReferenceCategories } from '@/lib/reference-categories'
+import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
 import { getOrCreateReporterSessionId } from '@/lib/reporter-session'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'

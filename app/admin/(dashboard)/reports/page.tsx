@@ -57,8 +57,7 @@ import { buildAdminApiHeaders } from "@/shared/api/admin-api"
 import { useAdminI18n } from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
-import { buildAdminCategoryCollections } from "@/lib/emergency-category-utils"
-import { useReferenceCategories } from "@/lib/reference-categories"
+import { buildAdminCategoryCollections, useReferenceCategories } from "@/shared/reference"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 

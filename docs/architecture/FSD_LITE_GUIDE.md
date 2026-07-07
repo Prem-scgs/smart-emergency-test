@@ -37,6 +37,7 @@ Use these paths for new or moved code:
 ```txt
 shared/api/                 API URL helpers, fetch wrappers, admin headers
 shared/realtime/            SSE client helpers, polling fallback utilities
+shared/reference/           reference data loaders and display helpers used across admin/mobile
 shared/i18n/                dictionaries, translation helpers, locale preference
 shared/config/              browser-safe config and feature flags
 shared/ui/                  reusable UI primitives that are not tied to one domain
@@ -134,6 +135,7 @@ Move domains only when there is real work in that area:
 - `shared/api` owns browser-facing API URL and admin scope helper code.
 - `shared/config` owns browser-safe emergency API URL fallback helpers.
 - `shared/realtime` owns SSE URL helpers, event payload validation, and polling fallback helpers.
+- `shared/reference` owns category reference loaders, fallback category data, and admin/mobile category display helpers.
 - `entities/incident` owns status workflow/meta/display helpers and emergency category types.
 - `entities/contact` owns coverage/display/phone/role/scope helpers and emergency contact types.
 - `entities/call` owns call status and call log types.

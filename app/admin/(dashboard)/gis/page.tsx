@@ -18,10 +18,9 @@ import {
   getProvinceDisplayName,
 } from '@/entities/area'
 import { useAdminI18n } from '@/lib/admin-i18n'
-import { buildAdminCategoryCollections } from '@/lib/emergency-category-utils'
+import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import { getUserFacingIncidentDescription } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { useReferenceCategories } from '@/lib/reference-categories'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'

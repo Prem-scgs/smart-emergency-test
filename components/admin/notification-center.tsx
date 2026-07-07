@@ -3,10 +3,9 @@ import { X, Trash2, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { buildAdminCategoryCollections, getEmergencyCategoryLabel } from '@/lib/emergency-category-utils'
+import { buildAdminCategoryCollections, getEmergencyCategoryLabel, useReferenceCategories } from '@/shared/reference'
 import { useNotifications } from '@/lib/notification-context'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/lib/reference-locations'
-import { useReferenceCategories } from '@/lib/reference-categories'
 import { cn } from '@/lib/utils'
 
 

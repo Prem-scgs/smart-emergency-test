@@ -50,7 +50,7 @@ import {
 import { buildAdminApiHeaders } from "@/shared/api/admin-api"
 import { useAdminI18n } from "@/lib/admin-i18n"
 import { useAuth } from "@/lib/auth-context"
-import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from "@/lib/emergency-category-utils"
+import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from "@/shared/reference"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 import type { EmergencyCategory } from "@/entities/incident"
 import type { CallStatus } from "@/entities/call"

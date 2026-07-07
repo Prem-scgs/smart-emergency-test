@@ -5,7 +5,7 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite legacy location share cleanup is locally verified after 4de250e`
+- Current task: `FSD-lite reference category cleanup is locally verified after 373f2da`
 - Next action: `Wait for commit/push instruction, then push to prem only`
 
 ## Status Guide
@@ -111,6 +111,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Type bridge cleanup locally verified after `77a2ee0`: `lib/types.ts` was removed after `rg` confirmed no `@/lib/types` imports remained, so source now uses canonical type owners directly
   - Alert preferences cleanup locally verified after `d142b9d`: `features/incident-alert` now owns admin alert preferences while keeping the same localStorage key and browser event contract
   - Legacy location share cleanup locally verified after `4de250e`: root `lib/location-share.ts` moved to `_legacy/lib/location-share.ts`, production incident location sharing remains on `lib/incident-location-share.ts`, and the targeted tests/build passed
+  - Reference category cleanup locally verified after `373f2da`: category reference loaders and admin/mobile category display helpers moved from root `lib/` to `shared/reference`, and targeted tests/build passed
 
 Vercel test note:
 

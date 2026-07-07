@@ -5,13 +5,13 @@ import {
   __resetReferenceCategoryCache,
   loadReferenceCategories,
   FALLBACK_REFERENCE_CATEGORIES,
-} from "./reference-categories";
+} from "../shared/reference/categories.ts";
 import {
   __resetReferenceLocationCache,
   loadReferenceDistricts,
   loadReferenceLocationLookups,
   loadReferenceProvinces,
-} from "./reference-locations";
+} from "./reference-locations.ts";
 
 test("loadReferenceCategories deduplicates concurrent fetches", async () => {
   __resetReferenceCategoryCache();

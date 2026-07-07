@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import type { EmergencyCategory } from '@/entities/incident'
-import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
+import type { EmergencyCategory } from '../../entities/incident'
+import { getEmergencyApiBaseUrl } from '../config/emergency-api.ts'
 
 export interface ReferenceCategory {
   id: EmergencyCategory
