@@ -141,9 +141,9 @@ Move domains only when there is real work in that area:
   - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, and sound helpers.
   - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
   - `widgets/dashboard-map` also owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
-  - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. `components/admin/incident-queue.tsx` is now a compatibility bridge only.
-  - `widgets/dashboard-map` owns `IncidentMap`, its map point props, viewport/geolocation logic, popup display helpers, and selected-area/selected-incident map wiring. `components/admin/incident-map.tsx` is now a compatibility bridge only.
-  - `widgets/dashboard-map` owns `IncidentDetailPanel` UI and helper/controller code as of `7ed88fd`, including tracking URL construction, status update payload/error handling, display/location/status helpers, viewer read-only choices, close-warning decisions, and optimistic-concurrency contracts. `components/admin/incident-detail-panel.tsx` is now a compatibility bridge only.
+  - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. The old `components/admin/incident-queue.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
+  - `widgets/dashboard-map` owns `IncidentMap`, its map point props, viewport/geolocation logic, popup display helpers, and selected-area/selected-incident map wiring. The old `components/admin/incident-map.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
+  - `widgets/dashboard-map` owns `IncidentDetailPanel` UI and helper/controller code as of `7ed88fd`, including tracking URL construction, status update payload/error handling, display/location/status helpers, viewer read-only choices, close-warning decisions, and optimistic-concurrency contracts. The old `components/admin/incident-detail-panel.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
 - Route files should stay as shells that provide auth/i18n/reference context and compose the appropriate widget.
 - Keep existing `lib/` bridge files until `rg` confirms old imports are gone.
 - Further moves should be planned separately. The main dashboard map widget now owns queue, map, and detail panel UI; do not remove compatibility bridges until `rg` confirms there are no old runtime imports and build/tests pass.

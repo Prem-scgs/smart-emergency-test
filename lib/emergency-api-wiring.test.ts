@@ -8,7 +8,6 @@ const runtimeFiles = [
   'app/admin/(dashboard)/contacts/page.tsx',
   'app/admin/(dashboard)/dashboard/page.tsx',
   'app/admin/(dashboard)/call-logs/page.tsx',
-  'components/admin/incident-detail-panel.tsx',
   'widgets/dashboard-map/ui/incident-detail-panel.tsx',
 ]
 const projectRoot = new URL('../', import.meta.url)

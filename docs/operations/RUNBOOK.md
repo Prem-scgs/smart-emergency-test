@@ -212,17 +212,20 @@ into `widgets/dashboard-map`. That widget owns the dashboard data hook, selected
 incident detail controller, selected-area bounds, map/filter view-model helpers,
 `IncidentQueue`, and `IncidentMap`.
 
-`components/admin/incident-queue.tsx` is only a compatibility bridge. Do not add
-new queue runtime logic there; add it under `widgets/dashboard-map` instead.
+The old `components/admin/incident-queue.tsx` bridge has been removed after
+`rg` confirmed no runtime imports remained. Add queue runtime logic under
+`widgets/dashboard-map` instead.
 
-`components/admin/incident-map.tsx` is also only a compatibility bridge. Map
-runtime logic, marker display helpers, viewport behavior, geolocation handling,
-and selected-area bounds wiring belong under `widgets/dashboard-map`.
+The old `components/admin/incident-map.tsx` bridge has been removed after `rg`
+confirmed no runtime imports remained. Map runtime logic, marker display
+helpers, viewport behavior, geolocation handling, and selected-area bounds
+wiring belong under `widgets/dashboard-map`.
 
-`components/admin/incident-detail-panel.tsx` is also only a compatibility
-bridge. `IncidentDetailPanel` UI, tracking URL construction, status update
-request body/error parsing, viewer read-only status choices, close-warning
-decisions, and `409` reload behavior belong under `widgets/dashboard-map`.
+The old `components/admin/incident-detail-panel.tsx` bridge has been removed
+after `rg` confirmed no runtime imports remained. `IncidentDetailPanel` UI,
+tracking URL construction, status update request body/error parsing, viewer
+read-only status choices, close-warning decisions, and `409` reload behavior
+belong under `widgets/dashboard-map`.
 
 ### Demo API contract summary
 
