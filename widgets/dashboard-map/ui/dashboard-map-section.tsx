@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis } from 'recharts'
 
-import { IncidentDetailPanel } from '@/components/admin/incident-detail-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,6 +44,7 @@ import {
   useSelectedDashboardAreaBounds,
 } from '../model/hooks'
 import { buildDashboardMapViewModel } from '../model/view-model'
+import { IncidentDetailPanel } from './incident-detail-panel'
 import type { IncidentMapPoint } from './incident-map'
 import { IncidentQueue } from './incident-queue'
 

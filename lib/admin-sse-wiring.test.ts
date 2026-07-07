@@ -89,7 +89,7 @@ test('admin realtime alert carries incidentId for detail action', async () => {
 })
 
 test('incident detail panel clears stale tracking while switching incidents', async () => {
-  const source = await readFile(new URL('../components/admin/incident-detail-panel.tsx', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../widgets/dashboard-map/ui/incident-detail-panel.tsx', import.meta.url), 'utf8')
 
   assert.match(source, /const activeIncidentIdRef = useRef<string \| null>\(null\)/)
   assert.match(source, /activeIncidentIdRef\.current = incidentId[\s\S]*setTracking\(null\)[\s\S]*setIsLoading\(true\)/)
@@ -102,7 +102,7 @@ test('incident detail panel clears stale tracking while switching incidents', as
 
 test('incident detail panel includes admin scope in tracking URL for viewer read-only access', async () => {
   const [source, helper] = await Promise.all([
-    readFile(new URL('../components/admin/incident-detail-panel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../widgets/dashboard-map/ui/incident-detail-panel.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../widgets/dashboard-map/lib/incident-detail.ts', import.meta.url), 'utf8'),
   ])
 

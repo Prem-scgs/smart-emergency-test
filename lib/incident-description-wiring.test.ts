@@ -11,7 +11,7 @@ test('mobile history hides auto-generated mobile call descriptions', async () =>
 })
 
 test('admin incident detail hides auto-generated mobile call descriptions', async () => {
-  const source = await readFile(new URL('../components/admin/incident-detail-panel.tsx', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../widgets/dashboard-map/ui/incident-detail-panel.tsx', import.meta.url), 'utf8')
 
   assert.match(source, /getUserFacingIncidentDescription\(tracking\?\.incident\.description\)/)
   assert.match(source, /userFacingDescription \?/)
