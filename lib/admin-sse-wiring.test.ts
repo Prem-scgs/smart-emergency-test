@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const notificationContextPath = new URL('./notification-context.tsx', import.meta.url)
 const adminLayoutPath = new URL('../components/admin/admin-layout-client.tsx', import.meta.url)
-const typesPath = new URL('./types.ts', import.meta.url)
+const incidentAlertTypesPath = new URL('../features/incident-alert/model/types.ts', import.meta.url)
 
 test('admin mounts the canonical SSE hook only in NotificationProvider', async () => {
   const [notificationContext, adminLayout] = await Promise.all([
@@ -41,7 +41,7 @@ test('admin realtime alert shell uses admin i18n labels', async () => {
 })
 
 test('realtime event type uses SSE terminology without a WebSocket alias', async () => {
-  const types = await readFile(typesPath, 'utf8')
+  const types = await readFile(incidentAlertTypesPath, 'utf8')
 
   assert.match(types, /export interface SseEvent\s*\{/)
   assert.doesNotMatch(types, /WebSocketEvent/)
@@ -71,7 +71,7 @@ test('admin alert detail action opens the existing dashboard incident detail pan
     readFile(new URL('../components/admin/alert-display.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../features/incident-alert/lib/navigation.ts', import.meta.url), 'utf8'),
     readFile(new URL('../widgets/dashboard-map/model/hooks.ts', import.meta.url), 'utf8'),
-    readFile(typesPath, 'utf8'),
+    readFile(incidentAlertTypesPath, 'utf8'),
   ])
 
   assert.match(types, /incidentId\?: string/)

@@ -1,8 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import type { AdminUser, Alert, Notification } from './types'
-import { canUserSeeAlert, canUserSeeNotification } from '../features/incident-alert/index.ts'
+import type { AdminUser } from './types'
+import {
+  canUserSeeAlert,
+  canUserSeeNotification,
+  type Alert,
+  type Notification,
+} from '../features/incident-alert/index.ts'
 
 const agencyAdminUser: AdminUser = {
   id: 'user-1',

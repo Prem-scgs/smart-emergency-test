@@ -16,8 +16,11 @@ import {
 import {
   buildRealtimeIncidentArtifacts,
   shouldCreateActionableAlert,
+  type Alert,
+  type Notification,
+  type SseEvent,
 } from '@/features/incident-alert'
-import { Alert, Notification, SseEvent, type AdminUser } from './types'
+import type { AdminUser } from './types'
 
 export type { IncidentEventPayload } from '@/shared/realtime/incident-events'
 export { buildRealtimeIncidentArtifacts } from '@/features/incident-alert'

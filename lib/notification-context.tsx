@@ -1,8 +1,12 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { Notification, Alert } from '@/lib/types'
-import { canUserSeeAlert, canUserSeeNotification } from '@/features/incident-alert'
+import {
+  canUserSeeAlert,
+  canUserSeeNotification,
+  type Alert,
+  type Notification,
+} from '@/features/incident-alert'
 import { useSse } from '@/lib/use-sse'
 import { useAuth } from '@/lib/auth-context'
 import { useAdminI18n } from '@/lib/admin-i18n'

@@ -1,6 +1,6 @@
 import type { AdminLanguage } from '@/lib/admin-i18n'
-import type { Alert, Notification } from '@/lib/types'
 import type { IncidentEventPayload } from '@/shared/realtime/incident-events'
+import type { Alert, Notification } from '../model/types.ts'
 
 function categoryLabel(category: string, language: AdminLanguage) {
   const labels: Record<AdminLanguage, Record<string, string>> = {

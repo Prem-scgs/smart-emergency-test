@@ -1,4 +1,5 @@
-import type { AdminUser, Alert, Notification } from '@/lib/types'
+import type { AdminUser } from '@/lib/types'
+import type { Alert, Notification } from '../model/types.ts'
 
 function getUserScopeCategory(user: AdminUser | null) {
   return user?.agency?.category ?? null
