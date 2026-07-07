@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useState } from 'react'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
 import type { IncidentEventPayload } from '@/shared/realtime/incident-events'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { useAuth } from '@/shared/auth'
 import { useSse } from './use-sse'
 import { canUserSeeAlert, canUserSeeNotification } from '../lib/visibility.ts'

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { useAuth } from '@/shared/auth'
 import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import {

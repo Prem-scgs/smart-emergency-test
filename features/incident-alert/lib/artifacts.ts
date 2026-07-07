@@ -1,4 +1,4 @@
-import type { AdminLanguage } from '@/lib/admin-i18n'
+import type { AdminLanguage } from '@/shared/i18n/admin'
 import type { IncidentEventPayload } from '@/shared/realtime/incident-events'
 import type { Alert, Notification } from '../model/types.ts'
 

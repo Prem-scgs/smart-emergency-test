@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Map, MapControls, MapMarker, MarkerContent, MarkerPopup, useMap } from '@/components/ui/map'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { getIncidentTrackingStatusMeta, type IncidentWorkflowStatus } from '@/entities/incident'
 import { cn } from '@/lib/utils'
 import { getIncidentMapDisplayNumber } from '../lib/helpers'

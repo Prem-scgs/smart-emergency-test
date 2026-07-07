@@ -39,7 +39,7 @@ import {
   normalizeContactPhone,
   type ContactCoverage,
 } from '@/entities/contact'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { useAuth } from '@/shared/auth'
 import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'

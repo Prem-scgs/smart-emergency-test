@@ -1,7 +1,7 @@
 import { Check, Circle } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import {
   buildIncidentTrackingSteps,
   type IncidentTrackingHistoryEntry,

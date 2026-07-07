@@ -1,5 +1,5 @@
 import { buildAdminApiHeaders, buildAdminApiUrl } from '../../../shared/api/admin-api.ts'
-import type { AdminLanguage } from '../../../lib/admin-i18n.tsx'
+import type { AdminLanguage } from '@/shared/i18n/admin'
 import {
   INCIDENT_TRACKING_STATUS_ORDER,
   getIncidentTrackingStatusMeta,

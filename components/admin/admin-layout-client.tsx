@@ -33,7 +33,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { buildAdminApiHeaders } from '@/shared/api/admin-api'
-import { useAdminI18n, type AdminI18nKey } from '@/lib/admin-i18n'
+import { useAdminI18n, type AdminI18nKey } from '@/shared/i18n/admin'
 import { useAuth } from '@/shared/auth'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'

@@ -137,6 +137,7 @@ Move domains only when there is real work in that area:
 - `shared/config` owns browser-safe emergency API URL fallback helpers.
 - `shared/realtime` owns SSE URL helpers, event payload validation, and polling fallback helpers.
 - `shared/reference` owns category reference loaders, fallback category data, and admin/mobile category display helpers.
+- `shared/i18n/admin` owns admin i18n provider/hook, language preference constants, and Thai/English dictionaries split by locale.
 - `entities/incident` owns status workflow/meta/display helpers and emergency category types.
 - `entities/contact` owns coverage/display/phone/role/scope helpers and emergency contact types.
 - `entities/call` owns call status and call log types.

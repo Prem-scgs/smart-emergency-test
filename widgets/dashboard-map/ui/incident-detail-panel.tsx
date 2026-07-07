@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import { buildAdminApiHeaders, getBackendAdminScope } from '@/shared/api/admin-api'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { getUserFacingIncidentDescription, type IncidentWorkflowStatus } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { useLocationLookupMaps } from '@/shared/location'

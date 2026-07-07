@@ -17,7 +17,7 @@ import {
   getDistrictDisplayName,
   getProvinceDisplayName,
 } from '@/entities/area'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAdminI18n } from '@/shared/i18n/admin'
 import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import { getUserFacingIncidentDescription } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'

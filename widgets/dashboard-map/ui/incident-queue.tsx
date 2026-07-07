@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useAdminI18n, type AdminI18nKey, type AdminLanguage } from '@/lib/admin-i18n'
+import { useAdminI18n, type AdminI18nKey, type AdminLanguage } from '@/shared/i18n/admin'
 import { getIncidentTrackingStatusMeta, type IncidentWorkflowStatus } from '@/entities/incident'
 import { cn } from '@/lib/utils'
 

@@ -45,7 +45,7 @@ import {
   ADMIN_LANGUAGE_CHANGE_EVENT,
   ADMIN_SETTINGS_PREFERENCES_KEY,
   useAdminI18n,
-} from "@/lib/admin-i18n"
+} from "@/shared/i18n/admin"
 import { useAuth } from "@/shared/auth"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 

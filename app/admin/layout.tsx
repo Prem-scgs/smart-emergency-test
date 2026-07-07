@@ -1,5 +1,5 @@
 import { AuthProvider } from '@/shared/auth'
-import { AdminI18nProvider } from '@/lib/admin-i18n'
+import { AdminI18nProvider } from '@/shared/i18n/admin'
 import { NotificationProvider } from '@/features/incident-alert/model/notification-context'
 
 export const dynamic = 'force-dynamic'

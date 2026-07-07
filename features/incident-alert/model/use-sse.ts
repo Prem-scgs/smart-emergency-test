@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { buildAdminApiHeaders, buildAdminEventsUrl } from '@/shared/api/admin-api'
-import type { AdminLanguage } from '@/lib/admin-i18n'
+import type { AdminLanguage } from '@/shared/i18n/admin'
 import { getEmergencyApiBaseUrl, getEmergencyApiEventsBaseUrl } from '@/shared/config/emergency-api'
 import {
   buildRealtimeApiUrl,
