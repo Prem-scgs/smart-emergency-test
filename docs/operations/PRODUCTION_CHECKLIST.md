@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite admin i18n cleanup is locally verified in this change set`
-- Next action: `Wait for commit/push instruction, then push to prem only after tests/build pass`
+- Current task: `FSD-lite admin i18n cleanup was pushed after 193406f`
+- Next action: `Wait for Vercel test confirmation after deploy commit 193406f`
 
 ## Status Guide
 
@@ -118,7 +118,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Notification context cleanup pushed after `efcf4db`: `features/incident-alert` now owns `NotificationProvider` and `useNotifications`
   - Admin SSE hook cleanup pushed after `299daa0`: `features/incident-alert` now owns the admin `useSse` hook while `shared/realtime` still owns pure payload validators and polling constants
   - Auth context cleanup passed on Vercel test after `3741306`: `shared/auth` now owns `AuthProvider`, `useAuth`, agency registry data, and restore guards; `operator` stale sessions are rejected and the supported admin roles are `super_admin`, `agency_admin`, and `viewer`
-  - Admin i18n cleanup locally verified in this change set: `shared/i18n/admin` now owns `AdminI18nProvider`, `useAdminI18n`, language preference constants, and split Thai/English dictionaries while preserving the existing preference key and language-change event
+  - Admin i18n cleanup pushed after `193406f`: `shared/i18n/admin` now owns `AdminI18nProvider`, `useAdminI18n`, language preference constants, and split Thai/English dictionaries while preserving the existing preference key and language-change event
 
 Vercel test note:
 
