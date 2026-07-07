@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { restoreStoredAdminUser } from './auth-context.tsx'
+import { restoreStoredAdminUser } from '../shared/auth/session.ts'
 
 test('restoreStoredAdminUser returns null for missing storage', () => {
   assert.equal(restoreStoredAdminUser(null), null)
@@ -70,4 +70,19 @@ test('restoreStoredAdminUser rehydrates agency from prefixed legacy agencyId', (
   assert.ok(user)
   assert.equal(user?.agencyId, 'agency-medical')
   assert.equal(user?.agency?.category, 'medical')
+})
+
+test('restoreStoredAdminUser rejects unsupported legacy operator sessions', () => {
+  const user = restoreStoredAdminUser(
+    JSON.stringify({
+      id: 'operator-legacy',
+      email: 'operator@example.com',
+      name: 'Operator',
+      role: 'operator',
+      permissions: ['dashboard.view'],
+      lastLogin: '2026-07-06T10:00:00.000Z',
+    })
+  )
+
+  assert.equal(user, null)
 })

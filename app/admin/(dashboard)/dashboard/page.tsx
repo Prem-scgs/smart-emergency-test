@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 
 import { useAdminI18n } from '@/lib/admin-i18n'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from '@/shared/auth'
 import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import {
   useLocationLookupMaps,

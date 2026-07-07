@@ -46,7 +46,7 @@ import {
   ADMIN_SETTINGS_PREFERENCES_KEY,
   useAdminI18n,
 } from "@/lib/admin-i18n"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/shared/auth"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()

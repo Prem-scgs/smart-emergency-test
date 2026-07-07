@@ -1,6 +1,6 @@
 import type { EmergencyCategory } from '@/entities/incident'
 
-export type AdminRole = 'super_admin' | 'agency_admin' | 'operator' | 'viewer'
+export type AdminRole = 'super_admin' | 'agency_admin' | 'viewer'
 
 export interface Agency {
   id: string
@@ -57,11 +57,6 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'gis.view',
     'reports.view',
     'reports.export',
-  ],
-  operator: [
-    'dashboard.view',
-    'call-logs.view',
-    'gis.view',
   ],
   viewer: [
     'dashboard.view',

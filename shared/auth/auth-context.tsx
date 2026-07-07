@@ -1,68 +1,9 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { EmergencyCategory } from '@/entities/incident'
-import type { AdminUser, AdminRole, Agency, AuthState } from '@/shared/auth'
-import { ROLE_PERMISSIONS } from '@/shared/auth'
-
-const ADMIN_USER_STORAGE_KEY = 'admin_user'
-
-export const AGENCIES: Agency[] = [
-  {
-    id: 'police',
-    name: 'Police',
-    nameTh: 'ตำรวจ',
-    category: 'police',
-    description: 'Royal Thai Police',
-    icon: 'Shield',
-    color: 'text-blue-600',
-  },
-  {
-    id: 'medical',
-    name: 'Medical',
-    nameTh: 'การแพทย์ฉุกเฉิน',
-    category: 'medical',
-    description: 'Emergency Medical Services',
-    icon: 'Heart',
-    color: 'text-red-600',
-  },
-  {
-    id: 'fire',
-    name: 'Fire Department',
-    nameTh: 'ดับเพลิง',
-    category: 'fire',
-    description: 'Fire and Rescue Department',
-    icon: 'Flame',
-    color: 'text-orange-600',
-  },
-  {
-    id: 'rescue',
-    name: 'Rescue Team',
-    nameTh: 'กู้ภัย',
-    category: 'rescue',
-    description: 'National Rescue Team',
-    icon: 'LifeBuoy',
-    color: 'text-emerald-600',
-  },
-  {
-    id: 'flood',
-    name: 'Disaster Prevention',
-    nameTh: 'ป้องกันภัยพิบัติ',
-    category: 'flood',
-    description: 'Disaster Prevention and Mitigation',
-    icon: 'Waves',
-    color: 'text-cyan-600',
-  },
-  {
-    id: 'road-accident',
-    name: 'Traffic Police',
-    nameTh: 'จราจร',
-    category: 'road-accident',
-    description: 'Traffic Police Division',
-    icon: 'Car',
-    color: 'text-amber-600',
-  },
-]
+import { ROLE_PERMISSIONS, type AdminRole, type AdminUser, type Agency, type AuthState } from './types'
+import { ADMIN_USER_STORAGE_KEY, AGENCIES, loadStoredAuthState } from './session'
 
 interface AuthContextType extends AuthState {
   login: (email: string, password: string, role: AdminRole, agencyId?: string) => Promise<boolean>
@@ -74,51 +15,6 @@ interface AuthContextType extends AuthState {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
-
-export function restoreStoredAdminUser(raw: string | null): AdminUser | null {
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw) as Omit<AdminUser, 'lastLogin'> & { lastLogin?: string | Date }
-    const normalizedAgencyId = parsed.agencyId?.startsWith('agency-')
-      ? parsed.agencyId.slice('agency-'.length)
-      : parsed.agencyId
-    const agency =
-      parsed.agency ??
-      AGENCIES.find(candidate =>
-        candidate.id === normalizedAgencyId ||
-        candidate.category === normalizedAgencyId
-      )
-
-    return {
-      ...parsed,
-      // Session เก่าอาจมีแค่ agencyId ทำให้ viewer ไม่ส่ง category scope ไป backend
-      // ต้องเติม agency กลับมาเพื่อให้ read-only detail ใช้สิทธิ์ตามหมวดได้ถูกต้อง
-      agency,
-      lastLogin: parsed.lastLogin ? new Date(parsed.lastLogin) : new Date(),
-    }
-  } catch {
-    return null
-  }
-}
-
-function loadStoredAuthState(): AuthState {
-  if (typeof window === 'undefined') {
-    return {
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-    }
-  }
-
-  const user = restoreStoredAdminUser(window.localStorage.getItem(ADMIN_USER_STORAGE_KEY))
-
-  return {
-    user,
-    isAuthenticated: Boolean(user),
-    isLoading: false,
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
@@ -132,17 +28,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (
-    email: string, 
-    password: string, 
-    role: AdminRole, 
+    email: string,
+    password: string,
+    role: AdminRole,
     agencyId?: string
   ): Promise<boolean> => {
     setAuthState(prev => ({ ...prev, isLoading: true }))
-    
+
     await new Promise(resolve => setTimeout(resolve, 500))
-    
+
     const agency = agencyId ? AGENCIES.find(a => a.id === agencyId) : undefined
-    
+
     const user: AdminUser = {
       id: `user-${Date.now()}`,
       email,

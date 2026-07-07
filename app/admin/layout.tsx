@@ -1,4 +1,4 @@
-import { AuthProvider } from '@/lib/auth-context'
+import { AuthProvider } from '@/shared/auth'
 import { AdminI18nProvider } from '@/lib/admin-i18n'
 import { NotificationProvider } from '@/features/incident-alert/model/notification-context'
 

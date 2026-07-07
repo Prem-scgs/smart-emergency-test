@@ -40,7 +40,7 @@ import {
   type ContactCoverage,
 } from '@/entities/contact'
 import { useAdminI18n } from '@/lib/admin-i18n'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from '@/shared/auth'
 import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import {

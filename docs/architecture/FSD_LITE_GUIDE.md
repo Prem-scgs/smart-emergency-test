@@ -144,7 +144,7 @@ Move domains only when there is real work in that area:
 - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, notification provider/hook, admin SSE hook, and alert/notification/SSE types.
 - `features/mobile-incident` owns mobile incident create/call payload helpers, mobile GPS lock status helpers, and reporter session/phone localStorage helpers.
 - `features/location-sharing` owns production incident location sharing helpers, share-channel URLs, mobile platform detection, Thai reporter phone validation, map URL/copy-message formatting, and share attempt response types.
-- `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.
+- `shared/auth` owns admin auth/session types, `ROLE_PERMISSIONS`, `AuthProvider`, `useAuth`, agency registry data, and stale-session restore guards. The retired `operator` role is no longer part of the frontend auth contract.
 - `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
 - `_legacy/lib/location-share.ts` owns the legacy-only SMS/Google Maps share helper; root `lib/location-share.ts` was removed after `rg` confirmed only legacy code still used it.

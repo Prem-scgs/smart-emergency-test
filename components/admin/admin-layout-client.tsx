@@ -34,7 +34,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { buildAdminApiHeaders } from '@/shared/api/admin-api'
 import { useAdminI18n, type AdminI18nKey } from '@/lib/admin-i18n'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from '@/shared/auth'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/lib/utils'
 
@@ -142,7 +142,6 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
     const roleLabels: Record<string, { labelKey: AdminI18nKey; variant: 'default' | 'secondary' | 'outline' }> = {
       super_admin: { labelKey: 'roleSuperAdmin', variant: 'default' },
       agency_admin: { labelKey: 'roleAgencyAdmin', variant: 'secondary' },
-      operator: { labelKey: 'roleOperator', variant: 'outline' },
       viewer: { labelKey: 'roleViewer', variant: 'outline' },
     }
 

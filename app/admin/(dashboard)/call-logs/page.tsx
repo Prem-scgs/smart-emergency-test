@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/table"
 import { buildAdminApiHeaders } from "@/shared/api/admin-api"
 import { useAdminI18n } from "@/lib/admin-i18n"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/shared/auth"
 import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from "@/shared/reference"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 import type { EmergencyCategory } from "@/entities/incident"
