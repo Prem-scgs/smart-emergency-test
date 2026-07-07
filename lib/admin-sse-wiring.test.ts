@@ -2,14 +2,19 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const notificationContextPath = new URL('./notification-context.tsx', import.meta.url)
+const notificationContextPath = new URL(
+  '../features/incident-alert/model/notification-context.tsx',
+  import.meta.url
+)
+const adminRootLayoutPath = new URL('../app/admin/layout.tsx', import.meta.url)
 const adminLayoutPath = new URL('../components/admin/admin-layout-client.tsx', import.meta.url)
 const incidentAlertTypesPath = new URL('../features/incident-alert/model/types.ts', import.meta.url)
 
 test('admin mounts the canonical SSE hook only in NotificationProvider', async () => {
-  const [notificationContext, adminLayout] = await Promise.all([
+  const [notificationContext, adminLayout, adminRootLayout] = await Promise.all([
     readFile(notificationContextPath, 'utf8'),
     readFile(adminLayoutPath, 'utf8'),
+    readFile(adminRootLayoutPath, 'utf8'),
   ])
 
   assert.match(notificationContext, /import \{ useSse \} from ['"]@\/lib\/use-sse['"]/)
@@ -17,6 +22,10 @@ test('admin mounts the canonical SSE hook only in NotificationProvider', async (
   assert.match(notificationContext, /formatAreaText: formatIncidentAreaText/)
   assert.match(notificationContext, /const \{ language \} = useAdminI18n\(\)/)
   assert.match(notificationContext, /language,/)
+  assert.match(
+    adminRootLayout,
+    /import \{ NotificationProvider \} from ['"]@\/features\/incident-alert\/model\/notification-context['"]/
+  )
   assert.doesNotMatch(notificationContext, /WebSocket/)
   assert.doesNotMatch(adminLayout, /useSse/)
 })

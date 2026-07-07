@@ -15,15 +15,13 @@ import {
 } from '@/shared/realtime/incident-events'
 import {
   buildRealtimeIncidentArtifacts,
-  shouldCreateActionableAlert,
-  type Alert,
-  type Notification,
-  type SseEvent,
-} from '@/features/incident-alert'
+} from '@/features/incident-alert/lib/artifacts'
+import { shouldCreateActionableAlert } from '@/features/incident-alert/lib/visibility'
+import type { Alert, Notification, SseEvent } from '@/features/incident-alert/model/types'
 import type { AdminUser } from '@/shared/auth'
 
 export type { IncidentEventPayload } from '@/shared/realtime/incident-events'
-export { buildRealtimeIncidentArtifacts } from '@/features/incident-alert'
+export { buildRealtimeIncidentArtifacts } from '@/features/incident-alert/lib/artifacts'
 
 interface UseSseOptions {
   onNotification?: (notification: Notification) => void

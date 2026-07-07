@@ -141,7 +141,7 @@ Move domains only when there is real work in that area:
 - `entities/contact` owns coverage/display/phone/role/scope helpers and emergency contact types.
 - `entities/call` owns call status and call log types.
 - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
-- `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, and alert/notification/SSE types.
+- `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, notification provider/hook, and alert/notification/SSE types.
 - `features/mobile-incident` owns mobile incident create/call payload helpers, mobile GPS lock status helpers, and reporter session/phone localStorage helpers.
 - `features/location-sharing` owns production incident location sharing helpers, share-channel URLs, mobile platform detection, Thai reporter phone validation, map URL/copy-message formatting, and share attempt response types.
 - `shared/auth` owns admin auth/session types and `ROLE_PERMISSIONS`.

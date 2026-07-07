@@ -24,8 +24,8 @@ import {
   playAlertTone,
   type AdminAlertPreferences,
 } from '@/features/incident-alert'
+import { useNotifications } from '@/features/incident-alert/model/notification-context'
 import { useAdminI18n } from '@/lib/admin-i18n'
-import { useNotifications } from '@/lib/notification-context'
 import { cn } from '@/lib/utils'
 
 function getSeverityConfig(severity: string) {

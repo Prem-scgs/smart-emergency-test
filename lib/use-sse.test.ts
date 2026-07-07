@@ -20,7 +20,7 @@ test("useSse keeps the realtime alert and notification contract", async () => {
     readIncidentAlertFeatureSource(),
   ]);
 
-  assert.match(source, /export \{ buildRealtimeIncidentArtifacts \} from ['"]@\/features\/incident-alert['"]/);
+  assert.match(source, /export \{ buildRealtimeIncidentArtifacts \} from ['"]@\/features\/incident-alert\/lib\/artifacts['"]/);
   assert.match(source, /language = 'th'/);
   assert.match(source, /buildRealtimeIncidentArtifacts\(payload, language, areaText\)/);
   assert.match(alertFeature, /actionLabel:\s*copy\.viewDetails/);
@@ -32,7 +32,7 @@ test("useSse localizes realtime alert copy and never renders raw workflow status
   const source = await readUseSseSource();
 
   assert.match(source, /buildRealtimeIncidentArtifacts\(payload, language, areaText\)/);
-  assert.match(source, /from ['"]@\/features\/incident-alert['"]/);
+  assert.match(source, /from ['"]@\/features\/incident-alert\/lib\/artifacts['"]/);
   assert.doesNotMatch(source, /description: `[\s\S]*\$\{payload\.status\}/);
 });
 

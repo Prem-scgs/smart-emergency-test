@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Bell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useNotifications } from '@/lib/notification-context'
+import { useNotifications } from '@/features/incident-alert/model/notification-context'
 import { NotificationCenter } from './notification-center'
 
 export function NotificationBell() {

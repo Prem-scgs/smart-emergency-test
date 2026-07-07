@@ -1,6 +1,6 @@
 import { AuthProvider } from '@/lib/auth-context'
 import { AdminI18nProvider } from '@/lib/admin-i18n'
-import { NotificationProvider } from '@/lib/notification-context'
+import { NotificationProvider } from '@/features/incident-alert/model/notification-context'
 
 export const dynamic = 'force-dynamic'
 

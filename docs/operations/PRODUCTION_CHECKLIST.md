@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite incident location share helper cleanup is locally verified after 94ce720`
-- Next action: `Wait for commit/push instruction, then push to prem only`
+- Current task: `FSD-lite notification context cleanup is locally verified in this change set`
+- Next action: `Wait for commit/push instruction, then push to prem only after tests/build pass`
 
 ## Status Guide
 
@@ -114,7 +114,8 @@ Use this file to track production-readiness work without touching the auth imple
   - Reference category cleanup locally verified after `373f2da`: category reference loaders and admin/mobile category display helpers moved from root `lib/` to `shared/reference`, and targeted tests/build passed
   - Reference location cleanup passed on Vercel test after `cf7b08c`: province/district reference loaders, lookup maps, and display helpers moved from root `lib/` to `shared/location`
   - Mobile incident helper cleanup passed on Vercel test after `94ce720`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`
-  - Incident location share helper cleanup locally verified after `94ce720`: production incident location share helpers moved from root `lib/` to `features/location-sharing`
+  - Incident location share helper cleanup passed on Vercel test after `1f33c67`: production incident location share helpers moved from root `lib/` to `features/location-sharing`
+  - Notification context cleanup locally verified in this change set: `features/incident-alert` now owns `NotificationProvider` and `useNotifications`, while SSE/polling behavior remains in `lib/use-sse.ts`
 
 Vercel test note:
 

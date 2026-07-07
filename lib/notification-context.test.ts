@@ -2,12 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import type { AdminUser } from '../shared/auth/index.ts'
-import {
-  canUserSeeAlert,
-  canUserSeeNotification,
-  type Alert,
-  type Notification,
-} from '../features/incident-alert/index.ts'
+import { canUserSeeAlert, canUserSeeNotification } from '../features/incident-alert/lib/visibility.ts'
+import type { Alert, Notification } from '../features/incident-alert/model/types.ts'
 
 const agencyAdminUser: AdminUser = {
   id: 'user-1',

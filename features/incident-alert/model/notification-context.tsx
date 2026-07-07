@@ -1,17 +1,13 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import {
-  canUserSeeAlert,
-  canUserSeeNotification,
-  type Alert,
-  type Notification,
-} from '@/features/incident-alert'
-import { useSse } from '@/lib/use-sse'
-import { useAuth } from '@/lib/auth-context'
-import { useAdminI18n } from '@/lib/admin-i18n'
+import React, { createContext, useCallback, useContext, useState } from 'react'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
-import type { IncidentEventPayload } from '@/lib/use-sse'
+import type { IncidentEventPayload } from '@/shared/realtime/incident-events'
+import { useAdminI18n } from '@/lib/admin-i18n'
+import { useAuth } from '@/lib/auth-context'
+import { useSse } from '@/lib/use-sse'
+import { canUserSeeAlert, canUserSeeNotification } from '../lib/visibility.ts'
+import type { Alert, Notification } from './types.ts'
 
 interface NotificationContextType {
   notifications: Notification[]
@@ -36,9 +32,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [alerts, setAlerts] = useState<Alert[]>([])
 
   const filteredNotifications = notifications.filter(notif => canUserSeeNotification(user, notif))
-
   const filteredAlerts = alerts.filter(alert => canUserSeeAlert(user, alert))
-
   const unreadCount = filteredNotifications.filter(n => !n.read).length
 
   const addNotification = useCallback((notification: Notification) => {
@@ -80,13 +74,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const provinceLabel = getLocationDisplayName(province, preferThai) || payload.province || ''
       const districtLabel = getLocationDisplayName(district, preferThai) || payload.district || ''
 
-      // alert popup ต้องใช้ master location ตามภาษาปัจจุบัน ไม่ใช้ชื่ออังกฤษที่ mobile เคยส่งมาเป็นหลัก
+      // Alert popup ต้องใช้ master location ตามภาษาปัจจุบัน ไม่ใช้ชื่ออังกฤษที่ mobile อาจส่งมาเป็นหลัก
       return [districtLabel, provinceLabel].filter(Boolean).join(' ') || null
     },
     [districtByCode, language, provinceByCode]
   )
 
-  // Setup SSE connection
   useSse({
     onNotification: addNotification,
     onAlert: addAlert,
@@ -109,11 +102,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     clearAll,
   }
 
-  return (
-    <NotificationContext.Provider value={value}>
-      {children}
-    </NotificationContext.Provider>
-  )
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>
 }
 
 export function useNotifications() {
