@@ -151,6 +151,7 @@ Move domains only when there is real work in that area:
 - `_legacy/lib/location-share.ts` owns the legacy-only SMS/Google Maps share helper; root `lib/location-share.ts` was removed after `rg` confirmed only legacy code still used it.
 - `lib/types.ts` was removed after `rg` confirmed no imports remained; use the canonical owners directly.
 - Root `lib/mock-data.ts` was removed after `465d5d9`; the legacy-only mock profile now lives in `_legacy/lib/mock-user-profile.ts`.
+- `shared/utils` owns `cn`, the `clsx` + `tailwind-merge` className helper used by UI, admin, mobile, and dashboard widget code. Root `lib/utils.ts` was removed after all imports moved to `@/shared/utils`.
 - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
 - `widgets/dashboard-map` owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
 - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. The old `components/admin/incident-queue.tsx` bridge was removed after `rg` confirmed no runtime imports remained.

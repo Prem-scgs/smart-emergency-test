@@ -30,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AdminI18nKey, AdminLanguage } from '@/shared/i18n/admin'
 import type { EmergencyCategory } from '@/entities/incident'
 import type { Agency, AdminUser } from '@/shared/auth'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 import {
   buildDashboardLocationOptions,
   filterDashboardLocationOptions,

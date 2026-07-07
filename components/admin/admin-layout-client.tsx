@@ -36,7 +36,7 @@ import { buildAdminApiHeaders } from '@/shared/api/admin-api'
 import { useAdminI18n, type AdminI18nKey } from '@/shared/i18n/admin'
 import { useAuth } from '@/shared/auth'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 import { NotificationBell } from './notification-bell'
 

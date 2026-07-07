@@ -7,7 +7,7 @@ import {
   type IncidentTrackingHistoryEntry,
   type IncidentWorkflowStatus,
 } from '@/entities/incident'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 interface IncidentStatusTimelineProps {
   status: IncidentWorkflowStatus

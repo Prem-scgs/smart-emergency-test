@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
 import type { EmergencyCategory } from '@/entities/incident'
 import type { EmergencyContact } from '@/entities/contact'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 const iconMap: Record<string, LucideIcon> = {
   ShieldAlert,

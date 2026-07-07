@@ -54,7 +54,7 @@ import { buildAdminCategoryCollections, adminEmergencyCategoryStyles } from "@/s
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
 import type { EmergencyCategory } from "@/entities/incident"
 import type { CallStatus } from "@/entities/call"
-import { cn } from "@/lib/utils"
+import { cn } from "@/shared/utils"
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 

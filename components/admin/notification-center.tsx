@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useNotifications } from '@/features/incident-alert/model/notification-context'
 import { buildAdminCategoryCollections, getEmergencyCategoryLabel, useReferenceCategories } from '@/shared/reference'
 import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 
 const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'

@@ -26,7 +26,7 @@ import {
 } from '@/features/incident-alert'
 import { useNotifications } from '@/features/incident-alert/model/notification-context'
 import { useAdminI18n } from '@/shared/i18n/admin'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 function getSeverityConfig(severity: string) {
   switch (severity) {

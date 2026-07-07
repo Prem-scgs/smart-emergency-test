@@ -34,7 +34,7 @@ import { getLocationDisplayName, useLocationLookupMaps } from '@/shared/location
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
 import { getOrCreateReporterSessionId } from '@/features/mobile-incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 import type { EmergencyCategory } from '@/entities/incident'
 import { IncidentLocationShareCard } from './incident-location-share-card'
 

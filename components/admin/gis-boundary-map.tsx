@@ -18,7 +18,7 @@ import {
   getAreasBounds,
   type AreaFeatureProperties,
 } from '@/entities/area'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 import type { MultiPolygon, Polygon } from 'geojson'
 
 export interface GisBoundary {

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { getLocationDisplayName, useReferenceLocations } from '@/shared/location'
 import { locationStatusMessage, type LocationLockStatus } from '@/features/mobile-incident'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 interface LocationData {
   latitude: number

@@ -4,7 +4,7 @@ import { Ambulance, Bug, Car, Flame, HeartHandshake, LifeBuoy, Luggage, ShieldAl
 import { Card, CardContent } from '@/components/ui/card'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
 import type { EmergencyCategory } from '@/entities/incident'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 const iconMap: Record<string, LucideIcon> = {
   ShieldAlert,

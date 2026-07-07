@@ -26,7 +26,7 @@ import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { getMobileIncidentDisplayNumber } from '@/shared/realtime/mobile-tracking'
 import type { EmergencyCategory } from '@/entities/incident'
 import type { CallStatus } from '@/entities/call'
-import { cn } from '@/lib/utils'
+import { cn } from '@/shared/utils'
 
 interface IncidentHistoryItem {
   id: string
