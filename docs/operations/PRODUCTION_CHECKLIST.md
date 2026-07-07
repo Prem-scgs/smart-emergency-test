@@ -5,7 +5,7 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite mobile incident helper cleanup is locally verified after cf7b08c`
+- Current task: `FSD-lite incident location share helper cleanup is locally verified after 94ce720`
 - Next action: `Wait for commit/push instruction, then push to prem only`
 
 ## Status Guide
@@ -113,7 +113,8 @@ Use this file to track production-readiness work without touching the auth imple
   - Legacy location share cleanup locally verified after `4de250e`: root `lib/location-share.ts` moved to `_legacy/lib/location-share.ts`, production incident location sharing remains on `lib/incident-location-share.ts`, and the targeted tests/build passed
   - Reference category cleanup locally verified after `373f2da`: category reference loaders and admin/mobile category display helpers moved from root `lib/` to `shared/reference`, and targeted tests/build passed
   - Reference location cleanup passed on Vercel test after `cf7b08c`: province/district reference loaders, lookup maps, and display helpers moved from root `lib/` to `shared/location`
-  - Mobile incident helper cleanup locally verified after `cf7b08c`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`
+  - Mobile incident helper cleanup passed on Vercel test after `94ce720`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`
+  - Incident location share helper cleanup locally verified after `94ce720`: production incident location share helpers moved from root `lib/` to `features/location-sharing`
 
 Vercel test note:
 

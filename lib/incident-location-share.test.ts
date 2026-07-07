@@ -9,7 +9,7 @@ import {
   detectMobilePlatform,
   isValidThaiReporterPhone,
   shouldCopyMessageBeforeOpeningChannel,
-} from './incident-location-share.ts'
+} from '../features/location-sharing/lib/incident-location-share.ts'
 
 const incident = {
   id: 'incident-123',

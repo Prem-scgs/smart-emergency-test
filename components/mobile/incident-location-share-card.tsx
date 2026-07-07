@@ -20,7 +20,7 @@ import {
   type IncidentShareAttemptResponse,
   type IncidentShareChannel,
   type ShareChannelAvailability,
-} from '@/lib/incident-location-share'
+} from '@/features/location-sharing'
 import type { MobileTrackingIncident } from '@/shared/realtime/mobile-tracking'
 import { getOrCreateReporterSessionId } from '@/features/mobile-incident'
 
