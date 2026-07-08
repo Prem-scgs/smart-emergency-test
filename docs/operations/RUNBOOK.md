@@ -422,7 +422,7 @@ Latest detail-flow smoke after `7ed88fd`:
 ## 7. Current Known Limits
 
 - Auth is still mock-based in the app layer
-- `admin/users` is still mock-backed
+- `admin/users` is a placeholder page under `widgets/admin-users`; real user CRUD waits for the team auth contract
 - Audit logging and rate limiting are not done yet
 
 ## 8. Handoff Flow

@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite admin GIS page extraction is locally verified`
-- Next action: `Commit/push the admin GIS page extraction to prem when requested`
+- Current task: `FSD-lite admin users placeholder extraction is locally verified`
+- Next action: `Commit/push the admin users placeholder extraction to prem when requested`
 
 ## Status Guide
 
@@ -133,6 +133,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Admin contacts page extraction locally verified: route shell now imports `widgets/admin-contacts`, while contacts UI, role-scoped filters, CRUD form, location selector, and delete confirmation flow live under the widget owner
   - Admin login page extraction locally verified: route shell now imports `widgets/admin-login`, while login UI, role selector, agency selector, and login submit flow live under the widget owner
   - Admin GIS page extraction locally verified: route shell now imports `widgets/admin-gis`, while province/district loading, area filters, sidebars, boundary map composition, contact list, and incident list live under the widget owner
+  - Admin users placeholder extraction locally verified: route shell now imports `widgets/admin-users`, while the placeholder UI remains explicit that real user CRUD waits for the team auth contract
 
 Vercel test note:
 

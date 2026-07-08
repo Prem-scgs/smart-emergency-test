@@ -62,6 +62,7 @@ widgets/gis-browser/        GIS area list and boundary map composition
 widgets/admin-gis/          admin GIS page UI, area filters, boundary map, fit-bounds wiring, contact and incident markers
 widgets/admin-login/        admin login page UI, role selector, agency selector, and login submit flow
 widgets/admin-shell/        admin layout shell, header notification UI, navigation and organization settings wiring
+widgets/admin-users/        admin users placeholder page while real auth/user management is out of scope
 widgets/admin-contacts/     admin contacts page UI, filters, CRUD form, location selector, and delete confirmation flow
 widgets/admin-call-logs/    admin call logs page UI, filters, pagination, export and print snapshot logic
 widgets/admin-reports/      admin reports page UI, range filters, KPI cards, charts, export and print snapshot logic
@@ -162,6 +163,7 @@ Move domains only when there is real work in that area:
 - `widgets/admin-shell` owns the admin dashboard shell, sidebar/header composition, notification bell/center UI, role badge metadata, navigation item config, and organization settings loading. The old `components/admin/admin-layout-client.tsx`, `notification-bell.tsx`, and `notification-center.tsx` files were removed after `rg` confirmed no imports remained.
 - `widgets/admin-gis` owns the admin GIS page UI, province/district loading state, area filters, contact/incident sidebars, boundary map UI, `GisBoundaryMap`, `GisBoundary` type, selected-area fit bounds, area popup, and contact/incident marker rendering. The route file `app/admin/(dashboard)/gis/page.tsx` is now a thin shell.
 - `widgets/admin-login` owns the admin login page UI, role selector, agency selector, and login submit flow. The route file `app/admin/page.tsx` is now a thin shell.
+- `widgets/admin-users` owns the current admin users placeholder page while real auth/user management remains out of scope. The route file `app/admin/(dashboard)/users/page.tsx` is now a thin shell.
 - `widgets/admin-contacts` owns the admin contacts page UI, role-scoped filters, create/edit/delete dialog flow, category selector, and province/district location selector. The route file `app/admin/(dashboard)/contacts/page.tsx` is now a thin shell.
 - `widgets/admin-call-logs` owns the admin call logs page UI, loading state, role-scoped filters, pagination, CSV/PDF export, and print snapshot logic. The route file `app/admin/(dashboard)/call-logs/page.tsx` is now a thin shell.
 - `widgets/admin-reports` owns the admin reports page UI, range filter, loading state, KPI cards, charts/tabs, CSV/PDF export, and print snapshot logic. The route file `app/admin/(dashboard)/reports/page.tsx` is now a thin shell.
