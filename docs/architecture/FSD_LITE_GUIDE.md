@@ -62,6 +62,7 @@ widgets/gis-browser/        GIS area list and boundary map composition
 widgets/admin-gis/          admin GIS boundary map UI, area fit-bounds wiring, contact and incident markers
 widgets/admin-shell/        admin layout shell, header notification UI, navigation and organization settings wiring
 widgets/admin-call-logs/    admin call logs page UI, filters, pagination, export and print snapshot logic
+widgets/admin-reports/      admin reports page UI, range filters, KPI cards, charts, export and print snapshot logic
 widgets/mobile-emergency/   mobile app shell, mobile screens, and mobile flow orchestration
 ```
 
@@ -158,6 +159,7 @@ Move domains only when there is real work in that area:
 - `widgets/admin-shell` owns the admin dashboard shell, sidebar/header composition, notification bell/center UI, role badge metadata, navigation item config, and organization settings loading. The old `components/admin/admin-layout-client.tsx`, `notification-bell.tsx`, and `notification-center.tsx` files were removed after `rg` confirmed no imports remained.
 - `widgets/admin-gis` owns the admin GIS boundary map UI, `GisBoundaryMap`, `GisBoundary` type, selected-area fit bounds, area popup, and contact/incident marker rendering. The old `components/admin/gis-boundary-map.tsx` file was removed after `rg` confirmed no imports remained.
 - `widgets/admin-call-logs` owns the admin call logs page UI, loading state, role-scoped filters, pagination, CSV/PDF export, and print snapshot logic. The route file `app/admin/(dashboard)/call-logs/page.tsx` is now a thin shell.
+- `widgets/admin-reports` owns the admin reports page UI, range filter, loading state, KPI cards, charts/tabs, CSV/PDF export, and print snapshot logic. The route file `app/admin/(dashboard)/reports/page.tsx` is now a thin shell.
 - `widgets/mobile-emergency` owns the top-level `MobileApp` shell, splash screen, location header, emergency category grid, SOS button, bottom nav, incident selection screen, tracking/history screens, mobile location/contact loading orchestration, and call-result dialog wiring. `features/location-sharing` owns the production incident location share card.
 - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
 - `widgets/dashboard-map` owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
