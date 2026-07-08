@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite admin contacts page extraction is locally verified`
-- Next action: `Commit/push the admin contacts page extraction to prem when requested`
+- Current task: `FSD-lite admin login page extraction is locally verified`
+- Next action: `Commit/push the admin login page extraction to prem when requested`
 
 ## Status Guide
 
@@ -131,6 +131,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Admin reports page extraction locally verified: route shell now imports `widgets/admin-reports`, while reports UI, range filter, KPI cards, charts/tabs, CSV/PDF export, and print snapshot logic live under the widget owner
   - Admin settings page extraction locally verified: route shell now imports `widgets/admin-settings`, while personal preferences, organization settings, share-channel settings, and system health snapshot UI live under the widget owner
   - Admin contacts page extraction locally verified: route shell now imports `widgets/admin-contacts`, while contacts UI, role-scoped filters, CRUD form, location selector, and delete confirmation flow live under the widget owner
+  - Admin login page extraction locally verified: route shell now imports `widgets/admin-login`, while login UI, role selector, agency selector, and login submit flow live under the widget owner
 
 Vercel test note:
 
