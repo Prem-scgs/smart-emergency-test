@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite admin reports page extraction is locally verified`
-- Next action: `Commit/push the admin reports page extraction to prem when requested`
+- Current task: `FSD-lite admin settings page extraction is locally verified`
+- Next action: `Commit/push the admin settings page extraction to prem when requested`
 
 ## Status Guide
 
@@ -129,6 +129,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Admin GIS boundary map extraction locally verified: `GisBoundaryMap` and `GisBoundary` moved under `widgets/admin-gis`, GIS page imports the widget owner, and targeted GIS/area/dashboard/API tests passed
   - Admin call logs page extraction locally verified: route shell now imports `widgets/admin-call-logs`, while call logs UI, filters, pagination, CSV/PDF export, and print snapshot logic live under the widget owner
   - Admin reports page extraction locally verified: route shell now imports `widgets/admin-reports`, while reports UI, range filter, KPI cards, charts/tabs, CSV/PDF export, and print snapshot logic live under the widget owner
+  - Admin settings page extraction locally verified: route shell now imports `widgets/admin-settings`, while personal preferences, organization settings, share-channel settings, and system health snapshot UI live under the widget owner
 
 Vercel test note:
 

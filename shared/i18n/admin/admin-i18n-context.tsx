@@ -3,11 +3,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import { en } from './dictionaries/en'
 import { th } from './dictionaries/th'
+import {
+  ADMIN_LANGUAGE_CHANGE_EVENT,
+  ADMIN_SETTINGS_PREFERENCES_KEY,
+} from './constants'
 
 export type AdminLanguage = "th" | "en"
-
-export const ADMIN_SETTINGS_PREFERENCES_KEY = "admin_settings_preferences"
-export const ADMIN_LANGUAGE_CHANGE_EVENT = "smart-emergency:admin-language-change"
 
 const dictionaries = { th, en } as const
 
