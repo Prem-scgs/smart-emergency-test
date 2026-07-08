@@ -3,12 +3,16 @@ import assert from 'node:assert/strict'
 
 import {
   buildRealtimeIncidentArtifacts,
+} from '../features/incident-alert/lib/artifacts.ts'
+import {
   canUserSeeAlert,
   canUserSeeNotification,
   shouldCreateActionableAlert,
-  type Alert,
-  type Notification,
-} from '../features/incident-alert/index.ts'
+} from '../features/incident-alert/lib/visibility.ts'
+import type {
+  Alert,
+  Notification,
+} from '../features/incident-alert/model/types.ts'
 import type { AdminUser } from '../shared/auth/index.ts'
 import type { IncidentEventPayload } from '../shared/realtime/incident-events.ts'
 

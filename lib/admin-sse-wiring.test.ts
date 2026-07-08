@@ -41,7 +41,7 @@ test('admin realtime alert formats area names from localized reference lookups',
 })
 
 test('admin realtime alert shell uses admin i18n labels', async () => {
-  const alertDisplay = await readFile(new URL('../components/admin/alert-display.tsx', import.meta.url), 'utf8')
+  const alertDisplay = await readFile(new URL('../features/incident-alert/ui/alert-display.tsx', import.meta.url), 'utf8')
 
   assert.match(alertDisplay, /const \{ t \} = useAdminI18n\(\)/)
   assert.match(alertDisplay, /t\('alertNewIncidentBadge'\)/)
@@ -80,7 +80,7 @@ test('admin realtime uses the dedicated SSE helper and REST polling helper', asy
 
 test('admin alert detail action opens the existing dashboard incident detail panel', async () => {
   const [alertDisplay, alertFeature, dashboardMapHooks, types] = await Promise.all([
-    readFile(new URL('../components/admin/alert-display.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../features/incident-alert/ui/alert-display.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../features/incident-alert/lib/navigation.ts', import.meta.url), 'utf8'),
     readFile(new URL('../widgets/dashboard-map/model/hooks.ts', import.meta.url), 'utf8'),
     readFile(incidentAlertTypesPath, 'utf8'),

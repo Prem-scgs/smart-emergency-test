@@ -1,6 +1,6 @@
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AdminLayoutClient } from '@/widgets/admin-shell'
-import { AlertDisplay } from '@/components/admin/alert-display'
+import { AlertDisplay } from '@/features/incident-alert'
 
 export default function AdminDashboardLayout({
   children,
