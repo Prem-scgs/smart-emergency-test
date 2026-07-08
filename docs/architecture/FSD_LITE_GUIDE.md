@@ -53,7 +53,7 @@ features/incident-alert/    admin alert popup, sound behavior, duplicate guards
 features/mobile-incident/   mobile incident payloads, GPS lock status helpers, reporter session storage
 features/status-update/     update status workflow and version conflict handling
 features/contact-management/contact form validation and CRUD workflow
-features/location-sharing/  production incident location sharing helpers and provider URL generation
+features/location-sharing/  production incident location sharing helpers, provider URLs, and share card UI
 features/report-export/     CSV/PDF/print export actions
 
 widgets/dashboard-map/      dashboard map section, incident queue, dashboard data and detail wiring
@@ -146,7 +146,7 @@ Move domains only when there is real work in that area:
 - `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
 - `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, notification provider/hook, admin SSE hook, and alert/notification/SSE types.
 - `features/mobile-incident` owns mobile incident create/call payload helpers, mobile GPS lock status helpers, and reporter session/phone localStorage helpers.
-- `features/location-sharing` owns production incident location sharing helpers, share-channel URLs, mobile platform detection, Thai reporter phone validation, map URL/copy-message formatting, and share attempt response types.
+- `features/location-sharing` owns production incident location sharing helpers, share-channel URLs, mobile platform detection, Thai reporter phone validation, map URL/copy-message formatting, share attempt response types, and `IncidentLocationShareCard` UI.
 - `shared/auth` owns admin auth/session types, `ROLE_PERMISSIONS`, `AuthProvider`, `useAuth`, agency registry data, and stale-session restore guards. The retired `operator` role is no longer part of the frontend auth contract.
 - `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.

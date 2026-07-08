@@ -30,7 +30,7 @@ test('standalone location sharing is removed from the mobile flow but its file i
 
 test('share card keeps unavailable channels disabled and protects optional phone sharing', async () => {
   const card = await readFile(
-    new URL('components/mobile/incident-location-share-card.tsx', root),
+    new URL('features/location-sharing/ui/incident-location-share-card.tsx', root),
     'utf8',
   )
 
