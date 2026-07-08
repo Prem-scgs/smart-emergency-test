@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import type { GisBoundary } from '@/components/admin/gis-boundary-map'
+import type { GisBoundary } from '@/widgets/admin-gis'
 import {
   getAreaDisplayName,
   getDistrictDisplayName,
@@ -26,7 +26,7 @@ const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
 
 const GisBoundaryMap = dynamic(
-  () => import('@/components/admin/gis-boundary-map').then(mod => mod.GisBoundaryMap),
+  () => import('@/widgets/admin-gis').then(mod => mod.GisBoundaryMap),
   {
     ssr: false,
     loading: () => (

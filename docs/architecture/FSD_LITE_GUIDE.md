@@ -59,6 +59,7 @@ features/report-export/     CSV/PDF/print export actions
 widgets/dashboard-map/      dashboard map section, incident queue, dashboard data and detail wiring
 widgets/incident-queue/     reserved only if the queue is split out of dashboard-map later
 widgets/gis-browser/        GIS area list and boundary map composition
+widgets/admin-gis/          admin GIS boundary map UI, area fit-bounds wiring, contact and incident markers
 widgets/admin-shell/        admin layout shell, header notification UI, navigation and organization settings wiring
 ```
 
@@ -153,6 +154,7 @@ Move domains only when there is real work in that area:
 - Root `lib/mock-data.ts` was removed after `465d5d9`; the legacy-only mock profile now lives in `_legacy/lib/mock-user-profile.ts`.
 - `shared/utils` owns `cn`, the `clsx` + `tailwind-merge` className helper used by UI, admin, mobile, and dashboard widget code. Root `lib/utils.ts` was removed after all imports moved to `@/shared/utils`.
 - `widgets/admin-shell` owns the admin dashboard shell, sidebar/header composition, notification bell/center UI, role badge metadata, navigation item config, and organization settings loading. The old `components/admin/admin-layout-client.tsx`, `notification-bell.tsx`, and `notification-center.tsx` files were removed after `rg` confirmed no imports remained.
+- `widgets/admin-gis` owns the admin GIS boundary map UI, `GisBoundaryMap`, `GisBoundary` type, selected-area fit bounds, area popup, and contact/incident marker rendering. The old `components/admin/gis-boundary-map.tsx` file was removed after `rg` confirmed no imports remained.
 - `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
 - `widgets/dashboard-map` owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
 - `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. The old `components/admin/incident-queue.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
