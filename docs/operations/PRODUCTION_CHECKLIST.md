@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `Backend contacts route helper split is locally verified`
-- Next action: `Commit/push the backend contacts route helper split to prem when requested`
+- Current task: `Final cleanup/refactor Wave 1 is pushed to Vercel test`
+- Next action: `Run Wave 2 docs status cleanup, then commit/push it to prem/main`
 
 ## Status Guide
 
@@ -139,6 +139,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Backend incidents status route split locally verified: `PATCH /api/incidents/:id/status` moved to `services/emergency-api/src/modules/incidents/status-routes.ts` while transaction, version conflict, viewer guard, status history, and SSE emit behavior remain unchanged
   - Backend areas route helper split locally verified: area schemas, params, forbidden response, and row mappers moved to `services/emergency-api/src/modules/areas/route-helpers.ts` while GIS read/write endpoint contracts remain unchanged
   - Backend contacts route helper split locally verified: contact schemas, params, query parsing, scope mismatch helper, forbidden response, and row mapper moved to `services/emergency-api/src/modules/contacts/route-helpers.ts` while CRUD permission behavior remains unchanged
+  - Final cleanup Wave 1 pushed after `65d8b1b`: added the missing `010_contact_coverage_type.sql` migration for the generated contact coverage column and aligned `Makefile` `db-migrate`/`db-reset` flows with migrations `019` and `020`; `pnpm --filter emergency-api build`, `pnpm test:api`, and `git diff --check` passed.
 
 Vercel test note:
 

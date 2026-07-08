@@ -1,5 +1,10 @@
 # Incident Status Tracking Implementation Plan
 
+> Historical/spec-only note: this plan documents an earlier design path. Some
+> items, including `POST /api/incidents/:id/locations`, are not part of the
+> current runtime API contract unless a later implementation explicitly adds
+> them.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace mock Mobile tracking with Admin-controlled case status, timeline, explicit location updates, and one SSE data flow.

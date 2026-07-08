@@ -3,6 +3,11 @@
 Date: 2026-06-18
 Status: Approved design, pending implementation plan
 
+> Historical/spec-only note: this document preserves an earlier design. Endpoint
+> examples such as `POST /api/incidents/:id/locations` should not be treated as
+> current runtime API contract unless a later implementation explicitly adds
+> them.
+
 ## Goal
 
 Make Mobile incident history, location sharing, and case tracking use real backend data. Admin users update each case status, and Mobile receives the latest status and timeline in real time without replacing the existing incident-created alert flow.

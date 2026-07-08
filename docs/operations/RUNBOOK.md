@@ -283,7 +283,7 @@ Before every commit, confirm:
 1. Business rules, fallback logic, role scope, realtime, GIS, and API/DB integration have Thai comments where the reason is not obvious.
 2. Flow, API, environment variable, schema, realtime, or GIS changes update the related docs in the same change.
 3. New runtime files use FSD-lite placement: `shared/`, `entities/`, `features/`, or `widgets/`.
-4. `lib/` is used only as a compatibility bridge. Do not add new runtime implementation there.
+4. `lib/` is used for tests and wiring checks only. Do not add new runtime implementation there.
 5. See [CODE_CONVENTIONS_TH.md](../architecture/CODE_CONVENTIONS_TH.md) and [FSD_LITE_GUIDE.md](../architecture/FSD_LITE_GUIDE.md).
 
 ## 5. Health Checks
@@ -417,13 +417,14 @@ Latest detail-flow smoke after `7ed88fd`:
 - Successful status update reloaded tracking, refreshed dashboard data, and
   showed the success toast.
 - The detail panel UI now lives under `widgets/dashboard-map`; the legacy
-  `components/admin/incident-detail-panel.tsx` path remains as a bridge.
+  `components/admin/incident-detail-panel.tsx` bridge was removed after `rg`
+  confirmed no runtime imports remained.
 
 ## 7. Current Known Limits
 
-- Auth is still mock-based in the app layer
+- Auth is still demo/local-storage/header based and not integrated with the team auth system yet
 - `admin/users` is a placeholder page under `widgets/admin-users`; real user CRUD waits for the team auth contract
-- Audit logging and rate limiting are not done yet
+- Audit logging exists for important write actions; rate limiting exists where currently implemented, but production shared-store limits still need review before real deployment
 
 ## 8. Handoff Flow
 
