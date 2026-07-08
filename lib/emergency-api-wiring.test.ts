@@ -5,6 +5,7 @@ import test from 'node:test'
 const runtimeFiles = [
   'features/incident-alert/model/use-sse.ts',
   'app/admin/(dashboard)/gis/page.tsx',
+  'widgets/admin-gis/ui/gis-page.tsx',
   'app/admin/(dashboard)/contacts/page.tsx',
   'app/admin/(dashboard)/dashboard/page.tsx',
   'app/admin/(dashboard)/call-logs/page.tsx',

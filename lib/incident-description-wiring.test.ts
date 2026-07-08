@@ -19,7 +19,7 @@ test('admin incident detail hides auto-generated mobile call descriptions', asyn
 })
 
 test('gis incident list hides auto-generated mobile call descriptions', async () => {
-  const source = await readFile(new URL('../app/admin/(dashboard)/gis/page.tsx', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../widgets/admin-gis/ui/gis-page.tsx', import.meta.url), 'utf8')
 
   assert.match(source, /getUserFacingIncidentDescription\(incident\.description\)/)
   assert.match(source, /userFacingDescription \?\? t\('gisNoIncidentDescription'\)/)
