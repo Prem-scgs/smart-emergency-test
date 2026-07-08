@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite admin GIS boundary map extraction is locally verified`
-- Next action: `Commit/push the admin GIS boundary map extraction to prem when requested`
+- Current task: `FSD-lite remaining mobile UI screen extraction is locally verified`
+- Next action: `Commit/push the remaining mobile UI screen extraction to prem when requested`
 
 ## Status Guide
 
@@ -115,9 +115,10 @@ Use this file to track production-readiness work without touching the auth imple
   - Reference location cleanup passed on Vercel test after `cf7b08c`: province/district reference loaders, lookup maps, and display helpers moved from root `lib/` to `shared/location`
   - Mobile incident helper cleanup passed on Vercel test after `94ce720`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`
   - Incident location share helper cleanup passed on Vercel test after `1f33c67`: production incident location share helpers moved from root `lib/` to `features/location-sharing`
-  - Mobile app shell cleanup locally verified: top-level `MobileApp` moved from `components/mobile/mobile-app.tsx` to `widgets/mobile-emergency`, while child mobile screens remain under `components/mobile`
+  - Mobile app shell cleanup locally verified: top-level `MobileApp` moved from `components/mobile/mobile-app.tsx` to `widgets/mobile-emergency`; child mobile screens were moved in later slices
   - Mobile tracking/history screen cleanup locally verified: `IncidentTrackingScreen` and `IncidentHistoryScreen` moved from `components/mobile` to `widgets/mobile-emergency`
   - Incident location share card cleanup locally verified: `IncidentLocationShareCard` moved from `components/mobile` to `features/location-sharing`
+  - Remaining mobile UI screen cleanup locally verified: splash, location header, emergency category grid, SOS button, mobile nav, and incident selection screen moved from `components/mobile` to `widgets/mobile-emergency`
   - Notification context cleanup pushed after `efcf4db`: `features/incident-alert` now owns `NotificationProvider` and `useNotifications`
   - Admin SSE hook cleanup pushed after `299daa0`: `features/incident-alert` now owns the admin `useSse` hook while `shared/realtime` still owns pure payload validators and polling constants
   - Auth context cleanup passed on Vercel test after `3741306`: `shared/auth` now owns `AuthProvider`, `useAuth`, agency registry data, and restore guards; `operator` stale sessions are rejected and the supported admin roles are `super_admin`, `agency_admin`, and `viewer`

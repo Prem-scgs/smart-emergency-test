@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 const mobileAppUrl = new URL('../widgets/mobile-emergency/ui/mobile-app.tsx', import.meta.url)
-const incidentSelectionUrl = new URL('../components/mobile/incident-selection-screen.tsx', import.meta.url)
-const splashUrl = new URL('../components/mobile/splash-screen.tsx', import.meta.url)
+const incidentSelectionUrl = new URL('../widgets/mobile-emergency/ui/incident-selection-screen.tsx', import.meta.url)
+const splashUrl = new URL('../widgets/mobile-emergency/ui/splash-screen.tsx', import.meta.url)
 
 test('mobile incidents never use fallback coordinates', async () => {
   const source = await readFile(mobileAppUrl, 'utf8')
