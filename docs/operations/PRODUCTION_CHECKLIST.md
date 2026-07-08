@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `FSD-lite remaining mobile UI screen extraction is locally verified`
-- Next action: `Commit/push the remaining mobile UI screen extraction to prem when requested`
+- Current task: `FSD-lite admin call logs page extraction is locally verified`
+- Next action: `Commit/push the admin call logs page extraction to prem when requested`
 
 ## Status Guide
 
@@ -127,6 +127,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Shared utils cleanup locally verified: `cn` moved from root `lib/utils.ts` to `shared/utils`, all imports now use `@/shared/utils`, and the shadcn `components.json` alias points to the new owner
   - Admin shell extraction locally verified: admin dashboard shell, notification bell/center, navigation metadata, role badge metadata, and organization settings wiring moved under `widgets/admin-shell`
   - Admin GIS boundary map extraction locally verified: `GisBoundaryMap` and `GisBoundary` moved under `widgets/admin-gis`, GIS page imports the widget owner, and targeted GIS/area/dashboard/API tests passed
+  - Admin call logs page extraction locally verified: route shell now imports `widgets/admin-call-logs`, while call logs UI, filters, pagination, CSV/PDF export, and print snapshot logic live under the widget owner
 
 Vercel test note:
 
