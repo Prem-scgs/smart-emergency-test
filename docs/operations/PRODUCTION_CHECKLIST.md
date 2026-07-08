@@ -115,6 +115,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Reference location cleanup passed on Vercel test after `cf7b08c`: province/district reference loaders, lookup maps, and display helpers moved from root `lib/` to `shared/location`
   - Mobile incident helper cleanup passed on Vercel test after `94ce720`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`
   - Incident location share helper cleanup passed on Vercel test after `1f33c67`: production incident location share helpers moved from root `lib/` to `features/location-sharing`
+  - Mobile app shell cleanup locally verified: top-level `MobileApp` moved from `components/mobile/mobile-app.tsx` to `widgets/mobile-emergency`, while child mobile screens remain under `components/mobile`
   - Notification context cleanup pushed after `efcf4db`: `features/incident-alert` now owns `NotificationProvider` and `useNotifications`
   - Admin SSE hook cleanup pushed after `299daa0`: `features/incident-alert` now owns the admin `useSse` hook while `shared/realtime` still owns pure payload validators and polling constants
   - Auth context cleanup passed on Vercel test after `3741306`: `shared/auth` now owns `AuthProvider`, `useAuth`, agency registry data, and restore guards; `operator` stale sessions are rejected and the supported admin roles are `super_admin`, `agency_admin`, and `viewer`

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const mobileAppPath = new URL('../components/mobile/mobile-app.tsx', import.meta.url)
+const mobileAppPath = new URL('../widgets/mobile-emergency/ui/mobile-app.tsx', import.meta.url)
 const shareScreenPath = new URL('../_legacy/mobile/location-sharing-screen.tsx', import.meta.url)
 
 test('legacy share screen remains available for cleanup review but is not wired into MobileApp', async () => {

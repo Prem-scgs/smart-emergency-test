@@ -16,7 +16,7 @@ test('tracking owns the incident location share card', async () => {
 
 test('standalone location sharing is removed from the mobile flow but its file is preserved', async () => {
   const [mobileApp, mobileNav, incidentSelection, legacyScreen] = await Promise.all([
-    readFile(new URL('components/mobile/mobile-app.tsx', root), 'utf8'),
+    readFile(new URL('widgets/mobile-emergency/ui/mobile-app.tsx', root), 'utf8'),
     readFile(new URL('components/mobile/mobile-nav.tsx', root), 'utf8'),
     readFile(new URL('components/mobile/incident-selection-screen.tsx', root), 'utf8'),
     readFile(new URL('_legacy/mobile/location-sharing-screen.tsx', root), 'utf8'),

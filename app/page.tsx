@@ -1,4 +1,4 @@
-import { MobileApp } from '@/components/mobile/mobile-app'
+import { MobileApp } from '@/widgets/mobile-emergency'
 
 export default function Home() {
   return <MobileApp />
