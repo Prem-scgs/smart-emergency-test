@@ -62,6 +62,8 @@ db-migrate:
 	pnpm db:migrate:incident-tracking
 	pnpm db:migrate:share-channels
 	pnpm db:migrate:system-settings
+	pnpm db:migrate:incident-accuracy
+	pnpm db:migrate:incident-case-number
 
 db-seed:
 	pnpm db:seed
@@ -85,6 +87,8 @@ db-reset:
 	pnpm db:migrate:incident-tracking
 	pnpm db:migrate:share-channels
 	pnpm db:migrate:system-settings
+	pnpm db:migrate:incident-accuracy
+	pnpm db:migrate:incident-case-number
 	pnpm db:seed
 
 web:
