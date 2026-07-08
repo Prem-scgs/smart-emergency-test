@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 
 test('mobile history hides auto-generated mobile call descriptions', async () => {
-  const source = await readFile(new URL('../components/mobile/incident-history-screen.tsx', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../widgets/mobile-emergency/ui/incident-history-screen.tsx', import.meta.url), 'utf8')
 
   assert.match(source, /getUserFacingIncidentDescription\(log\.description\)/)
   assert.match(source, /userFacingDescription \?/)

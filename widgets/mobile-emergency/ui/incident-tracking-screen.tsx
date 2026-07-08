@@ -36,7 +36,7 @@ import { getOrCreateReporterSessionId } from '@/features/mobile-incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
 import { cn } from '@/shared/utils'
 import type { EmergencyCategory } from '@/entities/incident'
-import { IncidentLocationShareCard } from './incident-location-share-card'
+import { IncidentLocationShareCard } from '@/components/mobile/incident-location-share-card'
 
 interface IncidentTrackingScreenProps {
   incidentId: string

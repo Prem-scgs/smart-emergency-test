@@ -6,7 +6,7 @@ const root = new URL('../', import.meta.url)
 
 test('tracking owns the incident location share card', async () => {
   const tracking = await readFile(
-    new URL('components/mobile/incident-tracking-screen.tsx', root),
+    new URL('widgets/mobile-emergency/ui/incident-tracking-screen.tsx', root),
     'utf8',
   )
 

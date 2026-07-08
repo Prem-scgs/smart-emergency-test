@@ -52,7 +52,7 @@ test('mobile call button uses a native tel link while preserving the app call ha
 
 test('mobile tracking displays readable case numbers instead of full UUIDs', async () => {
   const trackingSource = await readFile(
-    new URL('../components/mobile/incident-tracking-screen.tsx', import.meta.url),
+    new URL('../widgets/mobile-emergency/ui/incident-tracking-screen.tsx', import.meta.url),
     'utf8'
   )
 
