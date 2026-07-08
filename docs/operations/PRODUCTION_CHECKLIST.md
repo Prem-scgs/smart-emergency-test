@@ -5,8 +5,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Current Focus
 
 - Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `Backend incidents report route split is locally verified`
-- Next action: `Commit/push the backend incidents report route split to prem when requested`
+- Current task: `Backend incidents event route split is locally verified`
+- Next action: `Commit/push the backend incidents event route split to prem when requested`
 
 ## Status Guide
 
@@ -135,6 +135,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Admin GIS page extraction locally verified: route shell now imports `widgets/admin-gis`, while province/district loading, area filters, sidebars, boundary map composition, contact list, and incident list live under the widget owner
   - Admin users placeholder extraction locally verified: route shell now imports `widgets/admin-users`, while the placeholder UI remains explicit that real user CRUD waits for the team auth contract
   - Backend incidents report route split locally verified: `/api/reports/summary` registration moved to `services/emergency-api/src/modules/incidents/report-routes.ts` while `registerIncidentRoutes` still exposes the same public endpoint
+  - Backend incidents event route split locally verified: `/api/incidents/:id/events` and `/api/events` moved to `services/emergency-api/src/modules/incidents/event-routes.ts` while SSE behavior and CORS headers remain under `registerIncidentRoutes`
 
 Vercel test note:
 

@@ -7,8 +7,7 @@ import {
 } from "../../admin-scope.js";
 import { buildApiErrorPayload } from "../../api-error.js";
 import { writeAuditLog } from "../../audit-log.js";
-import { emergencyEvents, emitEmergencyEvent } from "../../events.js";
-import { config, getAllowedCorsOrigin } from "../../config.js";
+import { emitEmergencyEvent } from "../../events.js";
 import { pool } from "../../db.js";
 import {
   buildIncidentLocationShareMessage,
@@ -30,6 +29,7 @@ import {
   INCIDENT_STATUS_ORDER,
   validateIncidentStatusTransition,
 } from "./status-workflow.js";
+import { registerIncidentEventRoutes } from "./event-routes.js";
 import { registerIncidentReportRoutes } from "./report-routes.js";
 
 const incidentBody = z.object({
@@ -158,6 +158,7 @@ function getMobilePlatform(headers: Record<string, unknown> | undefined) {
 
 export async function registerIncidentRoutes(app: FastifyInstance) {
   await registerIncidentReportRoutes(app);
+  await registerIncidentEventRoutes(app);
 
   app.get("/api/incidents", async (request) => {
     const adminScope = getMockAdminScopeFromRequest(
@@ -607,117 +608,6 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
         longitude: Number(incident.longitude),
       }),
     };
-  });
-
-  app.get("/api/incidents/:id/events", async (request, reply) => {
-    const paramsResult = z
-      .object({
-        id: z.string().min(1),
-      })
-      .safeParse(request.params);
-
-    if (!paramsResult.success) {
-      reply.code(400);
-      return buildZodValidationErrorPayload(paramsResult.error);
-    }
-
-    const queryResult = z
-      .object({
-        sessionId: z.string().trim().min(8),
-      })
-      .safeParse(request.query ?? {});
-
-    if (!queryResult.success) {
-      reply.code(400);
-      return buildZodValidationErrorPayload(queryResult.error);
-    }
-
-    const incidentId = paramsResult.data.id;
-    const ownershipResult = await pool.query(
-      `
-        SELECT id
-        FROM incidents
-        WHERE id = $1 AND session_id = $2
-        LIMIT 1
-      `,
-      [incidentId, queryResult.data.sessionId]
-    );
-
-    if (ownershipResult.rows.length === 0) {
-      reply.code(403);
-      return buildApiErrorPayload(
-        403,
-        "INCIDENT_TRACKING_ACCESS_DENIED",
-        "Reporter session does not own this incident"
-      );
-    }
-
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-      "Content-Encoding": "none",
-      "Access-Control-Allow-Origin": getAllowedCorsOrigin(request.headers?.origin),
-      Vary: "Origin",
-    });
-    reply.raw.flushHeaders?.();
-
-    let closed = false;
-
-    const flushStream = () => {
-      (reply.raw as { flush?: () => void }).flush?.();
-    };
-    let heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-
-    const cleanup = () => {
-      if (closed) {
-        return;
-      }
-
-      closed = true;
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-      }
-      emergencyEvents.off("incident.status_updated", sendStatusUpdate);
-    };
-
-    const sendStatusUpdate = (payload: unknown) => {
-      if (
-        closed ||
-        !payload ||
-        typeof payload !== "object" ||
-        (payload as { id?: unknown }).id !== incidentId
-      ) {
-        return;
-      }
-
-      try {
-        reply.raw.write("event: incident.status_updated\n");
-        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
-      } catch {
-        cleanup();
-      }
-    };
-
-    reply.raw.write("retry: 2000\n");
-    reply.raw.write(": connected\n\n");
-
-    heartbeatInterval = setInterval(() => {
-      if (closed) {
-        return;
-      }
-
-      try {
-        reply.raw.write(": keepalive\n\n");
-      } catch {
-        cleanup();
-      }
-    }, 15000);
-
-    emergencyEvents.on("incident.status_updated", sendStatusUpdate);
-    reply.raw.on("close", cleanup);
   });
 
   app.patch("/api/incidents/:id/status", async (request, reply) => {
@@ -1330,90 +1220,4 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return incident;
   });
 
-  app.get("/api/events", async (request, reply) => {
-    const adminScope = getMockAdminScopeFromRequest(
-      request.headers as Record<string, unknown> | undefined,
-      request.query as Record<string, unknown> | undefined
-    );
-
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-      "Content-Encoding": "none",
-      "Access-Control-Allow-Origin": getAllowedCorsOrigin(request.headers?.origin),
-      Vary: "Origin",
-    });
-    reply.raw.flushHeaders?.();
-
-    let closed = false;
-
-    const flushStream = () => {
-      (reply.raw as { flush?: () => void }).flush?.();
-    };
-
-    const cleanup = () => {
-      if (closed) {
-        return;
-      }
-
-      closed = true;
-      clearInterval(heartbeatInterval);
-      emergencyEvents.off("incident.created", sendIncident);
-      emergencyEvents.off("incident.status_updated", sendStatusUpdate);
-    };
-
-    const sendEvent = (eventName: string, payload: unknown) => {
-      if (closed) {
-        return;
-      }
-
-      if (
-        isCategoryScopedAdmin(adminScope) &&
-        (!payload || typeof payload !== "object" || (payload as { category?: unknown }).category !== adminScope.category)
-      ) {
-        return;
-      }
-
-      try {
-        reply.raw.write(`event: ${eventName}\n`);
-        reply.raw.write(`data: ${JSON.stringify(payload)}\n\n`);
-        flushStream();
-      } catch {
-        cleanup();
-      }
-    };
-
-    const sendIncident = (payload: unknown) => {
-      sendEvent("incident.created", payload);
-    };
-
-    const sendStatusUpdate = (payload: unknown) => {
-      sendEvent("incident.status_updated", payload);
-    };
-
-    reply.raw.write(`:${" ".repeat(2048)}\n\n`);
-    reply.raw.write("retry: 2000\n");
-    reply.raw.write(": connected\n\n");
-    flushStream();
-
-    const heartbeatInterval = setInterval(() => {
-      if (closed) {
-        return;
-      }
-
-      try {
-        reply.raw.write(": keepalive\n\n");
-        flushStream();
-      } catch {
-        cleanup();
-      }
-    }, 15000);
-
-    emergencyEvents.on("incident.created", sendIncident);
-    emergencyEvents.on("incident.status_updated", sendStatusUpdate);
-    reply.raw.on("close", cleanup);
-  });
 }
