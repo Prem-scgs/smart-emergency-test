@@ -41,6 +41,12 @@ function numberFromRow(value: unknown) {
 }
 
 export async function registerIncidentReportRoutes(app: FastifyInstance) {
+  /**
+   * Summary สำหรับหน้า Reports
+   *
+   * Endpoint นี้ไม่คืน incident list ดิบ แต่รวมข้อมูลจากตาราง incidents เป็น KPI/chart/table
+   * และยังใช้ admin scope เดียวกับ dashboard เพื่อให้ agency_admin/viewer เห็นเฉพาะหมวดของตัวเอง
+   */
   app.get("/api/reports/summary", async (request) => {
     const query = reportSummaryQuery.parse(request.query ?? {});
     const adminScope = getMockAdminScopeFromRequest(

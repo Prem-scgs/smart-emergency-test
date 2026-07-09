@@ -23,6 +23,17 @@ const incidentStatusUpdateBody = z.object({
 });
 
 export async function registerIncidentStatusRoutes(app: FastifyInstance) {
+  /**
+   * อัปเดตสถานะ incident จากฝั่ง Admin
+   *
+   * Flow สำคัญ:
+   * - viewer อ่าน detail ได้ แต่ห้ามเปลี่ยน workflow
+   * - ใช้ FOR UPDATE + expectedVersion กัน Admin หลายคนแก้เคสเดียวกันพร้อมกัน
+   * - บันทึกประวัติลง incident_status_history ก่อน COMMIT
+   * - emit incident.status_updated หลัง transaction ปิดแล้ว เพื่อไม่ให้ frontend เห็น event ก่อน DB พร้อม
+   *
+   * ถ้าแก้ตรงนี้ ต้องทดสอบ status dropdown, backward note, 409 conflict และ SSE status refresh
+   */
   app.patch("/api/incidents/:id/status", async (request, reply) => {
     const paramsResult = z
       .object({
@@ -55,7 +66,7 @@ export async function registerIncidentStatusRoutes(app: FastifyInstance) {
       );
     }
 
-    // viewer ดูเคสได้แต่ห้ามขยับ workflow/status เพราะเป็นบัญชีอ่านอย่างเดียว
+    // viewer ดูเคสได้ แต่ห้ามขยับ workflow/status เพราะเป็นบัญชีอ่านอย่างเดียว
     if (isViewerScope(adminScope)) {
       reply.code(403);
       return buildApiErrorPayload(

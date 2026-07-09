@@ -12,6 +12,12 @@ import { emergencyEvents } from "../../events.js";
 import { buildZodValidationErrorPayload } from "../../input-validation.js";
 
 export async function registerIncidentEventRoutes(app: FastifyInstance) {
+  /**
+   * SSE stream สำหรับ mobile tracking ของ incident เดียว
+   *
+   * ใช้ sessionId ตรวจ ownership ก่อนเปิด stream เพื่อไม่ให้มือถือเครื่องอื่นฟังเคสนี้ได้
+   * stream นี้ส่งเฉพาะ incident.status_updated ของ id เดียว และ mobile UI ใช้คู่กับ tracking fetch
+   */
   app.get("/api/incidents/:id/events", async (request, reply) => {
     const paramsResult = z
       .object({
@@ -101,6 +107,7 @@ export async function registerIncidentEventRoutes(app: FastifyInstance) {
       }
     };
 
+    // Heartbeat ช่วยให้ proxy/browser รู้ว่า connection ยังมีชีวิต และลดโอกาสโดน buffer ปิดเงียบ
     reply.raw.write("retry: 2000\n");
     reply.raw.write(": connected\n\n");
 
@@ -120,6 +127,12 @@ export async function registerIncidentEventRoutes(app: FastifyInstance) {
     reply.raw.on("close", cleanup);
   });
 
+  /**
+   * SSE stream รวมสำหรับ Admin Dashboard
+   *
+   * Frontend เปิดผ่าน EventSource ซึ่งส่ง custom headers ไม่ได้ในบาง browser/proxy
+   * จึงรองรับ admin scope จาก query string ด้วย และยัง filter category ก่อนส่ง event ออกไป
+   */
   app.get("/api/events", async (request, reply) => {
     const adminScope = getMockAdminScopeFromRequest(
       request.headers as Record<string, unknown> | undefined,
@@ -184,6 +197,7 @@ export async function registerIncidentEventRoutes(app: FastifyInstance) {
       sendEvent("incident.status_updated", payload);
     };
 
+    // Padding ช่วยให้บาง proxy/browser flush SSE ก้อนแรกทันที ไม่รอ buffer เต็ม
     reply.raw.write(`:${" ".repeat(2048)}\n\n`);
     reply.raw.write("retry: 2000\n");
     reply.raw.write(": connected\n\n");

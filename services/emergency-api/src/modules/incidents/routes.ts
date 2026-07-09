@@ -65,6 +65,14 @@ const incidentShareAttemptBody = z.object({
     .optional(),
 });
 
+/**
+ * แปลง row จากฐานข้อมูลให้เป็น shape เดียวกับที่ frontend ใช้
+ *
+ * จุดสำคัญ:
+ * - DB ใช้ snake_case แต่ API ส่ง camelCase เพื่อให้ฝั่ง React ใช้งานง่าย
+ * - บาง query เลือก column ไม่เท่ากัน จึงเช็กว่ามี field นั้นก่อนค่อยส่งออก
+ * - caseNumber เป็นเลขที่คนอ่านง่าย ส่วน id ยังเป็น UUID ภายในระบบ
+ */
 function rowToIncident(row: Record<string, unknown>) {
   return {
     id: row.id,
@@ -117,6 +125,8 @@ function markerColorSql() {
   `;
 }
 
+// กันมือถือหรือ client เดิมยิง create/share ซ้ำถี่เกินไปก่อนถึง DB
+// หมายเหตุ: เป็น in-memory limiter เหมาะกับ demo/local ถ้าขึ้น production หลาย instance ควรย้ายไป Redis/shared store
 const incidentCreateRateLimiter = createInMemoryRateLimiter({
   maxRequests: 10,
   windowMs: 60_000,
@@ -151,6 +161,13 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
   await registerIncidentEventRoutes(app);
   await registerIncidentStatusRoutes(app);
 
+  /**
+   * รายการ incident สำหรับหน้า admin
+   *
+   * ผลกระทบ:
+   * - Frontend: dashboard queue, call logs และหน้าที่ต้องเห็นรายการเคส
+   * - Permission: agency_admin/viewer ถูกจำกัดด้วย category เดียวกับหน่วยงาน
+   */
   app.get("/api/incidents", async (request) => {
     const adminScope = getMockAdminScopeFromRequest(
       request.headers as Record<string, unknown> | undefined,
@@ -205,6 +222,14 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return result.rows.map(rowToIncident);
   });
 
+  /**
+   * Polling fallback สำหรับ realtime dashboard
+   *
+   * Flow นี้ถูกเรียกซ้ำจาก frontend เมื่อ SSE หลุดหรือ event ตกหล่น:
+   * - created ใช้จับเคสใหม่หลัง cursor
+   * - statusUpdated ใช้จับ statusVersion ใหม่หลัง cursor
+   * - ต้องส่ง scope ตาม role เพื่อให้ viewer/agency admin เห็นเฉพาะหมวดตัวเอง
+   */
   app.get("/api/incidents/recent", async (request) => {
     const query = recentIncidentsQuery.parse(request.query ?? {});
     const adminScope = getMockAdminScopeFromRequest(
@@ -361,6 +386,15 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return rowToIncident(result.rows[0]);
   });
 
+  /**
+   * Tracking detail ของเคสเดียว ใช้ร่วมทั้ง mobile และ admin detail panel
+   *
+   * สิทธิ์อ่าน:
+   * - mobile ต้องส่ง sessionId ให้ตรงกับผู้แจ้งเหตุ
+   * - admin ส่ง role/category scope เพื่อเปิด detail ตามสิทธิ์
+   *
+   * ถ้าแก้ endpoint นี้ ต้องเช็ก mobile tracking, viewer detail และ dashboard detail พร้อมกัน
+   */
   app.get("/api/incidents/:id/tracking", async (request, reply) => {
     const paramsResult = z
       .object({
@@ -507,6 +541,12 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     };
   });
 
+  /**
+   * บันทึกความพยายามแชร์ตำแหน่งจาก mobile tracking
+   *
+   * ใช้เพื่อดูว่า user เลือกแชร์ผ่านช่องทางไหน และสร้างข้อความ/recipient จาก setting กลาง
+   * rate limit ผูกกับ IP + incident + sessionId เพื่อกันการกดแชร์รัว ๆ ในเคสเดียวกัน
+   */
   app.post("/api/incidents/:id/share-attempts", async (request, reply) => {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const body = incidentShareAttemptBody.parse(request.body);
@@ -601,6 +641,12 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     };
   });
 
+  /**
+   * จุดบนแผนที่ dashboard
+   *
+   * Query นี้คืนข้อมูลพอสำหรับ marker/popup เท่านั้น ไม่ใช่ detail เต็มของ incident
+   * ถ้าต้องการ status history หรือ location history ให้ใช้ /api/incidents/:id/tracking แทน
+   */
   app.get("/api/incidents/map-points", async (request) => {
     const adminScope = getMockAdminScopeFromRequest(
       request.headers as Record<string, unknown> | undefined,
@@ -662,6 +708,12 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return result.rows.map(rowToIncident);
   });
 
+  /**
+   * ประวัติเคสของ mobile session เดียวกัน
+   *
+   * sessionId เป็นตัวเชื่อม browser/mobile เครื่องเดิมกับเคสที่เคยแจ้ง
+   * ห้ามใช้ endpoint นี้เป็น admin history เพราะไม่ได้ส่ง admin scope และตั้งใจให้ผูกกับ reporter session
+   */
   app.get("/api/incidents/history", async (request, reply) => {
     const queryResult = z.object({
       sessionId: z.string().trim().min(8),
@@ -713,6 +765,18 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
     return result.rows.map(rowToIncident);
   });
 
+  /**
+   * สร้าง incident ใหม่จากฝั่ง mobile หลัง user กดโทร
+   *
+   * Flow หลัก:
+   * - validate category/location/phone ก่อนแตะ DB
+   * - resolve พื้นที่จาก PostGIS เพื่อเติม province/district ที่เชื่อถือได้
+   * - ใช้ clientRequestId กัน request ซ้ำจากมือถือ
+   * - สร้าง caseNumber ใน transaction เดียวกับ insert incident
+   * - เขียน status/location history แล้วค่อย emit incident.created ให้ dashboard
+   *
+   * ถ้าแก้ flow นี้ ต้องทดสอบ mobile create, case number, history, audit log และ admin realtime alert
+   */
   app.post("/api/incidents", async (request, reply) => {
     const rateLimit = incidentCreateRateLimiter.check(request.ip);
     if (!rateLimit.allowed) {
@@ -790,6 +854,10 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
 
     const result = await pool.query(
       `
+        -- CTE ชุดนี้ตั้งใจให้ create incident เป็น operation เดียว:
+        -- existing_incident ทำให้ clientRequestId idempotent
+        -- next_case/case_identity จองเลขเคสแยกตาม category + วันที่ไทย
+        -- inserted_* เขียน incident, status history และ location history ให้สอดคล้องกัน
         WITH existing_incident AS (
           SELECT *
           FROM incidents

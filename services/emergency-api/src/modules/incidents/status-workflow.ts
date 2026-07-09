@@ -34,6 +34,14 @@ type IncidentStatusTransitionResult =
       error: string;
     };
 
+/**
+ * ตรวจ business rule ของการเปลี่ยนสถานะ incident
+ *
+ * กติกานี้ถูกใช้โดย PATCH /api/incidents/:id/status:
+ * - agency_admin ขยับได้เฉพาะสถานะถัดไป เพื่อให้ workflow เดินตามลำดับปฏิบัติงาน
+ * - super_admin ย้อนสถานะได้ แต่ต้องใส่ note เพื่อเก็บเหตุผลไว้ใน incident_status_history
+ * - การไม่เปลี่ยนสถานะถือเป็น request ผิด ไม่ควรเขียน history ซ้ำ
+ */
 export function validateIncidentStatusTransition(
   input: IncidentStatusTransitionInput
 ): IncidentStatusTransitionResult {
