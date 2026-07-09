@@ -7,6 +7,12 @@ function canUseStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
+/**
+ * คืน session id ของผู้แจ้งบนเครื่องนี้
+ *
+ * ระบบ mobile ยังไม่มี user login จริง จึงใช้ localStorage session นี้ผูก incident create,
+ * tracking, history และ SSE events เข้ากับเครื่องเดียวกันแทน identity ของบัญชีผู้ใช้
+ */
 export function getOrCreateReporterSessionId(): string {
   if (!canUseStorage()) return 'session-server'
 

@@ -45,6 +45,12 @@ function buildIncidentUrl(
   return `${base}/api/incidents/${encodeURIComponent(incidentId)}/${resource}?${query.toString()}`
 }
 
+/**
+ * URL สำหรับ mobile tracking ที่ต้องแนบ sessionId เสมอ
+ *
+ * Backend ใช้ sessionId เป็น guard ว่าเครื่องนี้เป็นผู้สร้าง/ติดตาม incident นั้นจริง
+ * ถ้าเรียก endpoint โดยไม่ส่ง sessionId จะทำให้ history/tracking ข้ามเครื่องกันได้ง่ายเกินไป
+ */
 export function buildMobileTrackingUrl(
   baseUrl: string,
   incidentId: string,
@@ -53,6 +59,12 @@ export function buildMobileTrackingUrl(
   return buildIncidentUrl(baseUrl, incidentId, 'tracking', sessionId)
 }
 
+/**
+ * URL สำหรับ SSE เฉพาะ incident ของ mobile user
+ *
+ * ใช้ resource เดียวกับ tracking flow แต่เป็น event stream เพื่อให้หน้า tracking refresh
+ * เมื่อ admin อัปเดตสถานะ โดยยังไม่ต้องเปิด WebSocket เพิ่ม
+ */
 export function buildMobileIncidentEventsUrl(
   baseUrl: string,
   incidentId: string,
@@ -61,6 +73,11 @@ export function buildMobileIncidentEventsUrl(
   return buildIncidentUrl(baseUrl, incidentId, 'events', sessionId)
 }
 
+/**
+ * แสดงเลขเคสบน mobile ด้วย caseNumber ก่อน UUID
+ *
+ * ให้ user ใช้เลขเคสคุยกับเจ้าหน้าที่ได้ ส่วน UUID เก็บไว้เป็น id สำหรับ API ภายใน
+ */
 export function getMobileIncidentDisplayNumber(
   incident: Pick<MobileTrackingIncident, 'id'> & { caseNumber?: string | null }
 ) {

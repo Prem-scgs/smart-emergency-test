@@ -5,6 +5,12 @@ export type LocationLockStatus =
   | 'unavailable'
   | 'timeout'
 
+/**
+ * Browser geolocation error code ถูก map เป็นสถานะที่ UI ใช้ตัดสินใจ flow ต่อ
+ *
+ * denied/timeout/unavailable มีผลกับการโหลด global contact และการอนุญาตให้ผู้ใช้ไปต่อ
+ * โดยไม่ต้องรู้ browser-specific error object ใน component หลัก
+ */
 export function getLocationFailureStatus(
   code: number,
 ): Exclude<LocationLockStatus, 'requesting' | 'locked'> {

@@ -66,6 +66,12 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  /**
+   * โหลดประวัติเหตุการณ์ของเครื่องนี้จาก reporter session
+   *
+   * sessionId เป็นตัวเชื่อม mobile history/tracking โดยไม่ต้องมี login ผู้ใช้จริง
+   * ถ้าเปลี่ยน logic นี้ต้องทดสอบ history, tracking และ incident create พร้อมกัน
+   */
   useEffect(() => {
     async function loadHistory() {
       try {
@@ -89,6 +95,11 @@ export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistor
     loadHistory()
   }, [])
 
+  /**
+   * filter ในหน้านี้เป็น client-side หลัง backend scope ด้วย sessionId แล้ว
+   *
+   * หมายความว่า filter นี้ควบคุมการแสดงผลเท่านั้น ไม่ใช่ boundary ด้าน security
+   */
   const filteredLogs = useMemo(() => {
     return historyItems.filter(log => {
       if (filter !== 'all' && log.category !== filter) return false

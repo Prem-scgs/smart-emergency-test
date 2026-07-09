@@ -48,6 +48,12 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
   const [reporterPhone, setReporterPhone] = useState('')
   const [deferredShare, setDeferredShare] = useState<IncidentShareAttemptResponse | null>(null)
 
+  /**
+   * โหลด channel ที่ admin เปิดใช้งานจาก backend
+   *
+   * ปุ่มแชร์ต้องอิง `/api/reference/share-channels` เพื่อให้ settings ฝั่ง admin
+   * ปิด LINE/SMS/WhatsApp ได้โดยไม่ต้อง deploy frontend ใหม่
+   */
   useEffect(() => {
     const controller = new AbortController()
     void fetch(buildShareChannelsUrl(getEmergencyApiBaseUrl()), { signal: controller.signal })
@@ -71,6 +77,11 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
     [incident, includeReporterPhone, reporterPhone]
   )
 
+  /**
+   * เปิด channel ภายนอกหลังระบบเตรียม message แล้ว
+   *
+   * ถ้ามี messageToCopy แปลว่า channel นั้นไม่รองรับ prefill ดีพอ จึง copy ให้ก่อนค่อยพาออกจากเว็บ
+   */
   const openShareUrl = async (shareUrl: string, messageToCopy?: string) => {
     if (messageToCopy) {
       try {
@@ -85,6 +96,12 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
     window.location.assign(shareUrl)
   }
 
+  /**
+   * บันทึก share attempt ก่อนเปิดแอปแชร์จริง
+   *
+   * Flow นี้กระทบ backend `/api/incidents/:id/share-attempts` และ audit ของ incident:
+   * ถ้า backend บันทึกไม่สำเร็จ เราแสดง fallback dialog เพื่อให้ user ยังเปิดช่องทางแชร์ต่อได้
+   */
   const handleShare = async (channel: IncidentShareChannel) => {
     if (!phoneIsValid) {
       toast.error('กรุณากรอกเบอร์โทรไทย 9–10 หลัก')

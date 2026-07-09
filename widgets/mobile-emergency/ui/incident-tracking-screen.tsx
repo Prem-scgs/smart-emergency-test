@@ -68,6 +68,12 @@ export function IncidentTrackingScreen({
   const { provinceByCode, districtByCode } = useLocationLookupMaps()
   const category = categories.find(c => c.id === categoryId)
 
+  /**
+   * โหลด tracking state ที่ backend รับรองแล้ว
+   *
+   * หน้านี้อาจเริ่มจาก local snapshot หลังสร้าง incident ทันที แต่ข้อมูลที่เชื่อถือจริงต้องมาจาก
+   * `/api/incidents/:id/tracking?sessionId=...` เพื่อกัน UI แสดง status ที่ stale
+   */
   const loadTracking = useCallback(async () => {
     const sessionId = getOrCreateReporterSessionId()
     const response = await fetch(buildMobileTrackingUrl(getEmergencyApiBaseUrl(), incidentId, sessionId))
@@ -85,6 +91,12 @@ export function IncidentTrackingScreen({
     setLastRefreshedAt(new Date(nextTracking.incident.updatedAt))
   }, [incidentId])
 
+  /**
+   * เปิด SSE เฉพาะเคสนี้เพื่อ refresh tracking แบบ realtime
+   *
+   * Event ไม่ได้ mutate state ตรง ๆ แต่ reload tracking ทั้งก้อนจาก API เพื่อให้ timeline,
+   * statusVersion และ location ล่าสุดตรงกับ backend เสมอ
+   */
   useEffect(() => {
     void loadTracking().catch(error => {
       setTrackingError(error instanceof Error ? error.message : 'โหลดสถานะเหตุการณ์ไม่สำเร็จ')
@@ -118,6 +130,11 @@ export function IncidentTrackingScreen({
     : trackingStatus
   const currentHistory = trackingData?.statusHistory ?? trackingHistory
   const incidentDetail = trackingData?.incident ?? null
+  /**
+   * UI ฝั่งผู้แจ้งต้องโชว์ caseNumber ก่อน UUID
+   *
+   * UUID ยังจำเป็นกับ API ภายใน แต่คนหน้างานใช้เลขเคสคุยกันง่ายกว่าและไม่ควรเห็น id ยาว ๆ
+   */
   const incidentDisplayNumber = getMobileIncidentDisplayNumber(
     incidentDetail ?? { id: incidentId, caseNumber }
   )

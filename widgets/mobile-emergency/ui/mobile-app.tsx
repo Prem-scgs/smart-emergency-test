@@ -110,6 +110,12 @@ export function MobileApp() {
     getOrCreateReporterSessionId()
   }, [])
 
+  /**
+   * แปลงพิกัดจาก browser geolocation ให้เป็นพื้นที่ราชการที่ระบบรู้จัก
+   *
+   * Flow นี้ผูกกับ API `/api/areas/resolve-point` และมีผลต่อ contact fallback:
+   * ถ้า resolve ได้ เราจะโหลดเบอร์ตามอำเภอ/จังหวัดก่อน แต่ถ้า resolve ไม่ได้ต้องยังเปิดเคสได้ด้วยพิกัดดิบ
+   */
   async function resolveLocation(latitude: number, longitude: number) {
     const search = new URLSearchParams({
       latitude: String(latitude),
@@ -131,6 +137,14 @@ export function MobileApp() {
     }
   }
 
+  /**
+   * โหลด contact สำหรับพื้นที่ปัจจุบันของผู้แจ้ง
+   *
+   * ลำดับ fallback สำคัญมาก:
+   * 1. หา contact ที่ match อำเภอ/จังหวัด
+   * 2. ถ้าไม่เจอ ค่อย fallback เป็นระดับจังหวัด
+   * 3. ถ้าไม่มี location ให้เหลือเฉพาะ global contact
+   */
   async function loadContacts(location: MobileLocation | null) {
     try {
       setIsLoadingContacts(true)
@@ -197,6 +211,12 @@ export function MobileApp() {
     }
   }
 
+  /**
+   * sync location จาก browser เข้าสู่ state ของ mobile flow
+   *
+   * จุดนี้เป็น gate ก่อนสร้าง incident: ถ้าพื้นที่ resolve ไม่สำเร็จ ระบบยังเก็บ latitude/longitude
+   * เพื่อให้ admin เห็น marker ได้ แต่ contact จะ fallback ไปชุด global แทน
+   */
   async function syncLocation(nextLocation: Pick<MobileLocation, 'latitude' | 'longitude' | 'accuracy'>) {
     try {
       const resolved = await resolveLocation(nextLocation.latitude, nextLocation.longitude)
@@ -269,6 +289,12 @@ export function MobileApp() {
     setScreen('incident')
   }
 
+  /**
+   * สร้าง incident ก่อนพาผู้ใช้ไปหน้าโทร/ติดตาม
+   *
+   * เหตุผลที่ต้อง create ก่อนคือ admin dashboard, realtime alert, caseNumber และ tracking URL
+   * ต้องมี incident id แล้วตั้งแต่ผู้ใช้เริ่มกด Call ไม่ใช่รอหลังโทรเสร็จ
+   */
   const createIncidentForCall = useCallback(
     async (
       contact: EmergencyContact,
@@ -304,6 +330,12 @@ export function MobileApp() {
     [currentLocation, locationStatus]
   )
 
+  /**
+   * Orchestrate flow ตอนผู้ใช้กดโทรหน่วยงาน
+   *
+   * Flow นี้สร้าง clientRequestId เพื่อกัน duplicate create ฝั่ง API, เก็บ snapshot สถานะ reported
+   * ให้ UI แสดงทันที แล้วค่อยให้ tracking screen reload ข้อมูลจริงจาก backend/SSE
+   */
   const startCallFlow = useCallback(
     async (contact: EmergencyContact, incidentCategory: EmergencyCategory) => {
       const clientRequestId = crypto.randomUUID()
@@ -342,6 +374,12 @@ export function MobileApp() {
     [createIncidentForCall, currentLocation, locationStatus]
   )
 
+  /**
+   * บันทึกผลการโทรกลับไปที่ incident เดิม
+   *
+   * ข้อมูลนี้ไปลง callStatus/description ของ incident และถูกใช้ใน history, reports และ call logs
+   * ถ้าแก้ payload ต้องทดสอบทั้ง mobile history และ admin export ด้วย
+   */
   const updateCallResult = useCallback(
     async (status: CallStatus) => {
       if (!pendingCallResult) return
