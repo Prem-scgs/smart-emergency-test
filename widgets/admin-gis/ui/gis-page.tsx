@@ -132,6 +132,12 @@ export default function GisPage() {
   const [isDistrictLoading, setIsDistrictLoading] = useState(false)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
 
+  /**
+   * โหลด province boundary list จาก reference GIS source
+   *
+   * หน้า GIS ใช้ source เดียวกับ import script (`chingchai/OpenGISData-Thailand`)
+   * เพื่อไม่ให้ boundary จากหลายชุดปนกันแล้ว fit bounds/label เพี้ยน
+   */
   async function loadProvinces() {
     try {
       setIsProvinceLoading(true)
@@ -154,6 +160,12 @@ export default function GisPage() {
     }
   }
 
+  /**
+   * โหลด district geometry ของจังหวัดที่เลือก
+   *
+   * includeGeometry=true จำเป็นสำหรับ map boundary และ selected-area fit bounds
+   * ถ้าเอา geometry ออก map จะยังมี list แต่ polygon จะไม่แสดง
+   */
   async function loadDistricts(provinceCode: string) {
     if (!provinceCode) return
 
@@ -177,6 +189,12 @@ export default function GisPage() {
     }
   }
 
+  /**
+   * โหลด contact/incident ที่อยู่ใน boundary เดียวกันกับพื้นที่ที่เลือก
+   *
+   * API ฝั่ง areas ใช้ geometry relation ใน DB ดังนั้นการแก้ query นี้ต้องเช็กทั้ง marker,
+   * sidebar list และ popup label บน `GisBoundaryMap`
+   */
   async function loadAreaDetails(area: GisBoundary | null) {
     if (!area) return
 
@@ -221,6 +239,11 @@ export default function GisPage() {
       ? t('gisProvinceLoading')
       : t('gisSelectProvince')
 
+  /**
+   * Search ของ GIS ต้องรองรับทั้งชื่อไทย/อังกฤษและรหัสพื้นที่
+   *
+   * ใช้ normalize NFC เพราะข้อมูลพื้นที่ไทยบางชุดอาจมีรูป Unicode ต่างกันแต่หน้าตาเหมือนกัน
+   */
   const filteredDistricts = useMemo(() => {
     const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
     if (!keyword) return districts

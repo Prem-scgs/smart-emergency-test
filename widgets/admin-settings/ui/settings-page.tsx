@@ -77,6 +77,12 @@ const DEFAULT_ORGANIZATION_SETTINGS: OrganizationSettings = {
   timezone: "Asia/Bangkok",
 }
 
+/**
+ * เล่นเสียงตัวอย่างจากหน้า settings โดยไม่แตะ alert preference จริง
+ *
+ * ใช้ Web Audio API เพื่อให้ทดสอบ tone ได้ทันทีใน browser และยังคง owner ของ preference
+ * อยู่ที่ `features/incident-alert`
+ */
 function testAlertTone(preset: AlertTonePreset, unsupportedMessage: string) {
   if (typeof window === "undefined") return
 
@@ -238,6 +244,12 @@ export default function SettingsPage() {
     },
   ], [systemHealth, t])
 
+  /**
+   * ตรวจ health snapshot สำหรับ super admin
+   *
+   * Endpoint `/health` ใช้เช็ก API และ DB connection แบบเร็ว ๆ ในหน้า settings
+   * ไม่ควรใช้แทน monitoring production จริง แต่ช่วย demo/debug tunnel ได้ดี
+   */
   const refreshSystemHealth = async () => {
     setSystemHealth(prev => ({ ...prev, api: "checking", database: "checking" }))
     try {
@@ -262,6 +274,12 @@ export default function SettingsPage() {
     }
   }
 
+  /**
+   * โหลด preference ฝั่ง client จาก localStorage แล้ว apply ทันที
+   *
+   * saveSettingsPreferences จะตั้ง `document.documentElement.lang` และ reduced-motion class
+   * เพื่อให้ทั้ง admin shell ได้ผลพร้อมกัน
+   */
   useEffect(() => {
     const storedAlert = getStoredAdminAlertPreferences()
     const storedSettings = getStoredSettingsPreferences()
@@ -276,6 +294,11 @@ export default function SettingsPage() {
 
     let cancelled = false
 
+    /**
+     * โหลดค่าองค์กรเฉพาะ super admin
+     *
+     * Non-super admin ไม่ควรเรียก endpoint นี้ เพราะไม่มีสิทธิ์แก้ global settings
+     */
     async function loadOrganizationSettings() {
       try {
         const response = await fetch(API_BASE_URL + "/api/admin/organization-settings", {
@@ -293,6 +316,11 @@ export default function SettingsPage() {
       }
     }
 
+    /**
+     * โหลดสถานะ share channels ที่ mobile location sharing ใช้จริง
+     *
+     * ค่า enabled มีผลกับปุ่ม LINE/SMS/WhatsApp ใน `IncidentLocationShareCard`
+     */
     async function loadShareChannels() {
       try {
         const response = await fetch(API_BASE_URL + "/api/admin/share-channels", {
@@ -325,6 +353,11 @@ export default function SettingsPage() {
     }
   }, [isSuperAdmin, user])
 
+  /**
+   * รับสถานะ SSE จาก NotificationProvider เพื่อแสดง health realtime
+   *
+   * Event นี้เป็น client-only signal ไม่ใช่ API response จึงใช้เพื่อบอกสถานะ UI/debug เท่านั้น
+   */
   useEffect(() => {
     const handleSseStatus = (event: Event) => {
       const detail = (event as CustomEvent<{ status?: SseStatus }>).detail
@@ -369,6 +402,9 @@ export default function SettingsPage() {
     }))
   }
 
+  /**
+   * บันทึก organization settings และ broadcast ให้ admin shell refresh
+   */
   const saveOrganizationSettings = async () => {
     const payload = {
       settings: {
@@ -396,6 +432,11 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event(ORGANIZATION_SETTINGS_UPDATED_EVENT))
   }
 
+  /**
+   * บันทึก share channel settings ที่ mobile share flow ใช้ตอน runtime
+   *
+   * recipientValue ส่งเฉพาะตอนมีค่าใหม่ เพื่อไม่เผลอ overwrite secret/env-backed recipient เดิม
+   */
   const saveShareChannels = async () => {
     const payload = {
       channels: {
@@ -442,6 +483,11 @@ export default function SettingsPage() {
     })
   }
 
+  /**
+   * Save รวมทั้ง personal preference และ super-admin global settings
+   *
+   * ถ้า global settings ส่วนใด fail จะหยุดและแจ้ง error เพื่อไม่ให้ user เข้าใจว่าทุกอย่างถูกบันทึกแล้ว
+   */
   const handleSave = async () => {
     saveAdminAlertPreferences(alertPreferences)
     saveSettingsPreferences(settingsPreferences)

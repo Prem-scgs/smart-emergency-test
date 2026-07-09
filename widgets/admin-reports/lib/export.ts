@@ -72,6 +72,12 @@ export function createPdfPageElement(title: string, bodyHtml: string, footerLabe
   return element
 }
 
+/**
+ * สร้าง DOM page สำหรับ PDF/print จาก report summary
+ *
+ * Helper นี้ตั้งใจไม่ใช้ component React เพราะต้องส่ง element ให้ html2canvas/jsPDF โดยตรง
+ * ถ้าแก้ style ต้องเช็กทั้ง PDF export และ browser print ใน dark mode
+ */
 export function buildPdfReportPages(
   report: ReportSummary,
   rangeLabel: string,
@@ -163,6 +169,11 @@ export function buildPdfReportPages(
   return pages
 }
 
+/**
+ * แปลง PDF page DOM เป็น HTML สำหรับ print-only container
+ *
+ * หลังดึง innerHTML แล้วต้อง remove element ทิ้ง เพื่อไม่ให้ offscreen node ค้างใน document
+ */
 export function buildPrintableReportHtml(
   report: ReportSummary,
   rangeLabel: string,

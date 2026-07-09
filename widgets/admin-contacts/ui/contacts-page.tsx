@@ -130,6 +130,12 @@ export default function ContactsPage() {
     return [district, province].filter(Boolean).join(', ') || t('contactsCoverageCentral')
   }
 
+  /**
+   * โหลด contact จาก API พร้อม admin scope header
+   *
+   * Backend จะเป็นตัว enforce role scope จริง ส่วน filter/search ในหน้านี้เป็นแค่ UX
+   * ถ้าแก้ header หรือ endpoint ต้องทดสอบ super_admin/agency_admin/viewer แยกกัน
+   */
   const loadContacts = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -190,6 +196,12 @@ export default function ContactsPage() {
         ? t('contactsDistrictLoading')
         : t('contactsSelectDistrict')
 
+  /**
+   * ตรวจสิทธิ์ปุ่ม create/edit/delete ฝั่ง UI ให้ตรงกับ backend guard
+   *
+   * super_admin จัดการได้ทุกหมวด ส่วน agency_admin จำกัดตาม category ของหน่วยงาน
+   * viewer ต้อง read-only แม้จะเห็นข้อมูลในตาราง
+   */
   function canManageContact(contact: Contact) {
     return canManageContactForScope(
       { isSuperAdmin, role: user?.role, agencyCategory },
@@ -245,6 +257,12 @@ export default function ContactsPage() {
     setIsDialogOpen(true)
   }
 
+  /**
+   * สร้าง/แก้ contact พร้อม normalize phone และ coverage area
+   *
+   * Payload นี้กระทบ `/api/contacts` และ mobile contact lookup โดยตรง:
+   * province/district code ต้องมากับ canonical name เพื่อให้ selector, GIS และ mobile fallback ตรงกัน
+   */
   async function saveContact() {
     if (!form.name.trim() || !form.phone.trim()) {
       toast.error(t('contactsRequiredError'))
@@ -328,6 +346,12 @@ export default function ContactsPage() {
     setContactPendingDelete(contact)
   }
 
+  /**
+   * ลบ contact หลังผ่าน permission guard
+   *
+   * การลบจะกระทบ mobile category selection ทันที เพราะ mobile โหลด contact สดจาก `/api/contacts`
+   * หลังแก้ flow นี้ควรทดสอบทั้งหน้า contacts และ mobile call flow
+   */
   async function deleteContact() {
     const contact = contactPendingDelete
     if (!contact || !canManageContact(contact)) {

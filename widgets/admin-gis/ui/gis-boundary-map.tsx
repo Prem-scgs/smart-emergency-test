@@ -67,6 +67,12 @@ interface GisBoundaryMapProps {
 
 const DEFAULT_CENTER: [number, number] = [100.5018, 13.7563]
 
+/**
+ * fit map ตามพื้นที่ที่เลือกหรือพื้นที่ทั้งหมดใน list
+ *
+ * Logic นี้พึ่ง `entities/area` ในการคำนวณ bounds จาก Polygon/MultiPolygon
+ * ถ้า geometry format เปลี่ยน ต้องทดสอบทั้ง selected area และ initial province load
+ */
 function FitBounds({ areas, selectedAreaId }: { areas: GisBoundary[]; selectedAreaId: string | null }) {
   const { map, isLoaded } = useMap()
 
@@ -84,6 +90,12 @@ function FitBounds({ areas, selectedAreaId }: { areas: GisBoundary[]; selectedAr
   return null
 }
 
+/**
+ * แผนที่ GIS สำหรับ boundary + contact/incident markers
+ *
+ * Component นี้เป็น UI layer เท่านั้น ส่วน geometry/display helper อยู่ที่ `entities/area`
+ * เพื่อให้ dashboard map และ GIS ใช้ logic พื้นที่ร่วมกันได้
+ */
 export function GisBoundaryMap({
   areas,
   selectedAreaId,
@@ -108,6 +120,11 @@ export function GisBoundaryMap({
     [areas, preferThai]
   )
 
+  /**
+   * คลิก polygon แล้ว sync ทั้ง popup และ selected area กลับไปหน้า GIS
+   *
+   * selected area นี้จะ trigger โหลด contact/incident detail ใน parent page
+   */
   function handleAreaClick(event: MapGeoJSONEvent<AreaFeatureProperties>) {
     const areaId = event.feature.properties.id
     const area = areas.find(item => item.id === areaId)

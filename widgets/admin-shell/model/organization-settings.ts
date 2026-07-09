@@ -20,6 +20,12 @@ export const DEFAULT_ORGANIZATION_SETTINGS: OrganizationSettings = {
   timezone: 'Asia/Bangkok',
 }
 
+/**
+ * โหลดชื่อระบบ/องค์กรที่แสดงใน admin shell
+ *
+ * Settings page จะยิง event `smart-emergency:organization-settings-updated` หลัง save สำเร็จ
+ * เพื่อให้ header/sidebar refresh โดยไม่ต้อง reload ทั้งหน้า
+ */
 export function useOrganizationSettings(user: AdminUser | null, isAuthenticated: boolean) {
   const [organizationSettings, setOrganizationSettings] = useState(DEFAULT_ORGANIZATION_SETTINGS)
 

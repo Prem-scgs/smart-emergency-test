@@ -10,6 +10,11 @@ export const DEFAULT_SETTINGS_PREFERENCES: AdminSettingsPreferences = {
   reducedMotion: false,
 }
 
+/**
+ * อ่าน personal settings จาก localStorage พร้อม fallback ที่ปลอดภัย
+ *
+ * ถ้า schema ในอนาคตเปลี่ยน ให้คง fallback ภาษาไทยไว้ เพราะ admin i18n provider ใช้ค่าเดียวกันนี้
+ */
 export function getStoredSettingsPreferences(): AdminSettingsPreferences {
   if (typeof window === "undefined") return DEFAULT_SETTINGS_PREFERENCES
 
@@ -30,6 +35,11 @@ export function getStoredSettingsPreferences(): AdminSettingsPreferences {
   }
 }
 
+/**
+ * บันทึก personal settings และ apply side effect ที่ทั้ง admin app ต้องเห็นทันที
+ *
+ * language-change event ถูกใช้ให้ provider/component อื่น refresh ภาษาโดยไม่ต้อง reload หน้า
+ */
 export function saveSettingsPreferences(preferences: AdminSettingsPreferences) {
   if (typeof window === "undefined") return
 

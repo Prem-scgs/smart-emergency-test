@@ -153,6 +153,12 @@ export default function ReportsPage() {
     }))
   }, [categoryLabelMap, reportSummary])
 
+  /**
+   * โหลด summary report ตาม role scope ของ admin ปัจจุบัน
+   *
+   * Backend ใช้ admin headers เพื่อจำกัดหมวด/หน่วยงาน ดังนั้นหน้า reports ไม่ควร filter scope เองแทน API
+   * เพราะ export และ KPI ต้องตรงกับข้อมูลที่ backend อนุญาตจริง
+   */
   const loadReports = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -173,6 +179,11 @@ export default function ReportsPage() {
     }
   }, [dateRange, t, user])
 
+  /**
+   * Export CSV จาก report summary ทั้งก้อน ไม่ใช่ข้อมูลที่ render อยู่เฉพาะ tab
+   *
+   * ใส่ BOM (`\uFEFF`) เพื่อให้ Excel เปิดภาษาไทยได้ถูก encoding
+   */
   const exportReportCsv = useCallback(() => {
     if (!reportSummary) {
       toast.error(t("reportsNoDataToExport"))
@@ -219,6 +230,12 @@ export default function ReportsPage() {
     toast.success(t("reportsCsvExported"))
   }, [categoryLabelMap, dateRange, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
 
+  /**
+   * Export PDF ด้วย offscreen HTML snapshot
+   *
+   * เราสร้างหน้าเอกสารสีสว่างแยกจาก dark theme แล้ว render ผ่าน html2canvas/jsPDF
+   * เพื่อให้ PDF/print อ่านได้เสมอแม้ admin เปิด dark mode
+   */
   const exportReportPdf = useCallback(async () => {
     if (!reportSummary) {
       toast.error(t("reportsNoDataToExport"))
@@ -265,6 +282,11 @@ export default function ReportsPage() {
     }
   }, [categoryLabelMap, dateRange, language, reportCopy, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
 
+  /**
+   * Print report ผ่าน print-only DOM แทนเปิด window ใหม่
+   *
+   * วิธีนี้เลี่ยง popup blocker และคงสีเอกสารเป็น light document ตาม requirement ของรายงาน
+   */
   const printReport = useCallback(() => {
     if (!reportSummary) {
       toast.error(t("reportsNoDataToExport"))

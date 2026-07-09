@@ -36,6 +36,11 @@ export function chunkRows<T>(rows: T[], size: number) {
   return chunks.length > 0 ? chunks : [[]]
 }
 
+/**
+ * สร้าง DOM page สำหรับ PDF/print ของ call logs
+ *
+ * ตั้ง style inline เพื่อให้ html2canvas render เหมือนกันทุกธีม และไม่พึ่ง class จาก dashboard
+ */
 export function createPdfPageElement(title: string, subtitle: string, bodyHtml: string, footerLabel: string) {
   const element = document.createElement("div")
   element.style.position = "fixed"
@@ -70,6 +75,11 @@ export function createPdfPageElement(title: string, subtitle: string, bodyHtml: 
   return element
 }
 
+/**
+ * ดึง HTML จาก offscreen pages มาใส่ print-only container
+ *
+ * หลังอ่าน innerHTML ต้อง remove node เพื่อไม่ให้ element ล่องหนค้างใน document
+ */
 export function buildPrintableHtml(pages: HTMLDivElement[]) {
   return pages
     .map(page => {

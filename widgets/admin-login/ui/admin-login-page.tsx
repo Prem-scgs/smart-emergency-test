@@ -50,6 +50,12 @@ export default function AdminLoginPage() {
 
   const needsAgency = selectedRole && selectedRole !== 'super_admin'
 
+  /**
+   * Login demo flow สำหรับหน้า admin
+   *
+   * ตอนนี้ยังไม่ใช่ real auth backend: role/agency ที่เลือกจะถูกส่งเข้า shared auth context
+   * เพื่อสร้าง session ใน localStorage และใช้ scope ต่อกับ admin API headers
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 

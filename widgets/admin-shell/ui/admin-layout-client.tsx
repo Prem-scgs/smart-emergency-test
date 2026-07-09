@@ -50,6 +50,12 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   const { user, isAuthenticated, isLoading, hasPermission, logout, canViewAllAgencies } = useAuth()
   const organizationSettings = useOrganizationSettings(user, isAuthenticated)
 
+  /**
+   * Sidebar menu ต้องอิง permission จาก auth context
+   *
+   * ถ้าเพิ่มหน้า admin ใหม่ ต้องเพิ่ม permission/role mapping ให้ครบ ไม่งั้น viewer หรือ agency admin
+   * อาจเห็นเมนูเกิน scope หรือเข้าไม่ได้ทั้งที่ควรเข้าได้
+   */
   const visibleMenuItems = useMemo(() => {
     return adminShellSidebarItems.filter(item => hasPermission(item.permission))
   }, [hasPermission])
@@ -59,6 +65,12 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
     router.push('/admin')
   }
 
+  /**
+   * Auth guard ฝั่ง client สำหรับ dashboard shell
+   *
+   * Root admin provider เป็นคน restore session ก่อน ดังนั้นรอ isLoading จบแล้วค่อย redirect
+   * เพื่อไม่ให้หน้า dashboard กระพริบกลับ login ระหว่าง rehydrate localStorage
+   */
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.replace('/admin')

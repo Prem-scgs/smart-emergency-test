@@ -152,6 +152,12 @@ export default function CallLogsPage() {
     [categoryLabelMap]
   )
 
+  /**
+   * โหลด incident สำหรับหน้า call logs พร้อม reference category
+   *
+   * Endpoint `/api/incidents` ถูก scope ด้วย admin headers ส่วน category reference ใช้แค่ label/style
+   * ถ้า categories โหลดไม่ได้ ยัง fallback เป็นชุด local เพื่อไม่ให้หน้า export พัง
+   */
   const loadCallLogs = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -197,6 +203,12 @@ export default function CallLogsPage() {
     return incidents.filter(incident => allowedCategories.includes(incident.category))
   }, [allowedCategories, incidents, isSuperAdmin])
 
+  /**
+   * Filter ฝั่ง client สำหรับค้นหา/export call logs
+   *
+   * ข้อมูลตั้งต้นผ่าน role scope จาก backend แล้ว filter นี้จึงเป็น UX เท่านั้น
+   * export ต้องใช้ `filteredLogs` ทั้งหมด ไม่ใช่เฉพาะหน้าปัจจุบัน
+   */
   const filteredLogs = useMemo(() => {
     const keyword = searchQuery.trim().toLocaleLowerCase("th-TH")
 
@@ -281,6 +293,11 @@ export default function CallLogsPage() {
     t("callLogsTableStatus"),
   ]
 
+  /**
+   * สร้างหน้าเอกสารสำหรับ export/print จาก filtered rows ทั้งหมด
+   *
+   * อย่าใช้ paginated rows ตรงนี้ เพราะผู้ใช้คาดหวังว่า export จะได้ผลลัพธ์หลัง filter ทั้งชุด
+   */
   const buildPdfPages = useCallback(() => {
     const generatedAt = new Date().toLocaleString(language === "en" ? "en-US" : "th-TH", {
       dateStyle: "medium",
@@ -300,6 +317,9 @@ export default function CallLogsPage() {
     )
   }, [baseFilteredLogs.length, dateFilter, dateFilterLabels, exportHeaders, exportRows, filteredLogs.length, language, scopeLabel, t])
 
+  /**
+   * Export CSV พร้อม BOM เพื่อเปิดภาษาไทยใน Excel ได้ถูกต้อง
+   */
   const exportCsv = useCallback(() => {
     if (filteredLogs.length === 0) {
       toast.error(t("callLogsNoDataToExport"))
@@ -327,6 +347,11 @@ export default function CallLogsPage() {
     toast.success(t("callLogsCsvExported"))
   }, [dateFilter, dateFilterLabels, exportHeaders, exportRows, filteredLogs.length, scopeLabel, t])
 
+  /**
+   * Export PDF ด้วย offscreen DOM snapshot สีสว่าง
+   *
+   * ใช้ pattern เดียวกับ reports page เพื่อให้ไฟล์อ่านง่ายแม้ admin dashboard อยู่ dark mode
+   */
   const exportPdf = useCallback(async () => {
     if (filteredLogs.length === 0) {
       toast.error(t("callLogsNoDataToExport"))
@@ -373,6 +398,11 @@ export default function CallLogsPage() {
     }
   }, [buildPdfPages, dateFilter, filteredLogs.length, t])
 
+  /**
+   * Print ผ่าน print-only container ในหน้าเดิม
+   *
+   * ไม่เปิด popup window ใหม่ เพื่อเลี่ยง popup blocker และคุม CSS print/dark-mode override ได้แน่นอนกว่า
+   */
   const printCallLogs = useCallback(() => {
     if (filteredLogs.length === 0) {
       toast.error(t("callLogsNoDataToExport"))

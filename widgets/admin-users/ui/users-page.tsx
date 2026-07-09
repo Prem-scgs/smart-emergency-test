@@ -3,6 +3,12 @@
 import { LockKeyhole, ShieldCheck, Users } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+/**
+ * หน้า placeholder สำหรับ user management
+ *
+ * อย่าใส่ mock user CRUD กลับเข้ามาในหน้านี้จนกว่าจะมี real auth/JWT contract
+ * เพราะสิทธิ์ admin ทั้งระบบจะพึ่ง role scope เดียวกันกับ dashboard, contacts และ reports
+ */
 export default function UsersPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
