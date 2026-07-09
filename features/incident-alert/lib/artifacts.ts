@@ -83,6 +83,12 @@ export function getAlertSeverityForIncident(
   return 'info'
 }
 
+/**
+ * แปลง payload จาก backend realtime ให้เป็น Notification และ popup Alert
+ *
+ * Backend ส่งข้อมูลดิบของ incident.created ส่วน feature นี้รับผิดชอบ copy/label ตามภาษา admin
+ * และใช้ caseNumber ก่อน UUID เพื่อให้ข้อความที่ user เห็นอ่านง่าย
+ */
 export function buildRealtimeIncidentArtifacts(
   payload: IncidentEventPayload,
   language: AdminLanguage = 'th',

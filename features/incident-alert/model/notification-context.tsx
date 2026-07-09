@@ -24,6 +24,14 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
+/**
+ * Provider กลางของ alert/notification ใน admin shell
+ *
+ * หน้าที่หลัก:
+ * - เปิด useSse เมื่อ auth พร้อมเท่านั้น เพื่อไม่ให้ยิง realtime ก่อนรู้ role/category
+ * - เก็บ notification/popup alert ใน memory ของหน้า admin
+ * - filter ข้อมูลตาม role อีกชั้นก่อนส่งให้ NotificationBell/AlertDisplay
+ */
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, isLoading } = useAuth()
   const { language } = useAdminI18n()

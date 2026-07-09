@@ -12,6 +12,13 @@ function normalizeLegacyAgencyCategory(category: string | undefined) {
   return category.startsWith('agency-') ? category.slice('agency-'.length) : category
 }
 
+/**
+ * แปลง user ฝั่ง frontend เป็น scope ที่ backend mock auth เข้าใจ
+ *
+ * REST request ส่ง scope ผ่าน header ได้ แต่ EventSource ส่ง custom header ไม่ได้
+ * จึงมีทั้ง buildAdminApiHeaders และ buildAdminApiUrl/buildAdminEventsUrl ที่แนบ scope ผ่าน query
+ * ถ้าแก้ตรงนี้ต้องทดสอบ viewer detail, agency scope และ SSE dashboard พร้อมกัน
+ */
 export function getBackendAdminScope(user: AdminUser | null | undefined): BackendAdminScope | null {
   if (!user) return null
 

@@ -65,6 +65,14 @@ function isSupportedAdminRole(role: unknown): role is AdminRole {
   return typeof role === 'string' && SUPPORTED_ADMIN_ROLES.includes(role as AdminRole)
 }
 
+/**
+ * กู้ session admin จาก localStorage ตอนเปิดหน้าใหม่
+ *
+ * จุดที่ต้องระวัง:
+ * - role ที่เลิกใช้แล้ว เช่น operator ต้องไม่ถูก restore เพื่อกันสิทธิ์เก่าหลุดกลับมา
+ * - session เก่าบางเครื่องมีแค่ agencyId จึงต้องเติม agency object กลับมา
+ * - agency object มีผลกับ API scope, viewer detail และ notification filtering
+ */
 export function restoreStoredAdminUser(raw: string | null): AdminUser | null {
   if (!raw) return null
 

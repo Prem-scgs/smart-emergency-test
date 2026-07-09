@@ -15,6 +15,11 @@ export const DEFAULT_ADMIN_ALERT_PREFERENCES: AdminAlertPreferences = {
   tone: 'alert-beep',
 }
 
+/**
+ * อ่าน preference เสียง alert จาก localStorage
+ *
+ * key นี้ผูกกับหน้า Settings และ AlertDisplay ถ้าเปลี่ยนชื่อ key จะทำให้ setting เดิมของผู้ใช้หาย
+ */
 export function getStoredAdminAlertPreferences(): AdminAlertPreferences {
   if (typeof window === 'undefined') return DEFAULT_ADMIN_ALERT_PREFERENCES
 

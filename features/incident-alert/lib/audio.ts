@@ -2,6 +2,12 @@
 
 import type { AlertTonePreset } from './preferences.ts'
 
+/**
+ * เล่นเสียง alert จาก preference ของผู้ใช้ ไม่ได้ผูกกับ severity ของ incident
+ *
+ * ใช้ Web Audio API เพื่อไม่ต้องมีไฟล์เสียงใน public assets
+ * ถ้าแก้ pattern ต้องทดสอบ browser ที่เปิด/ปิด sound preference ใน Settings
+ */
 export function playAlertTone(preset: AlertTonePreset) {
   if (typeof window === 'undefined') return
 

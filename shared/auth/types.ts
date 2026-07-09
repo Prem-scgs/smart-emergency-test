@@ -29,6 +29,11 @@ export interface AuthState {
   isLoading: boolean
 }
 
+/**
+ * Permission matrix ที่ frontend ใช้ซ่อน/แสดงเมนูและ action
+ *
+ * Backend ยังต้องตรวจ scope ซ้ำด้วย header/query เสมอ เพราะ UI permission อย่างเดียวกัน request ตรงไม่ได้
+ */
 export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   super_admin: [
     'dashboard.view',

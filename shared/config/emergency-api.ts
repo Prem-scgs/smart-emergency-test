@@ -36,6 +36,7 @@ export function getEmergencyApiEventsBaseUrl(
     process.env.NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL ??
     process.env.NEXT_PUBLIC_EMERGENCY_API_URL,
 ) {
+  // SSE ใช้ base URL แยกได้ เพราะ EventSource เปิด connection ยาวและบาง tunnel/proxy ต้อง config ต่างจาก REST
   if (configuredUrl) {
     return configuredUrl.replace(/\/$/, '')
   }

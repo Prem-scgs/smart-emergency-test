@@ -16,6 +16,12 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+/**
+ * Mock auth provider ของฝั่ง Admin
+ *
+ * ตอนนี้ระบบยังใช้ localStorage + role selector สำหรับ demo/test ไม่ใช่ real identity provider
+ * แต่ role/permission ที่นี่มีผลจริงกับ sidebar, API scope headers และ viewer read-only behavior
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,

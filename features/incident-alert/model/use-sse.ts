@@ -57,6 +57,16 @@ function emitSseDebugEvent(eventType: string) {
   )
 }
 
+/**
+ * Hook realtime หลักของ Admin Dashboard
+ *
+ * Flow:
+ * - เปิด EventSource ไปที่ /api/events เพื่อรับ incident.created และ incident.status_updated
+ * - เปิด polling fallback ไปที่ /api/incidents/recent เพื่อเก็บ event ที่อาจหลุดระหว่าง network/tunnel สะดุด
+ * - กัน alert ซ้ำด้วย incident id และกัน status refresh ซ้ำด้วย id + statusVersion
+ *
+ * ถ้าแก้ตรงนี้ ต้องทดสอบ admin alert, viewer passive mode, dashboard refresh และ SSE debug status ใน Settings
+ */
 export function useSse(options: UseSseOptions = {}) {
   const {
     onNotification,
@@ -177,6 +187,7 @@ export function useSse(options: UseSseOptions = {}) {
         }
 
         for (const statusUpdate of payload.statusUpdated) {
+          // statusVersion เป็นเลขจาก backend optimistic concurrency ใช้กัน event ซ้ำจาก SSE + polling
           const versionKey = `${statusUpdate.id}:${statusUpdate.statusVersion}`
           if (seenStatusVersionsRef.current.has(versionKey)) {
             continue

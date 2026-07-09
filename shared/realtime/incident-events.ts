@@ -38,6 +38,12 @@ export type SseDebugStatus = 'connecting' | 'connected' | 'disconnected'
 
 export const POLLING_FALLBACK_INTERVAL_MS = 3000
 
+/**
+ * สร้าง URL สำหรับ realtime fallback REST call
+ *
+ * ใช้ร่วมกับ /api/incidents/recent ตอน SSE หลุด จึงต้องรองรับทั้ง absolute tunnel URL
+ * และ same-origin rewrite อย่าง /emergency-api บน Vercel
+ */
 export function buildRealtimeApiUrl(baseUrl: string, path: string) {
   const base = baseUrl.replace(/\/$/, '')
 
@@ -72,6 +78,11 @@ export function isRecentIncidentsPayload(payload: unknown): payload is RecentInc
   )
 }
 
+/**
+ * ตรวจ payload ของ incident.status_updated ก่อนกระจาย event เข้า dashboard
+ *
+ * statusVersion ต้องเป็น number เพราะ frontend ใช้ id + statusVersion กัน event ซ้ำ
+ */
 export function parseIncidentStatusUpdatedPayload(data: string): IncidentStatusUpdatedPayload {
   const payload = JSON.parse(data) as Partial<IncidentStatusUpdatedPayload>
 
