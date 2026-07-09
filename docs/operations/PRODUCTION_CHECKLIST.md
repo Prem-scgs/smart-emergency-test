@@ -106,8 +106,8 @@ Use this file to track production-readiness work without touching the auth imple
   - IncidentDetailPanel helper/controller slice passed on Vercel test after `2ddad8f`: viewer detail read-only, agency next-status update, super admin forward/backward choices, backward note guard, close-without-summary confirmation, alert-to-detail, and status success reload/toast flow were verified
   - IncidentDetailPanel UI shell slice passed on Vercel test after `7ed88fd`: detail panel implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and alert/queue/map detail flows remained correct
   - Types Wave 4 passed on Vercel test after `9c81f63`: contact, call, and location types moved to canonical FSD-lite owners while `lib/types.ts` remained a compatibility re-export layer
-  - Root mock data cleanup passed on Vercel test after `465d5d9`: `lib/mock-data.ts` was removed and the remaining legacy mock profile moved under `_legacy`
-  - Types Wave 5 passed on Vercel test after `f918f0f`: legacy user profile types moved under `_legacy`, and `lib/types.ts` now has no local type definitions
+  - Root mock data cleanup passed on Vercel test after `465d5d9`: `lib/mock-data.ts` was removed; the later legacy mock profile files were removed during final cleanup
+  - Types Wave 5 passed on Vercel test after `f918f0f`: legacy user profile types were moved under `_legacy` at the time, then removed during final cleanup after production flow no longer used them
   - Type bridge cleanup locally verified after `77a2ee0`: `lib/types.ts` was removed after `rg` confirmed no `@/lib/types` imports remained, so source now uses canonical type owners directly
   - Alert preferences cleanup locally verified after `d142b9d`: `features/incident-alert` now owns admin alert preferences while keeping the same localStorage key and browser event contract
   - Legacy location share cleanup locally verified after `4de250e`, then removed during final cleanup after production incident location sharing moved to `features/location-sharing`

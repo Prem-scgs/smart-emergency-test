@@ -12,7 +12,7 @@ Smart Emergency uses FSD-lite for new frontend code. The goal is to keep route f
 - `entities/`: domain objects, types, and mappers, such as incident, contact, area, category, agency, and admin user.
 - `shared/`: cross-domain utilities, UI primitives, API helpers, config, i18n, realtime helpers, and small pure utilities.
 - `lib/`: compatibility bridge/re-export only while the existing codebase is migrated. Do not add new runtime logic here.
-- `_legacy/`: old code kept for reference or legacy-only tests. Production code should not import from `_legacy`.
+- `_legacy/`: legacy code is being removed during final cleanup. Production code must not import from `_legacy`.
 
 ## Dependency Direction
 
@@ -155,10 +155,10 @@ Move domains only when there is real work in that area:
 - `features/location-sharing` owns production incident location sharing helpers, share-channel URLs, mobile platform detection, Thai reporter phone validation, map URL/copy-message formatting, share attempt response types, and `IncidentLocationShareCard` UI.
 - `shared/auth` owns admin auth/session types, `ROLE_PERMISSIONS`, `AuthProvider`, `useAuth`, agency registry data, and stale-session restore guards. The retired `operator` role is no longer part of the frontend auth contract.
 - `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
-- `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
+- Legacy-only user profile screen, mock profile loader, and user profile types were removed during final cleanup because production mobile flow no longer uses them.
 - Legacy-only SMS/Google Maps share helpers and their old mobile screen were removed after production sharing moved to `features/location-sharing`.
 - `lib/types.ts` was removed after `rg` confirmed no imports remained; use the canonical owners directly.
-- Root `lib/mock-data.ts` was removed after `465d5d9`; the legacy-only mock profile now lives in `_legacy/lib/mock-user-profile.ts`.
+- Root `lib/mock-data.ts` was removed after `465d5d9`; the later legacy-only mock profile files were removed during final cleanup.
 - `shared/utils` owns `cn`, the `clsx` + `tailwind-merge` className helper used by UI, admin, mobile, and dashboard widget code. Root `lib/utils.ts` was removed after all imports moved to `@/shared/utils`.
 - `widgets/admin-shell` owns the admin dashboard shell, sidebar/header composition, notification bell/center UI, role badge metadata, navigation item config, and organization settings loading. The old `components/admin/admin-layout-client.tsx`, `notification-bell.tsx`, and `notification-center.tsx` files were removed after `rg` confirmed no imports remained.
 - `widgets/admin-gis` owns the admin GIS page UI, province/district loading state, area filters, contact/incident sidebars, boundary map UI, `GisBoundaryMap`, `GisBoundary` type, selected-area fit bounds, area popup, and contact/incident marker rendering. The route file `app/admin/(dashboard)/gis/page.tsx` is now a thin shell.
