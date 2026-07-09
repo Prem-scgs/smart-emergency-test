@@ -16,6 +16,12 @@ import {
 } from "./route-helpers.js";
 
 export async function registerAreaRoutes(app: FastifyInstance) {
+  /**
+   * Boundary/response zone สำหรับหน้า GIS และ dashboard map
+   *
+   * ข้อมูล polygon เก็บเป็น SRID 4326 เพื่อใช้กับพิกัด browser/mobile ได้ตรงกัน
+   * includeGeometry=false ใช้ตอนต้องการ metadata อย่างเดียว เพื่อลด payload ไม่ให้ frontend โหลด polygon หนักเกินจำเป็น
+   */
   app.get("/api/areas", async (request) => {
     const query = areaQuery.parse(request.query);
     const values: unknown[] = [];
@@ -61,6 +67,12 @@ export async function registerAreaRoutes(app: FastifyInstance) {
     return result.rows.map(rowToArea);
   });
 
+  /**
+   * แปลงพิกัด latitude/longitude เป็นจังหวัด/อำเภอจาก polygon
+   *
+   * ระวัง: ST_MakePoint รับลำดับ longitude, latitude แต่ API รับ query เป็น latitude, longitude
+   * endpoint นี้กระทบ mobile location auto-select, incident create และ GIS/debug flow
+   */
   app.get("/api/areas/resolve-point", async (request) => {
     const query = resolvePointQuery.parse(request.query);
     const result = await pool.query(
@@ -250,6 +262,12 @@ export async function registerAreaRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  /**
+   * หา contacts ที่มี point อยู่ใน boundary เดียวกัน
+   *
+   * ใช้ ST_Contains(a.polygon, c.location) จึงต้องมี location geometry ใน contacts
+   * ถ้าแก้ schema/location column ต้องทดสอบ GIS sidebar และ contacts marker พร้อมกัน
+   */
   app.get("/api/areas/:id/contacts", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
     const result = await pool.query(
@@ -275,6 +293,12 @@ export async function registerAreaRoutes(app: FastifyInstance) {
     return result.rows.map(rowToContact);
   });
 
+  /**
+   * หา incidents ที่ตกอยู่ใน boundary เดียวกันสำหรับหน้า GIS
+   *
+   * Query นี้อ่านจาก incidents.location โดยตรง ไม่ได้คำนวณจาก latitude/longitude ซ้ำ
+   * เพื่อให้ผลลัพธ์ตรงกับ geometry ที่บันทึกตอน create incident
+   */
   app.get("/api/areas/:id/incidents", async (request, reply) => {
     const { id } = paramsWithId.parse(request.params);
     const result = await pool.query(

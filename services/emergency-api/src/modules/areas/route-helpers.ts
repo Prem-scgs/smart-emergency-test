@@ -48,6 +48,12 @@ export function buildAreaForbiddenPayload() {
   return buildApiErrorPayload(403, "AREA_FORBIDDEN", "Area access denied");
 }
 
+/**
+ * แปลง area row จาก PostGIS query ให้ frontend ใช้กับ map ได้
+ *
+ * routes.ts จะเลือกส่ง polygon เป็น GeoJSON หรือ NULL ตาม includeGeometry
+ * เพื่อให้หน้า list/filter โหลดเร็ว แต่หน้า map ยังขอ geometry เต็มสำหรับ fit bounds ได้
+ */
 export function rowToArea(row: Record<string, unknown>) {
   return {
     id: row.id,

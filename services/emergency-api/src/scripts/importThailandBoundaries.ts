@@ -109,6 +109,14 @@ async function importProvince(
   };
 }
 
+/**
+ * นำเข้า boundary ระดับอำเภอจาก GeoJSON เข้า tables กลาง
+ *
+ * ผลกระทบ:
+ * - districts/provinces ใช้เป็น master reference สำหรับ dropdown/lookup
+ * - areas.polygon ใช้กับ PostGIS ST_Contains ใน incident/contact/GIS flow
+ * - parent_area_id ช่วยให้ frontend fit bounds และแสดง hierarchy จังหวัด -> อำเภอ
+ */
 async function importDistrict(
   feature: GeoJsonFeatureCollection["features"][number],
   provinceAreaIds: Map<string, string>,

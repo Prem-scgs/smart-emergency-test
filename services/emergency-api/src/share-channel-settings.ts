@@ -98,6 +98,14 @@ export async function readDbShareChannelRows() {
   }
 }
 
+/**
+ * รวม setting ช่องทางแชร์จาก DB กับ fallback จาก env
+ *
+ * ลำดับความสำคัญ:
+ * - DB มาก่อน เพราะหน้า Settings ให้ super_admin เปิด/ปิดและแก้ recipient ได้
+ * - env เป็น fallback สำหรับระบบที่ยังไม่ตั้งค่าใน DB หรือ migration ยังไม่พร้อม
+ * - public API ต้องใช้ maskedValue/availability เท่านั้น ห้ามส่ง recipientValue ออก frontend โดยไม่จำเป็น
+ */
 export async function resolveShareChannels(
   fallback: ShareChannelRecipients = config.shareChannels
 ): Promise<ResolvedShareChannels> {
@@ -165,4 +173,3 @@ export function getResolvedShareChannelRecipient(
   const resolved = channelsByName[channel];
   return resolved.enabled ? resolved.recipientValue : null;
 }
-

@@ -1,5 +1,8 @@
 BEGIN;
 
+-- เพิ่ม field ที่ทำให้ mobile/admin ติดตาม workflow เดียวกันได้
+-- client_request_id กัน mobile สร้าง incident ซ้ำจาก retry
+-- status_version ใช้กับ PATCH /api/incidents/:id/status เพื่อทำ optimistic concurrency
 ALTER TABLE incidents
   ADD COLUMN IF NOT EXISTS client_request_id TEXT,
   ADD COLUMN IF NOT EXISTS dialed_phone TEXT,
@@ -54,6 +57,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS incidents_client_request_id_uidx
   ON incidents (client_request_id)
   WHERE client_request_id IS NOT NULL;
 
+-- ประวัติทุกครั้งที่ workflow เปลี่ยน ใช้ทั้ง mobile tracking timeline และ admin audit/debug
 CREATE TABLE IF NOT EXISTS incident_status_history (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,

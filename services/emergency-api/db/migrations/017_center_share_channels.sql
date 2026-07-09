@@ -1,5 +1,7 @@
 BEGIN;
 
+-- ช่องทางแชร์ตำแหน่งส่วนกลางที่หน้า Settings ของ super_admin จัดการได้
+-- backend จะ mask recipient ตอนส่งออก public/admin read เพื่อลดโอกาสหลุดข้อมูลปลายทาง
 CREATE TABLE IF NOT EXISTS center_share_channels (
   channel TEXT PRIMARY KEY,
   enabled BOOLEAN NOT NULL DEFAULT false,

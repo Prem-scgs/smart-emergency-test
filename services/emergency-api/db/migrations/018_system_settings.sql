@@ -1,5 +1,7 @@
 BEGIN;
 
+-- ค่าองค์กรที่ admin shell/settings ใช้แสดงชื่อระบบและ timezone กลาง
+-- เก็บเป็น key-value เพื่อเพิ่ม setting ใหม่ได้ง่ายโดยไม่ต้องแก้ schema ทุกครั้ง
 CREATE TABLE IF NOT EXISTS system_settings (
   setting_key TEXT PRIMARY KEY,
   setting_value TEXT NOT NULL,

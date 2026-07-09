@@ -3,6 +3,16 @@ export type MockAdminScope =
   | { role: "agency_admin"; category: string }
   | { role: "viewer"; category: string };
 
+/**
+ * Scope ฝั่ง backend สำหรับ demo/admin mock auth
+ *
+ * ตอนนี้ backend ยังไม่ได้ใช้ real auth token จึงรับสิทธิ์จาก header/query:
+ * - super_admin เห็นทุกหมวด
+ * - agency_admin/viewer ต้องมี category เพื่อจำกัดข้อมูลตามหน่วยงาน
+ *
+ * ถ้าเปลี่ยนเป็น real auth ภายหลัง ต้องให้ endpoint เดิมยังได้ scope shape เดิม
+ * ไม่อย่างนั้น dashboard, contacts, GIS และ tracking detail จะเห็นข้อมูลผิดหมวดได้
+ */
 export function isCategoryScopedAdmin(scope: MockAdminScope | null | undefined) {
   return scope?.role === "agency_admin" || scope?.role === "viewer";
 }

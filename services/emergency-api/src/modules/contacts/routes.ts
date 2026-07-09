@@ -17,6 +17,15 @@ import {
 } from "./route-helpers.js";
 
 export async function registerContactRoutes(app: FastifyInstance) {
+  /**
+   * รายชื่อเบอร์ติดต่อหน่วยงานสำหรับ admin/mobile lookup
+   *
+   * Permission:
+   * - super_admin เลือก category จาก query ได้
+   * - agency_admin/viewer ถูกบังคับเป็น category ของตัวเอง ไม่เชื่อ query ที่ส่งมา
+   *
+   * Location filter ตั้งใจ fallback จาก district -> province -> global เพื่อหาเบอร์ที่ใกล้พื้นที่ที่สุด
+   */
   app.get("/api/contacts", async (request) => {
     const query = contactQuery.parse(request.query);
     const scope = getMockAdminScope(request.headers);
