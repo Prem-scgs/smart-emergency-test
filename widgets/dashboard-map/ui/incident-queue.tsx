@@ -60,6 +60,12 @@ function incidentDisplayNumber(incident: IncidentQueueItem) {
   return incident.caseNumber ?? incident.id.slice(0, 8)
 }
 
+/**
+ * Queue รายการเคสบน dashboard
+ *
+ * รายการนี้ใช้ incident id สำหรับเปิด detail แต่แสดง caseNumber ให้คนอ่านง่าย
+ * ถ้าแก้ onSelect/display number ต้องเช็ก map popup และ alert detail action ให้เปิดเคสเดียวกัน
+ */
 export function IncidentQueue({
   incidents,
   selectedIncidentId,

@@ -131,6 +131,12 @@ export function getIncidentDetailLocationText({
   return [district, province].filter(Boolean).join(' ') || fallback
 }
 
+/**
+ * คืนรายการสถานะที่ role ปัจจุบันเลือกได้ใน detail panel
+ *
+ * agency_admin ขยับได้ทีละขั้น ส่วน super_admin เลือก forward/backward ได้
+ * viewer ต้องได้ array ว่างเสมอเพื่อให้ UI ไม่มี action ที่เปลี่ยนสถานะได้
+ */
 export function getIncidentDetailStatusChoices(
   role: 'super_admin' | 'agency_admin' | 'viewer' | null | undefined,
   currentStatus: string | null | undefined
@@ -141,6 +147,12 @@ export function getIncidentDetailStatusChoices(
   return getIncidentDetailAdminStatusChoices(role, currentStatus)
 }
 
+/**
+ * ตรวจว่าเป็นการย้อน workflow หรือไม่
+ *
+ * Backend บังคับให้ backward transition ต้องมี note และ frontend ใช้ helper นี้
+ * เพื่อเตือนผู้ใช้ก่อนส่ง PATCH /api/incidents/:id/status
+ */
 export function isIncidentDetailBackwardTransition(
   currentStatus: string | null | undefined,
   targetStatus: IncidentWorkflowStatus | null | undefined
@@ -168,6 +180,12 @@ export function buildIncidentDetailTrackingUrl(
   return buildAdminApiUrl(apiBaseUrl, `/api/incidents/${incidentId}/tracking`, user)
 }
 
+/**
+ * สร้าง request body สำหรับ status update ให้ตรงกับ backend optimistic concurrency
+ *
+ * expectedVersion ต้องมาจาก tracking response ล่าสุด ถ้า stale backend จะตอบ 409
+ * แล้ว detail panel ต้อง reload tracking ก่อนให้ผู้ใช้ลองใหม่
+ */
 export function buildIncidentStatusUpdateBody(
   incident: Pick<IncidentDetailTrackingIncident, 'status' | 'statusVersion'>,
   toStatus: IncidentWorkflowStatus,

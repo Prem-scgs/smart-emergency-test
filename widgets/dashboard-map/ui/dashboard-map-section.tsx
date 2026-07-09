@@ -83,6 +83,12 @@ interface DashboardMapSectionProps {
   isLocationLoading: boolean
 }
 
+/**
+ * Widget หลักของหน้า dashboard: map + filters + queue + detail panel
+ *
+ * จุดนี้เป็น composition layer ที่ผูก data hook, view-model, IncidentMap, IncidentQueue
+ * และ IncidentDetailPanel เข้าด้วยกัน ถ้าแก้ selectedIncident/openIncidentDetail ต้องเช็ก alert/queue/map ทั้งสามทาง
+ */
 export function DashboardMapSection({
   user,
   isSuperAdmin,

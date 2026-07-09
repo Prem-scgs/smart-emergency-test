@@ -86,6 +86,12 @@ export function IncidentDetailPanel({
   const [isCloseWarningOpen, setIsCloseWarningOpen] = useState(false)
   const activeIncidentIdRef = useRef<string | null>(null)
 
+  /**
+   * โหลด tracking detail ล่าสุดของเคสที่เปิดอยู่
+   *
+   * activeIncidentIdRef กัน response เก่าทับ state ใหม่เวลาผู้ใช้กดสลับเคสเร็ว ๆ
+   * endpoint นี้รวม incident, status history และ latest location ที่ panel/timeline ใช้ร่วมกัน
+   */
   const loadTracking = useCallback(async () => {
     if (!incidentId) return
 
@@ -120,6 +126,11 @@ export function IncidentDetailPanel({
     }
   }, [incidentId, t, user])
 
+  /**
+   * รับ status update จาก SSE/polling แล้ว reload เฉพาะเคสที่ panel เปิดอยู่
+   *
+   * ทำให้ถ้า admin อีกคนเปลี่ยนสถานะ เคสบนหน้าจอนี้จะ sync ตามโดยไม่ต้องปิด panel
+   */
   useEffect(() => {
     if (!open || !incidentId) return
 
@@ -178,6 +189,7 @@ export function IncidentDetailPanel({
       const response = await fetch(request.url, request.init)
 
       if (response.status === 409) {
+        // backend แจ้งว่า expectedVersion stale จึงต้อง reload ก่อนให้ผู้ใช้ตัดสินใจใหม่
         await loadTracking()
         setError(t('incidentStatusChangedByOther'))
         return

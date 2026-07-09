@@ -85,6 +85,12 @@ function MapViewport({
   return null
 }
 
+/**
+ * แผนที่ incident ของ dashboard
+ *
+ * selectedIncidentId มาจาก queue/detail/alert flow เดียวกัน ถ้าเลือก marker แล้วต้องเปิด detail เคสเดียวกัน
+ * selectedAreaBounds ใช้ fit map ตามพื้นที่ที่ user ค้นหา ไม่ได้เปลี่ยน filter ของข้อมูลโดยตรง
+ */
 export function IncidentMap({
   incidents,
   selectedIncidentId = null,

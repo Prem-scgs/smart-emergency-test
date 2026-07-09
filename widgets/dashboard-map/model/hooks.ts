@@ -31,6 +31,12 @@ export function useDashboardMapData({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  /**
+   * โหลดข้อมูลที่ map/queue ใช้ร่วมกัน
+   *
+   * endpoint map-points คืน incident แบบเบาสำหรับ marker/popup ส่วน contacts ใช้ทำ marker หน่วยงาน
+   * reload นี้ถูกเรียกทั้งตอน mount และตอน realtime event เพื่อให้ queue/map/detail เห็นข้อมูลชุดเดียวกัน
+   */
   const reload = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -94,6 +100,12 @@ export function useDashboardIncidentDetailController() {
     setIsIncidentDetailOpen(false)
   }, [])
 
+  /**
+   * รับคำสั่งเปิด detail จาก alert/notification
+   *
+   * ถ้า alert ถูกกดจากหน้าอื่น navigation helper จะฝาก incidentId ไว้ใน sessionStorage
+   * hook นี้เป็นคนหยิบมาเปิด panel เมื่อกลับเข้าหน้า dashboard
+   */
   useEffect(() => {
     function openFromEvent(event: Event) {
       const incidentId = (event as CustomEvent<{ incidentId?: string }>).detail?.incidentId
@@ -127,6 +139,11 @@ export function useSelectedDashboardAreaBounds(selectedLocation: DashboardLocati
   const [selectedLocationBounds, setSelectedLocationBounds] = useState<AreaMapBounds | null>(null)
   const activeRequestRef = useRef<DashboardLocationOption | null>(null)
 
+  /**
+   * โหลด geometry ของจังหวัด/อำเภอที่เลือกเพื่อให้ IncidentMap fit bounds ได้
+   *
+   * ใช้ activeRequestRef กัน response เก่าที่มาช้ากว่า selection ล่าสุด
+   */
   useEffect(() => {
     if (!selectedLocation) {
       activeRequestRef.current = null

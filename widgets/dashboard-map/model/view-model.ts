@@ -72,6 +72,14 @@ export function percent(part: number, total: number) {
   return Math.round((part / total) * 100)
 }
 
+/**
+ * รวมข้อมูล dashboard ให้ UI ใช้ render ได้ตรงกันทั้ง KPI, chart, queue และ map
+ *
+ * จุดสำคัญ:
+ * - role filtering ทำก่อน location/category filtering เพื่อกัน agency_admin/viewer เห็นข้อมูลข้ามหมวด
+ * - location labels ถูก localize จาก master reference ก่อนส่งให้ chart/map
+ * - output ตัวเดียวกันช่วยให้ queue/map/detail เปิดเคสเดียวกันจากข้อมูลชุดเดียว
+ */
 export function buildDashboardMapViewModel({
   incidents,
   contacts,

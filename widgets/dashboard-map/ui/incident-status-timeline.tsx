@@ -14,6 +14,12 @@ interface IncidentStatusTimelineProps {
   history: IncidentTrackingHistoryEntry[]
 }
 
+/**
+ * Timeline สถานะเดียวกับที่ mobile tracking ใช้
+ *
+ * ใช้ helper จาก entities/incident เพื่อให้ admin detail และ mobile tracking เห็น workflow ลำดับเดียวกัน
+ * ถ้าเพิ่ม/ลดสถานะ ต้องแก้ entity status meta และ backend status workflow พร้อมกัน
+ */
 export function IncidentStatusTimeline({ status, history }: IncidentStatusTimelineProps) {
   const { language, t } = useAdminI18n()
   const steps = buildIncidentTrackingSteps(status, history)

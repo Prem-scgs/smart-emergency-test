@@ -56,6 +56,11 @@ export function normalizeDashboardMapText(value: string) {
   return value.trim().toLocaleLowerCase('th-TH').normalize('NFC')
 }
 
+/**
+ * สร้างตัวเลือกค้นหาพื้นที่จาก province/district master data
+ *
+ * option ที่ได้ใช้ทั้ง filter list และโหลด selectedAreaBounds จึงต้องเก็บ code/source ไว้ครบ
+ */
 export function buildDashboardLocationOptions(
   provinces: DashboardReferenceProvince[],
   districts: DashboardReferenceDistrict[],
@@ -120,6 +125,11 @@ export function filterDashboardLocationOptions(
     .slice(0, 20)
 }
 
+/**
+ * กรอง incident ที่แสดงบน dashboard map/queue
+ *
+ * function นี้รับข้อมูลที่ผ่าน role scope มาแล้ว จึงทำเฉพาะ category/location search ของหน้า dashboard
+ */
 export function filterDashboardMapIncidents<T extends DashboardMapIncidentLike>(
   incidents: T[],
   categoryFilter: string | 'all',
@@ -170,6 +180,11 @@ export function filterDashboardMapIncidents<T extends DashboardMapIncidentLike>(
   })
 }
 
+/**
+ * เติมชื่อพื้นที่ตามภาษา admin จาก master location lookup
+ *
+ * ใช้ fallback จาก incident row ได้ แต่ master data ควรมาก่อนเพื่อเลี่ยงชื่ออังกฤษ/ไทยปนกันใน popup และ chart
+ */
 export function localizeDashboardMapIncidents<T extends DashboardMapIncidentLike>(
   incidents: T[],
   provinceByCode: Record<string, DashboardReferenceProvince>,
@@ -200,6 +215,11 @@ export function localizeDashboardMapIncidents<T extends DashboardMapIncidentLike
   })
 }
 
+/**
+ * แสดงเลขเคสบน map/queue ด้วย caseNumber ก่อน UUID
+ *
+ * UUID ยังใช้เปิด detail/API ภายใน แต่ UI ควรใช้เลขเคสที่คนอ่านและสื่อสารกันง่าย
+ */
 export function getIncidentMapDisplayNumber(incident: { id: string; caseNumber?: string | null }) {
   return incident.caseNumber ?? incident.id.slice(0, 8)
 }
