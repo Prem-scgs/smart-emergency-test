@@ -110,7 +110,7 @@ Use this file to track production-readiness work without touching the auth imple
   - Types Wave 5 passed on Vercel test after `f918f0f`: legacy user profile types moved under `_legacy`, and `lib/types.ts` now has no local type definitions
   - Type bridge cleanup locally verified after `77a2ee0`: `lib/types.ts` was removed after `rg` confirmed no `@/lib/types` imports remained, so source now uses canonical type owners directly
   - Alert preferences cleanup locally verified after `d142b9d`: `features/incident-alert` now owns admin alert preferences while keeping the same localStorage key and browser event contract
-  - Legacy location share cleanup locally verified after `4de250e`: root `lib/location-share.ts` moved to `_legacy/lib/location-share.ts`, production incident location sharing remains on `lib/incident-location-share.ts`, and the targeted tests/build passed
+  - Legacy location share cleanup locally verified after `4de250e`, then removed during final cleanup after production incident location sharing moved to `features/location-sharing`
   - Reference category cleanup locally verified after `373f2da`: category reference loaders and admin/mobile category display helpers moved from root `lib/` to `shared/reference`, and targeted tests/build passed
   - Reference location cleanup passed on Vercel test after `cf7b08c`: province/district reference loaders, lookup maps, and display helpers moved from root `lib/` to `shared/location`
   - Mobile incident helper cleanup passed on Vercel test after `94ce720`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`

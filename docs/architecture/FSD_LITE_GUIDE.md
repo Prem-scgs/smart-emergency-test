@@ -156,7 +156,7 @@ Move domains only when there is real work in that area:
 - `shared/auth` owns admin auth/session types, `ROLE_PERMISSIONS`, `AuthProvider`, `useAuth`, agency registry data, and stale-session restore guards. The retired `operator` role is no longer part of the frontend auth contract.
 - `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
 - `_legacy/lib/user-profile-types.ts` owns legacy-only user profile types.
-- `_legacy/lib/location-share.ts` owns the legacy-only SMS/Google Maps share helper; root `lib/location-share.ts` was removed after `rg` confirmed only legacy code still used it.
+- Legacy-only SMS/Google Maps share helpers and their old mobile screen were removed after production sharing moved to `features/location-sharing`.
 - `lib/types.ts` was removed after `rg` confirmed no imports remained; use the canonical owners directly.
 - Root `lib/mock-data.ts` was removed after `465d5d9`; the legacy-only mock profile now lives in `_legacy/lib/mock-user-profile.ts`.
 - `shared/utils` owns `cn`, the `clsx` + `tailwind-merge` className helper used by UI, admin, mobile, and dashboard widget code. Root `lib/utils.ts` was removed after all imports moved to `@/shared/utils`.

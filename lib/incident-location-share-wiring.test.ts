@@ -14,18 +14,16 @@ test('tracking owns the incident location share card', async () => {
   assert.match(tracking, /incident=\{incidentDetail\}/)
 })
 
-test('standalone location sharing is removed from the mobile flow but its file is preserved', async () => {
-  const [mobileApp, mobileNav, incidentSelection, legacyScreen] = await Promise.all([
+test('standalone legacy location sharing is removed from the mobile flow', async () => {
+  const [mobileApp, mobileNav, incidentSelection] = await Promise.all([
     readFile(new URL('widgets/mobile-emergency/ui/mobile-app.tsx', root), 'utf8'),
     readFile(new URL('widgets/mobile-emergency/ui/mobile-nav.tsx', root), 'utf8'),
     readFile(new URL('widgets/mobile-emergency/ui/incident-selection-screen.tsx', root), 'utf8'),
-    readFile(new URL('_legacy/mobile/location-sharing-screen.tsx', root), 'utf8'),
   ])
 
   assert.doesNotMatch(mobileApp, /LocationSharingScreen|location-share|handleShareLocation/)
   assert.doesNotMatch(mobileNav, /'location'|ตำแหน่ง/)
   assert.doesNotMatch(incidentSelection, /onShareLocation|Share Location/)
-  assert.match(legacyScreen, /export function LocationSharingScreen/)
 })
 
 test('share card keeps unavailable channels disabled and protects optional phone sharing', async () => {
