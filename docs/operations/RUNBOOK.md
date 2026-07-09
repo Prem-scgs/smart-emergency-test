@@ -60,7 +60,7 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-Migration `015_drop_mock_tables.sql` removes legacy mock tables
+Migration `015_drop_mock_tables.sql` removes old mock tables
 `dashboard_snapshots`, `app_users`, and `user_emergency_contacts`. Do not add
 new runtime features that depend on those tables; use incidents, contacts,
 areas, reference categories, and system settings instead.

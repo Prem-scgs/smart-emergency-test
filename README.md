@@ -110,7 +110,7 @@ target schema migrations `013`-`015`, incident tracking, share channels,
 system settings, incident accuracy, and incident case number migrations in
 order.
 
-The legacy mock tables `dashboard_snapshots`, `app_users`, and
+The old mock tables `dashboard_snapshots`, `app_users`, and
 `user_emergency_contacts` are intentionally dropped by migration `015`; current
 dashboard, mobile tracking, and share-location flows read from real incident,
 contact, area, and settings tables instead.

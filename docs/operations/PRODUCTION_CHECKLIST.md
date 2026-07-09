@@ -101,16 +101,16 @@ Use this file to track production-readiness work without touching the auth imple
   - Broad Vercel smoke after `ef4f5b0` passed: mobile incident create, duplicate request guard, polling fallback, mobile tracking case number, viewer read-only detail/status guard, dashboard map-points case number, contacts/incident viewer scope, call result update, and main admin pages
   - UI smoke was checked by เปรม after deploy: admin popup/detail/map/report-print paths passed
   - Dashboard widget extraction passed on Vercel test after `1cf7f87`: dashboard data hook, detail controller, selected-area bounds, queue/map/detail wiring, and iPhone mobile create -> admin alert path
-  - IncidentQueue slice passed on Vercel test after `63c9b17`: queue implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and viewer/detail/queue behavior remained correct
-  - IncidentMap slice passed on Vercel test after `36c87b3`: map implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and marker/popup/selected-area behavior remained correct
+  - IncidentQueue slice passed on Vercel test after `63c9b17`: queue implementation moved under `widgets/dashboard-map`, the old component bridge was later removed, and viewer/detail/queue behavior remained correct
+  - IncidentMap slice passed on Vercel test after `36c87b3`: map implementation moved under `widgets/dashboard-map`, the old component bridge was later removed, and marker/popup/selected-area behavior remained correct
   - IncidentDetailPanel helper/controller slice passed on Vercel test after `2ddad8f`: viewer detail read-only, agency next-status update, super admin forward/backward choices, backward note guard, close-without-summary confirmation, alert-to-detail, and status success reload/toast flow were verified
-  - IncidentDetailPanel UI shell slice passed on Vercel test after `7ed88fd`: detail panel implementation moved under `widgets/dashboard-map`, legacy component path is a bridge, and alert/queue/map detail flows remained correct
+  - IncidentDetailPanel UI shell slice passed on Vercel test after `7ed88fd`: detail panel implementation moved under `widgets/dashboard-map`, the old component bridge was later removed, and alert/queue/map detail flows remained correct
   - Types Wave 4 passed on Vercel test after `9c81f63`: contact, call, and location types moved to canonical FSD-lite owners while `lib/types.ts` remained a compatibility re-export layer
-  - Root mock data cleanup passed on Vercel test after `465d5d9`: `lib/mock-data.ts` was removed; the later legacy mock profile files were removed during final cleanup
-  - Types Wave 5 passed on Vercel test after `f918f0f`: legacy user profile types were moved under `_legacy` at the time, then removed during final cleanup after production flow no longer used them
+  - Root mock data cleanup passed on Vercel test after `465d5d9`: `lib/mock-data.ts` was removed; the later old mock profile files were removed during final cleanup
+  - Types Wave 5 passed on Vercel test after `f918f0f`: old user profile types were isolated at the time, then removed during final cleanup after production flow no longer used them
   - Type bridge cleanup locally verified after `77a2ee0`: `lib/types.ts` was removed after `rg` confirmed no `@/lib/types` imports remained, so source now uses canonical type owners directly
   - Alert preferences cleanup locally verified after `d142b9d`: `features/incident-alert` now owns admin alert preferences while keeping the same localStorage key and browser event contract
-  - Legacy location share cleanup locally verified after `4de250e`, then removed during final cleanup after production incident location sharing moved to `features/location-sharing`
+  - Old location share cleanup locally verified after `4de250e`, then removed during final cleanup after production incident location sharing moved to `features/location-sharing`
   - Reference category cleanup locally verified after `373f2da`: category reference loaders and admin/mobile category display helpers moved from root `lib/` to `shared/reference`, and targeted tests/build passed
   - Reference location cleanup passed on Vercel test after `cf7b08c`: province/district reference loaders, lookup maps, and display helpers moved from root `lib/` to `shared/location`
   - Mobile incident helper cleanup passed on Vercel test after `94ce720`: mobile incident payload builders, GPS lock status helpers, and reporter session/phone storage moved from root `lib/` to `features/mobile-incident`
