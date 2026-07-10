@@ -1,163 +1,123 @@
 # Smart Emergency
 
-Smart Emergency is a Next.js + Fastify + PostgreSQL/PostGIS project for emergency reporting, admin operations, GIS boundary lookup, and realtime incident alerts.
+Smart Emergency เป็นโปรเจกต์ Next.js + Fastify + PostgreSQL/PostGIS สำหรับแจ้งเหตุฉุกเฉิน, dashboard admin, GIS boundary lookup และ realtime incident alerts
 
-## Current Architecture
+เอกสารนี้เป็นหน้าเริ่มต้นแบบสั้น ๆ สำหรับคนใหม่ ถ้าต้องลงลึกให้ไปต่อที่:
 
-- `app/`: Next.js route shells for admin and mobile entry points
-- `widgets/`: page-level admin/mobile UI owners such as dashboard, GIS, contacts, reports, settings, login, and mobile emergency flow
-- `features/`, `entities/`, `shared/`: FSD-lite feature logic, domain helpers/types, shared auth/i18n/reference/API utilities
-- `components/ui`: reusable UI primitives only; avoid adding feature/runtime logic here
-- `lib/`: test and wiring checks only; do not add new runtime implementation here
-- `services/emergency-api`: Fastify backend service
-- `docker-compose.yml`: PostgreSQL/PostGIS and DbGate
-- `areas`: official Thailand province/district boundaries plus future editable response zones
+- ภาพรวมระบบ: [ARCHITECTURE_OVERVIEW.md](docs/architecture/ARCHITECTURE_OVERVIEW.md)
+- กฎวางไฟล์ FSD-lite: [FSD_LITE_GUIDE.md](docs/architecture/FSD_LITE_GUIDE.md)
+- วิธีรัน/แก้ปัญหา: [RUNBOOK.md](docs/operations/RUNBOOK.md)
+- Environment variables: [ENVIRONMENT.md](docs/operations/ENVIRONMENT.md)
+- API contract ปัจจุบัน: [API_CONTRACT.md](docs/api/API_CONTRACT.md)
 
-Current runtime split:
+## Project Structure
 
-- Frontend: `http://localhost:3000`
-- Emergency API: `http://localhost:4000`
-- DbGate: `http://localhost:8081`
-
-## Main Features Working Now
-
-- Admin dashboard reads real incident/contact data from the backend
-- Admin contacts page supports CRUD against PostgreSQL
-- GIS page loads province/district boundaries and area-scoped contacts/incidents
-- Mobile flow can resolve current location, load local emergency contacts, and create incidents
-- Realtime incident alerts use Server-Sent Events
-- Incident detail endpoint exists at `GET /api/incidents/:id`
+- `app/`: Next.js route/layout shell เท่านั้น
+- `widgets/`: หน้า/section ใหญ่ เช่น dashboard, GIS, contacts, reports, settings, login, mobile flow
+- `features/`: workflow เฉพาะเรื่อง เช่น incident alert, mobile incident, location sharing
+- `entities/`: domain types/helpers เช่น incident, contact, area, call
+- `shared/`: auth, config, API helpers, i18n, reference data, realtime, utils
+- `components/ui/`: reusable UI primitives เท่านั้น
+- `lib/`: tests และ wiring checks เท่านั้น ห้ามเพิ่ม runtime implementation ใหม่
+- `services/emergency-api/`: Fastify backend service
+- `services/emergency-api/db/`: migrations และ seed data
 
 ## Quick Start
 
-1. Install dependencies
+1. ติดตั้ง dependencies
 
 ```powershell
 pnpm install
 ```
 
-2. Copy environment template if needed
+2. สร้าง env local จาก template
 
 ```powershell
 copy .env.example .env
+copy services\emergency-api\.env.example services\emergency-api\.env
 ```
 
-3. Start database
+3. เปิด PostgreSQL/PostGIS และ DbGate
 
 ```powershell
 pnpm db:up
 docker compose up -d dbgate
 ```
 
-4. Apply migrations and seed local data
+4. apply migrations และ seed data
 
 ```powershell
 pnpm db:migrate
 pnpm db:seed
 ```
 
-5. Start backend
+5. เปิด backend
 
 ```powershell
 pnpm dev:api
 ```
 
-6. Start frontend in another terminal
+6. เปิด frontend อีก terminal
 
 ```powershell
 pnpm dev
 ```
 
-## Makefile Shortcuts
+## Local URLs
 
-If `make` is available in your shell:
-
-```powershell
-make db-ui
-make db-migrate
-make db-seed
-make api
-make web
-```
-
-In Windows PowerShell without `make`, use the `pnpm` commands directly.
-
-## Verification Commands
-
-Backend tests:
-
-```powershell
-pnpm test:api
-```
-
-Backend build:
-
-```powershell
-pnpm build:api
-```
-
-Frontend build:
-
-```powershell
-pnpm build
-```
-
-## Migration Notes
-
-Use `pnpm db:migrate` as the source-of-truth migration command for local
-development. It applies the base mock-to-real transition migrations, the
-target schema migrations `013`-`015`, incident tracking, share channels,
-system settings, incident accuracy, and incident case number migrations in
-order.
-
-The old mock tables `dashboard_snapshots`, `app_users`, and
-`user_emergency_contacts` are intentionally dropped by migration `015`; current
-dashboard, mobile tracking, and share-location flows read from real incident,
-contact, area, and settings tables instead.
-
-## Important Local URLs
-
-- Frontend: [http://localhost:3000](http://localhost:3000)
+- Frontend mobile: [http://localhost:3000](http://localhost:3000)
 - Admin login: [http://localhost:3000/admin](http://localhost:3000/admin)
 - API health: [http://localhost:4000/health](http://localhost:4000/health)
 - DbGate: [http://localhost:8081](http://localhost:8081)
 
+## Common Commands
+
+```powershell
+pnpm dev
+pnpm dev:api
+pnpm db:up
+pnpm db:migrate
+pnpm db:seed
+pnpm test:api
+pnpm build:api
+pnpm build
+```
+
+ถ้าใช้ `make` ได้ มี shortcut ใน `Makefile` เช่น `make db-migrate`, `make api`, `make web`
+
 ## Environment Variables
 
-See [.env.example](.env.example)
+อ่านรายละเอียดเต็มใน [ENVIRONMENT.md](docs/operations/ENVIRONMENT.md)
 
-- `PORT`
-- `DATABASE_URL`
-- `CORS_ORIGIN`
+ตัวหลักที่ทีมต้องรู้:
 
-The backend validates these values on startup.
+- `DATABASE_URL`: backend ต่อ PostgreSQL/PostGIS
+- `CORS_ORIGIN` / `CORS_ORIGINS`: allowlist frontend origin สำหรับ Fastify API
+- `EMERGENCY_API_INTERNAL_URL`: ปลายทางที่ Next rewrite `/emergency-api/*` จะ proxy ไปหา
+- `NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL`: API domain/tunnel สำหรับ Vercel REST rewrite
+- `NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL`: API domain/tunnel สำหรับ SSE `EventSource`
 
-## Important Files
+Vercel test ปัจจุบันใช้ frontend ที่ `https://smart-emergency-test.vercel.app` และ API ผ่าน Cloudflare/custom domain เช่น `https://emer-api.scgs-ai.com`
 
-- Code conventions: [CODE_CONVENTIONS_TH.md](docs/architecture/CODE_CONVENTIONS_TH.md)
-- FSD-lite guide: [FSD_LITE_GUIDE.md](docs/architecture/FSD_LITE_GUIDE.md)
-- Production tracking: [PRODUCTION_CHECKLIST.md](docs/operations/PRODUCTION_CHECKLIST.md)
-- Local operations guide: [RUNBOOK.md](docs/operations/RUNBOOK.md)
+## Current Runtime Notes
 
-## Current Caveats
-
-- Admin auth is still demo/local-storage/header based and will be integrated with the team auth system later.
-- `admin/users` is an explicit placeholder under `widgets/admin-users`; real user CRUD waits for the team auth contract.
-- Audit logging exists for important write actions; rate limiting exists where currently implemented, but production shared-store limits still need review before real deployment.
-
+- Admin auth ยังเป็น demo/localStorage/header based ไม่ใช่ auth จริงของ production
+- Supported admin roles มี `super_admin`, `agency_admin`, `viewer`; ไม่มี `operator`
+- `viewer` เป็น read-only/passive: เห็นข้อมูลตาม scope แต่ไม่มี popup/sound/actionable alert และ update status ไม่ได้
+- Incident ใช้ UUID เป็น internal id แต่ UI ต้องแสดง `caseNumber` ก่อน เช่น `EMS-20260706-0001`
+- Realtime ใช้ SSE เป็นหลัก และมี polling fallback ผ่าน `/api/incidents/recent`
+- Vercel demo ยังพึ่ง API/DB ที่เครื่องเปรมผ่าน Cloudflare tunnel/custom domain ถ้าเครื่อง/API/DB/tunnel ดับ frontend จะโหลดได้แต่ข้อมูลสดจะล้ม
 
 ## Before Commit Checklist
 
-Before committing, check:
+- รัน tests/build ที่เกี่ยวข้องแล้วหรือยัง
+- ถ้าแก้ flow/API/env/schema/realtime/GIS ให้ update docs ที่เกี่ยวข้องใน commit เดียวกัน
+- ไฟล์ runtime ใหม่อยู่ใน FSD-lite layer ถูกต้องหรือยัง
+- อย่าเพิ่ม runtime implementation ใหม่ใน `lib/`
+- ห้าม commit secret, token, tunnel token, เบอร์จริง หรือข้อมูลส่วนตัว
 
-- Did relevant build/tests pass?
-- If business logic changed, did you add or update Thai comments where they explain non-obvious rules?
-- If flow/API/env/schema/realtime/GIS changed, did you update docs in the same change?
-- Are new files placed in the correct FSD-lite layer instead of adding runtime code to `lib/`?
-- If a `lib/` file is touched, is it a test/wiring check rather than runtime implementation?
+## Current Caveats
 
-## Repository Notes
-
-- Active branch for this work: `Prem(scgs)-emergencyV0`
-- Do not push directly to `main`
-- Ask Prem before changing git identity or pushing
+- Real auth/user management ยังรอ team auth contract; `widgets/admin-users` เป็น placeholder
+- Rate limiting มีบางจุดแล้ว แต่ production shared-store rate limit ยังต้อง review ก่อน deploy จริง
+- Backup/restore notes สำหรับ production DB ยังต้องให้ทีมเติม

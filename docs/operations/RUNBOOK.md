@@ -4,6 +4,10 @@ Short local operations guide for Smart Emergency.
 
 ## 1. First-Time Setup
 
+ถ้าเพิ่งเข้าทีม แนะนำให้อ่านภาพรวมก่อนที่
+[ARCHITECTURE_OVERVIEW.md](../architecture/ARCHITECTURE_OVERVIEW.md) แล้วค่อยใช้
+runbook นี้เป็นคู่มือ run/debug ประจำวัน
+
 Install dependencies:
 
 ```powershell
@@ -15,6 +19,8 @@ Copy env template if needed:
 ```powershell
 copy .env.example .env
 ```
+
+รายละเอียด env local/Docker/Vercel อยู่ที่ [ENVIRONMENT.md](ENVIRONMENT.md)
 
 Start database services:
 
@@ -231,6 +237,9 @@ belong under `widgets/dashboard-map`.
 
 These are the main API paths used by the current demo flow:
 
+ดูรายละเอียด endpoint/role/DB impact เพิ่มเติมใน
+[API_CONTRACT.md](../api/API_CONTRACT.md)
+
 - `GET /health`: API health check.
 - `POST /api/incidents`: creates an incident idempotently by `clientRequestId`
   and returns the internal `id` plus display `caseNumber`.
@@ -365,6 +374,18 @@ and PostgreSQL/PostGIS database still run from the local machine through a
 Cloudflare tunnel. If the local machine, Docker API, DB, or cloudflared is off,
 the Vercel frontend may load but API data will not update.
 
+Current test frontend:
+
+```text
+https://smart-emergency-test.vercel.app
+```
+
+Current API domain used by the team:
+
+```text
+https://emer-api.scgs-ai.com
+```
+
 The Docker local stack runs cloudflared with HTTP/2 because SSE needs a
 long-lived stream and the previous QUIC quick tunnel showed intermittent stream
 timeout/cancel behavior.
@@ -372,8 +393,8 @@ timeout/cancel behavior.
 Required Vercel environment variables:
 
 ```env
-NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL=https://<your-tunnel>.trycloudflare.com
-NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL=https://<your-tunnel>.trycloudflare.com
+NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL=https://emer-api.scgs-ai.com
+NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL=https://emer-api.scgs-ai.com
 ```
 
 REST and polling on Vercel use the same-origin rewrite path `/emergency-api` to
@@ -387,9 +408,18 @@ networking.
 Smoke checks:
 
 ```powershell
-curl https://<your-tunnel>.trycloudflare.com/health
+curl https://emer-api.scgs-ai.com/health
 curl https://smart-emergency-test.vercel.app/emergency-api/health
 ```
+
+If browser shows Cloudflare `Error 1033`, check in this order:
+
+1. cloudflared is running on the machine that exposes the API.
+2. Docker API container/process is running and `http://localhost:4000/health`
+   works on that machine.
+3. PostgreSQL/PostGIS is running and migrations are applied.
+4. The Cloudflare hostname still points to the active tunnel.
+5. Vercel env values still point to `https://emer-api.scgs-ai.com`.
 
 Current broad Vercel smoke checklist:
 
@@ -432,3 +462,8 @@ Before ending a work session:
 
 1. Update local `CODEX_HANDOFF.md` if you use Codex handoff between sessions
 2. Update [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md)
+3. If API/env/realtime/GIS behavior changed, update
+   [API_CONTRACT.md](../api/API_CONTRACT.md),
+   [ENVIRONMENT.md](ENVIRONMENT.md), or
+   [ARCHITECTURE_OVERVIEW.md](../architecture/ARCHITECTURE_OVERVIEW.md)
+4. Record whether Vercel smoke passed and which commit was tested

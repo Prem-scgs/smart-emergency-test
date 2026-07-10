@@ -1,181 +1,115 @@
 # FSD-lite Guide
 
-Smart Emergency uses FSD-lite for new frontend code. The goal is to keep route files small, make domain ownership visible, and avoid adding more runtime code to `lib/`.
+Smart Emergency ใช้ FSD-lite เพื่อให้ route files สั้น, เห็น owner ของ domain ชัด และลด runtime logic ที่กระจายอยู่ใน `lib/`
 
-อ่านคู่กับ [CODE_CONVENTIONS_TH.md](CODE_CONVENTIONS_TH.md) เสมอ เพราะการเพิ่มหรือแก้ logic สำคัญต้องอัปเดต comment/docs ที่เกี่ยวข้องด้วย
-
-## Layers
-
-- `app/`: Next.js routes and page composition only.
-- `widgets/`: large UI sections that combine features/entities, such as a dashboard map, incident queue, or admin layout.
-- `features/`: user workflows and actions, such as incident alert handling, status update, contact management, location sharing, or report export.
-- `entities/`: domain objects, types, and mappers, such as incident, contact, area, category, agency, and admin user.
-- `shared/`: cross-domain utilities, UI primitives, API helpers, config, i18n, realtime helpers, and small pure utilities.
-- `lib/`: tests and wiring checks only. Do not add new runtime logic here.
+อ่านคู่กับ [CODE_CONVENTIONS_TH.md](CODE_CONVENTIONS_TH.md) และ [ARCHITECTURE_OVERVIEW.md](ARCHITECTURE_OVERVIEW.md)
 
 ## Dependency Direction
 
-Allowed direction:
+ทิศทาง dependency ที่ถูกต้อง:
 
 ```txt
 app -> widgets -> features -> entities -> shared
 ```
 
-Rules:
+กฎสำคัญ:
 
-- `shared` must not import from `entities`, `features`, `widgets`, or `app`.
-- `entities` must not import from `features`, `widgets`, or `app`.
-- `features` must not import from `widgets` or `app`.
-- `widgets` must not import from `app`.
-- New runtime code must not be added to `lib/`; add it to the correct FSD-lite layer and keep a `lib/` re-export only if old imports still exist.
+- `shared` ห้าม import จาก `entities`, `features`, `widgets`, `app`
+- `entities` ห้าม import จาก `features`, `widgets`, `app`
+- `features` ห้าม import จาก `widgets`, `app`
+- `widgets` ห้าม import จาก `app`
+- `app` ควรเป็น route/layout shell ที่ประกอบ widget/provider เท่านั้น
+- `lib/` ใช้สำหรับ tests/wiring checks เท่านั้น ห้ามเพิ่ม runtime implementation ใหม่
 
-## Recommended Paths
+## Layer Responsibilities
 
-Use these paths for new or moved code:
+- `app/`: Next.js route shell, layout shell, provider composition
+- `widgets/`: หน้า/section ใหญ่ที่รวม state, UI, feature/entity หลายส่วน
+- `features/`: workflow/action เฉพาะเรื่อง เช่น incident alert, location sharing, mobile incident
+- `entities/`: domain types/helpers เช่น incident status, contact scope, area geometry
+- `shared/`: utility/config/auth/i18n/reference/realtime/API helpers ที่ใช้ข้าม domain
+- `components/ui/`: primitive UI ที่ไม่รู้จัก business domain
+- `services/emergency-api/`: backend service แยกจาก Next.js
 
-```txt
-shared/api/                 API URL helpers, fetch wrappers, admin headers
-shared/realtime/            SSE client helpers, polling fallback utilities
-shared/reference/           category reference data loaders and display helpers used across admin/mobile
-shared/i18n/                dictionaries, translation helpers, locale preference
-shared/config/              browser-safe config and feature flags
-shared/ui/                  reusable UI primitives that are not tied to one domain
-shared/utils/               small pure helpers used across domains
+## Current Ownership Map
 
-entities/incident/          incident types, status labels, mappers, formatters
-entities/contact/           emergency contact types, category mapping, phone rules
-entities/area/              province/district/area types, GeoJSON helpers
-entities/category/          emergency category metadata and labels
-entities/admin-user/        admin role/scope helpers after real auth contract lands
+### Frontend Shells
 
-features/incident-alert/    admin alert popup, sound behavior, duplicate guards
-features/mobile-incident/   mobile incident payloads, GPS lock status helpers, reporter session storage
-features/status-update/     update status workflow and version conflict handling
-features/contact-management/contact form validation and CRUD workflow
-features/location-sharing/  production incident location sharing helpers, provider URLs, and share card UI
-features/report-export/     CSV/PDF/print export actions
+- `widgets/admin-shell`: admin layout, sidebar/header, notification bell/center, organization settings loading
+- `widgets/admin-login`: admin login page, role selector, agency selector
+- `widgets/mobile-emergency`: mobile app shell, splash, location header, category grid, SOS, nav, selection, tracking/history
 
-widgets/dashboard-map/      dashboard map section, incident queue, dashboard data and detail wiring
-widgets/incident-queue/     reserved only if the queue is split out of dashboard-map later
-widgets/gis-browser/        GIS area list and boundary map composition
-widgets/admin-gis/          admin GIS page UI, area filters, boundary map, fit-bounds wiring, contact and incident markers
-widgets/admin-login/        admin login page UI, role selector, agency selector, and login submit flow
-widgets/admin-shell/        admin layout shell, header notification UI, navigation and organization settings wiring
-widgets/admin-users/        admin users placeholder page while real auth/user management is out of scope
-widgets/admin-contacts/     admin contacts page UI, filters, CRUD form, location selector, and delete confirmation flow
-widgets/admin-call-logs/    admin call logs page UI, filters, pagination, export and print snapshot logic
-widgets/admin-reports/      admin reports page UI, range filters, KPI cards, charts, export and print snapshot logic
-widgets/admin-settings/     admin settings page UI, personal preferences, organization/share-channel settings, and health snapshot UI
-widgets/mobile-emergency/   mobile app shell, mobile screens, and mobile flow orchestration
-```
+### Admin Pages
+
+- `widgets/dashboard-map`: dashboard data, map section, queue, map, detail panel, status timeline, KPI/chart view-model helpers
+- `widgets/admin-contacts`: contacts page UI, filters, CRUD dialog, location selector, delete flow
+- `widgets/admin-gis`: GIS page UI, area filters, sidebars, boundary map, contact/incident lists
+- `widgets/admin-reports`: reports page UI, range filter, KPI/charts/tabs, CSV/PDF/print
+- `widgets/admin-call-logs`: call logs UI, filters, pagination, CSV/PDF/print
+- `widgets/admin-settings`: personal preferences, organization settings, share-channel settings, health snapshot
+- `widgets/admin-users`: placeholder page ระหว่างรอ team auth/user-management contract
+
+### Features
+
+- `features/incident-alert`: alert popup, notification provider/hook, admin SSE hook, visibility rules, sound preferences, detail navigation, alert/SSE types
+- `features/mobile-incident`: mobile incident payload, GPS lock status, reporter session/phone localStorage helpers
+- `features/location-sharing`: production incident location sharing helpers และ `IncidentLocationShareCard`
+
+### Entities
+
+- `entities/incident`: incident status workflow/meta/display helpers และ emergency category types
+- `entities/contact`: contact coverage/display/phone/role/scope helpers และ contact type
+- `entities/area`: polygon bounds, area display labels, severity color, GeoJSON feature helpers
+- `entities/call`: call status และ call log types
+
+### Shared
+
+- `shared/api`: admin API headers/scope helpers
+- `shared/auth`: `AuthProvider`, `useAuth`, admin role/session types, `ROLE_PERMISSIONS`
+- `shared/config`: browser-safe emergency API URL helpers
+- `shared/i18n/admin`: admin language provider/hook และ Thai/English dictionaries
+- `shared/location`: location value type, province/district reference loaders, lookup maps
+- `shared/reference`: emergency category reference loaders/display helpers
+- `shared/realtime`: pure realtime payload validators, SSE URL helpers, polling constants
+- `shared/utils`: `cn` className helper
 
 ## File Placement Checklist
 
-Before creating a new frontend file, answer one question:
+ก่อนสร้างไฟล์ใหม่ ให้ถามแบบนี้:
 
-> Is this a route, widget, feature, entity, or shared utility?
+1. เป็น route/layout ของ Next.js หรือไม่ ถ้าใช่ให้อยู่ `app/`
+2. เป็นหน้าใหญ่หรือ section ใหญ่ที่ถือ state/UI หลายส่วนหรือไม่ ถ้าใช่ให้อยู่ `widgets/`
+3. เป็น workflow/action เฉพาะเรื่องหรือไม่ ถ้าใช่ให้อยู่ `features/`
+4. เป็น domain type/helper หรือไม่ ถ้าใช่ให้อยู่ `entities/`
+5. เป็น utility/config/i18n/API/realtime/reference ที่ใช้ข้าม domain หรือไม่ ถ้าใช่ให้อยู่ `shared/`
+6. เป็น UI primitive ที่ไม่มี business logic หรือไม่ ถ้าใช่ให้อยู่ `components/ui/`
 
-If the answer is unclear, do not create the file yet. Rename or split the responsibility first.
+ถ้าตอบไม่ได้ ให้หยุดถามก่อนสร้างไฟล์ เพราะไฟล์ที่วางผิด layer จะทำให้ refactor รอบต่อไปแพงขึ้น
 
-## `lib/` Bridge Rule
+## `lib/` Rule
 
-`lib/` exists for backward compatibility during migration only.
+สถานะปัจจุบัน: `lib/` ไม่ใช่ runtime layer แล้ว ใช้เป็นที่เก็บ tests และ wiring checks เป็นหลัก
 
-Allowed in `lib/`:
+ห้ามเพิ่ม runtime implementation ใหม่ เช่น helper, hook, type owner, API client หรือ business logic ใน `lib/`
 
-```ts
-export { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-```
+ถ้าเจอ import เก่าจาก `lib/` ในอนาคต:
 
-Not allowed in `lib/`:
+1. ใช้ `rg` หา caller ทั้งหมด
+2. ย้าย implementation ไป owner ที่ถูกต้องใน `shared`, `entities`, `features`, หรือ `widgets`
+3. รัน tests/build ที่เกี่ยวข้อง
+4. ลบ bridge เฉพาะเมื่อ `rg` ยืนยันว่าไม่มี import เหลือ
 
-```ts
-// New runtime implementation should not be added here.
-export function buildNewIncidentPayload() {
-  // ...
-}
-```
+## Migration History Summary
 
-When touching an old `lib/` file:
+ก่อนหน้านี้ repo เคยมี runtime logic หลายส่วนใน `lib/`, `components/admin`, และ `components/mobile` แต่ถูกย้ายตาม FSD-lite แล้ว
 
-1. Move implementation to the correct FSD-lite layer if it is safe.
-2. Keep `lib/` as a re-export bridge while old imports still exist.
-3. Run build/tests.
-4. Remove the bridge only when `rg` confirms no old import remains.
+ตัวอย่างที่ย้ายเสร็จ:
 
-## Rollout Plan
+- Dashboard queue/map/detail/status timeline อยู่ใต้ `widgets/dashboard-map`
+- Admin pages อยู่ใต้ `widgets/admin-*`
+- Mobile app/screens อยู่ใต้ `widgets/mobile-emergency`
+- Location sharing อยู่ใต้ `features/location-sharing`
+- Alert/notification/SSE admin hook อยู่ใต้ `features/incident-alert`
+- Auth/i18n/config/reference/location อยู่ใต้ `shared/*`
 
-### Phase 1: Rules and docs
-
-- Keep this guide updated.
-- Keep [CODE_CONVENTIONS_TH.md](CODE_CONVENTIONS_TH.md) updated.
-- Add comment/docs checks before commit.
-- Do not move large runtime files just for structure.
-
-### Phase 2: Low-risk shared code
-
-Move shared code first because it has the lowest UI risk:
-
-- `shared/api`
-- `shared/realtime`
-- `shared/i18n`
-- `shared/config`
-
-### Phase 3: Domain-by-domain migration
-
-Move domains only when there is real work in that area:
-
-- `entities/incident`
-- `entities/contact`
-- `entities/area`
-- `features/incident-alert`
-- `features/status-update`
-- `widgets/dashboard-map`
-
-### Phase 4: Reduce bridges
-
-- Use `rg` to find old imports.
-- Remove bridge files only after no runtime import remains.
-- Every bridge removal must pass build/tests.
-
-## Current Migration Notes
-
-- `shared/api` owns browser-facing API URL and admin scope helper code.
-- `shared/config` owns browser-safe emergency API URL fallback helpers.
-- `shared/realtime` owns SSE URL helpers, event payload validation, and polling fallback helpers.
-- `shared/reference` owns category reference loaders, fallback category data, and admin/mobile category display helpers.
-- `shared/i18n/admin` owns admin i18n provider/hook, language preference constants, and Thai/English dictionaries split by locale.
-- `entities/incident` owns status workflow/meta/display helpers and emergency category types.
-- `entities/contact` owns coverage/display/phone/role/scope helpers and emergency contact types.
-- `entities/call` owns call status and call log types.
-- `entities/area` owns polygon/display/map-style/GeoJSON feature helpers.
-- `features/incident-alert` owns admin alert artifact, visibility, detail navigation, sound helpers, alert preferences, notification provider/hook, admin SSE hook, and alert/notification/SSE types.
-- `features/mobile-incident` owns mobile incident create/call payload helpers, mobile GPS lock status helpers, and reporter session/phone localStorage helpers.
-- `features/location-sharing` owns production incident location sharing helpers, share-channel URLs, mobile platform detection, Thai reporter phone validation, map URL/copy-message formatting, share attempt response types, and `IncidentLocationShareCard` UI.
-- `shared/auth` owns admin auth/session types, `ROLE_PERMISSIONS`, `AuthProvider`, `useAuth`, agency registry data, and stale-session restore guards. The retired `operator` role is no longer part of the frontend auth contract.
-- `shared/location` owns shared location value types, province/district reference loaders, lookup maps, and location display/canonical-name helpers.
-- Old user profile screen, mock profile loader, and user profile types were removed during final cleanup because production mobile flow no longer uses them.
-- Old SMS/Google Maps share helpers and their old mobile screen were removed after production sharing moved to `features/location-sharing`.
-- `lib/types.ts` was removed after `rg` confirmed no imports remained; use the canonical owners directly.
-- Root `lib/mock-data.ts` was removed after `465d5d9`; the later old mock profile files were removed during final cleanup.
-- `shared/utils` owns `cn`, the `clsx` + `tailwind-merge` className helper used by UI, admin, mobile, and dashboard widget code. Root `lib/utils.ts` was removed after all imports moved to `@/shared/utils`.
-- `widgets/admin-shell` owns the admin dashboard shell, sidebar/header composition, notification bell/center UI, role badge metadata, navigation item config, and organization settings loading. The old `components/admin/admin-layout-client.tsx`, `notification-bell.tsx`, and `notification-center.tsx` files were removed after `rg` confirmed no imports remained.
-- `widgets/admin-gis` owns the admin GIS page UI, province/district loading state, area filters, contact/incident sidebars, boundary map UI, `GisBoundaryMap`, `GisBoundary` type, selected-area fit bounds, area popup, and contact/incident marker rendering. The route file `app/admin/(dashboard)/gis/page.tsx` is now a thin shell.
-- `widgets/admin-login` owns the admin login page UI, role selector, agency selector, and login submit flow. The route file `app/admin/page.tsx` is now a thin shell.
-- `widgets/admin-users` owns the current admin users placeholder page while real auth/user management remains out of scope. The route file `app/admin/(dashboard)/users/page.tsx` is now a thin shell.
-- `widgets/admin-contacts` owns the admin contacts page UI, role-scoped filters, create/edit/delete dialog flow, category selector, and province/district location selector. The route file `app/admin/(dashboard)/contacts/page.tsx` is now a thin shell.
-- `widgets/admin-call-logs` owns the admin call logs page UI, loading state, role-scoped filters, pagination, CSV/PDF export, and print snapshot logic. The route file `app/admin/(dashboard)/call-logs/page.tsx` is now a thin shell.
-- `widgets/admin-reports` owns the admin reports page UI, range filter, loading state, KPI cards, charts/tabs, CSV/PDF export, and print snapshot logic. The route file `app/admin/(dashboard)/reports/page.tsx` is now a thin shell.
-- `widgets/admin-settings` owns the admin settings page UI, personal preference storage, organization settings form, share-channel settings form, and system health snapshot UI. The route file `app/admin/(dashboard)/settings/page.tsx` is now a thin shell.
-- `widgets/mobile-emergency` owns the top-level `MobileApp` shell, splash screen, location header, emergency category grid, SOS button, bottom nav, incident selection screen, tracking/history screens, mobile location/contact loading orchestration, and call-result dialog wiring. `features/location-sharing` owns the production incident location share card.
-- `widgets/dashboard-map` owns dashboard map location/filter/localization/display helpers.
-- `widgets/dashboard-map` owns the dashboard map section composition, dashboard data hook, selected incident detail controller, selected-area bounds hook, and dashboard KPI/chart view-model helpers.
-- `widgets/dashboard-map` owns `IncidentQueue` and its queue item props. The old `components/admin/incident-queue.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
-- `widgets/dashboard-map` owns `IncidentMap`, its map point props, viewport/geolocation logic, popup display helpers, and selected-area/selected-incident map wiring. The old `components/admin/incident-map.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
-- `widgets/dashboard-map` owns `IncidentDetailPanel` UI and helper/controller code as of `7ed88fd`, including tracking URL construction, status update payload/error handling, display/location/status helpers, viewer read-only choices, close-warning decisions, and optimistic-concurrency contracts. The old `components/admin/incident-detail-panel.tsx` bridge was removed after `rg` confirmed no runtime imports remained.
-- `widgets/dashboard-map` owns `IncidentStatusTimeline` because it is only used by the dashboard incident detail panel. The old `components/admin/incident-status-timeline.tsx` component was removed after `rg` confirmed no imports remained.
-- Route files should stay as shells that provide auth/i18n/reference context and compose the appropriate widget.
-- Keep only necessary compatibility bridge/re-export files in `lib/`; run `rg` before removing any bridge and verify build/tests after removal.
-- Further moves should be planned separately. The main dashboard map widget now owns queue, map, and detail panel UI; do not remove compatibility bridges until `rg` confirms there are no old runtime imports and build/tests pass.
-- Do not combine FSD moves with behavior changes unless a test or build error requires it.
-- Generated UI files from shadcn/mapcn should normally stay where their generator expects; summarize usage in docs instead of editing generated files heavily.
+เอกสารเก่าใน `docs/plans` และ `docs/specs` อาจยังพูดถึง path เดิม ให้ถือเป็น historical/spec-only จนกว่าเอกสารนั้นจะบอกว่าเป็น current contract

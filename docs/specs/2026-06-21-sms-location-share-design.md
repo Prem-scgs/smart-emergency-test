@@ -1,34 +1,47 @@
 # SMS Location Share Design
 
+> Historical/spec-only note: เอกสารนี้เก็บ design เก่าของการแชร์ตำแหน่งผ่าน SMS
+> ก่อน production flow ปัจจุบันจะย้ายมาใช้ `features/location-sharing`
+> และ backend `POST /api/incidents/:id/share-attempts`
+
 ## Goal
 
-เปลี่ยนช่องทางแชร์ตำแหน่งใน Mobile จาก Telegram เป็น SMS เพื่อให้ผู้ใช้ทั่วไปเปิดแอปข้อความของเครื่องและส่งตำแหน่งฉุกเฉินได้ทันที
+เดิมต้องการให้ Mobile แชร์ตำแหน่งเหตุฉุกเฉินผ่าน SMS ได้ โดยสร้างข้อความที่มีพื้นที่, พิกัด และ Google Maps URL แล้วเปิด native SMS composer ให้ผู้ใช้กดส่งเอง
 
-## Scope
+## Scope เดิม
 
-- รับ GPS และชื่อพื้นที่จาก `MobileApp` ชุดเดิม
+- รับ GPS และชื่อพื้นที่จาก mobile flow
 - คง LINE และ WhatsApp ไว้
-- แทน Telegram ด้วยปุ่ม SMS
-- เปิด deep link `sms:?body=...` โดยมีข้อความภาษาไทย, พื้นที่, พิกัดหกตำแหน่ง และลิงก์ Google Maps
-- ผู้ใช้เลือกผู้รับและกดส่งเองในแอปข้อความ
-
-## Non-goals
-
+- แทน Telegram ด้วย SMS
+- เปิด deep link `sms:?body=...`
 - ไม่ส่ง SMS อัตโนมัติ
-- ไม่เพิ่ม backend, database, dependency หรือ permission ใหม่
-- ไม่แก้ flow การแจ้งเหตุหรือการโทร
 
-## Data Flow
+## Current Runtime Status
 
-`MobileApp.currentLocation` ส่งให้ `LocationSharingScreen` แล้ว helper กลางสร้าง Google Maps URL และข้อความ SMS จากข้อมูลเดียวกัน ปุ่ม SMS เปิด native composer ผ่าน `window.location.href` เพื่อให้ทำงานใน mobile browser/webview ได้ตรงเจตนา
+ระบบปัจจุบันไม่ได้ใช้ legacy screen/helper ตาม design นี้แล้ว
 
-## Error Handling
+Current owner:
 
-หาก browser ไม่รองรับ SMS URI ระบบจะไม่อ้างว่าส่งสำเร็จ ผู้ใช้ยังคัดลอกพิกัดหรือเปิด Google Maps ได้ตามเดิม
+- UI card: `features/location-sharing/ui/incident-location-share-card.tsx`
+- helper/business logic: `features/location-sharing`
+- backend attempt endpoint: `POST /api/incidents/:id/share-attempts`
+- public channel availability: `GET /api/reference/share-channels`
+- admin channel settings: `GET/PUT /api/admin/share-channels`
 
-## Acceptance Criteria
+## Why Keep This File
 
-1. หน้าแชร์มี LINE, SMS และ WhatsApp เท่านั้น
-2. SMS body มีพื้นที่เมื่อมีข้อมูล, พิกัดหกตำแหน่ง และ Google Maps URL
-3. ไม่มีชื่อ/URL Telegram ใน runtime code ที่เกี่ยวข้องกับการแชร์ตำแหน่ง
-4. tests และ build ผ่านก่อนเสนอ commit
+เก็บไว้เพื่ออธิบายว่าทำไมระบบ location sharing เคยพูดถึง SMS/native composer และเหตุผลที่ production flow ต้องมี fallback/copy message
+
+ถ้าจะแก้ production sharing ตอนนี้ ให้เริ่มจาก:
+
+- [API_CONTRACT.md](../api/API_CONTRACT.md)
+- [ARCHITECTURE_OVERVIEW.md](../architecture/ARCHITECTURE_OVERVIEW.md)
+- `features/location-sharing`
+- `services/emergency-api/src/location-share.ts`
+- `services/emergency-api/src/share-channel-settings.ts`
+
+## Test After Changing Current Flow
+
+- `node --test lib/incident-location-share.test.ts lib/incident-location-share-wiring.test.ts`
+- `node --test lib/location-sharing-wiring.test.ts lib/mobile-tracking.test.ts`
+- `pnpm build`

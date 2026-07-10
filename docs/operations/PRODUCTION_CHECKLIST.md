@@ -4,9 +4,9 @@ Use this file to track production-readiness work without touching the auth imple
 
 ## Current Focus
 
-- Current phase: `Phase 5 - Realtime and Demo Flow Stability`
-- Current task: `Final cleanup/refactor Wave 1 is pushed to Vercel test`
-- Next action: `Run Wave 2 docs status cleanup, then commit/push it to prem/main`
+- Current phase: `Documentation and Production Handoff Readiness`
+- Current task: `Documentation refresh after full refactor/comment pass and Vercel smoke`
+- Next action: `Review updated docs, then commit/push docs-only change when เปรมสั่ง`
 
 ## Status Guide
 
@@ -87,6 +87,8 @@ Use this file to track production-readiness work without touching the auth imple
 ## Verification Log
 
 - Latest known verified items:
+  - Full repository comment pass completed through `b837b1a docs: comment regression test contracts`; Vercel smoke was reported passed after the comment pass.
+  - Documentation audit found README/RUNBOOK/FSD/API/env coverage gaps; this docs refresh is the current handoff-readiness task.
   - Vercel test demo passed after Cloudflare tunnel CORS/rewrite fix: iPhone mobile Call created a new incident and Admin saw it through polling fallback
   - `020_incident_case_number.sql` added `caseNumber` display ids and was verified on Vercel test flow
   - Viewer role was narrowed to read-only/passive realtime behavior
@@ -143,9 +145,10 @@ Use this file to track production-readiness work without touching the auth imple
 
 Vercel test note:
 
-- The test frontend is deployed on Vercel, but the Fastify API and PostgreSQL/PostGIS database still run from เปรม's machine through the Cloudflare tunnel. If that machine, Docker API, DB, or cloudflared is off, the Vercel frontend can load while live API data fails.
+- The test frontend is deployed on Vercel, but the Fastify API and PostgreSQL/PostGIS database still run from เปรม's machine through the Cloudflare tunnel/custom domain. Current API domain used by the team is `https://emer-api.scgs-ai.com`. If that machine, Docker API, DB, or cloudflared is off, the Vercel frontend can load while live API data fails.
 
 ## Notes
 
 - Do not push auth implementation into this checklist unless the team hands off that scope.
 - Update `Current Focus` and the checkbox state before ending each session.
+- Keep long historical verification details here only when they help future debugging; current setup/API/env details should live in README, RUNBOOK, ENVIRONMENT, and API_CONTRACT instead of being duplicated in every log entry.

@@ -2,6 +2,9 @@
 
 Backend microservice for the Smart Emergency dashboard.
 
+For the frontend/backend contract, read
+[`docs/api/API_CONTRACT.md`](../../docs/api/API_CONTRACT.md).
+
 ## Why This Is Separate From Next.js
 
 Next.js can serve APIs, but this project is learning toward microservices. Keeping `emergency-api` as its own package gives the backend its own runtime, dependencies, database connection, routes, and deployment boundary.
@@ -93,6 +96,16 @@ GET    /api/incidents/map-points
 
 GET    /api/reports/summary
 GET    /api/events
+
+GET    /api/reference/categories
+GET    /api/reference/provinces
+GET    /api/reference/districts
+GET    /api/reference/share-channels
+
+GET    /api/admin/organization-settings
+PUT    /api/admin/organization-settings
+GET    /api/admin/share-channels
+PUT    /api/admin/share-channels
 ```
 
 ## Current Runtime Flows
@@ -133,6 +146,15 @@ Current auth is a demo boundary, not production authentication.
 The Vercel frontend points to this local Fastify API through a Cloudflare
 tunnel. If the local machine, Docker API, database, or tunnel is stopped, the
 Vercel frontend can still load but API data will be unavailable.
+
+Current test API domain used by the team is:
+
+```text
+https://emer-api.scgs-ai.com
+```
+
+Do not put real tunnel tokens, real phone numbers, or private recipients in
+this repository. Use environment variables or admin settings instead.
 
 ## Learning Path
 
