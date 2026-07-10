@@ -4,6 +4,17 @@ import { NotificationProvider } from '@/features/incident-alert/model/notificati
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Provider stack สำหรับ admin ทั้งหมด
+ *
+ * ลำดับนี้สำคัญ:
+ * - AuthProvider ให้ user/role scope
+ * - AdminI18nProvider ใช้ preference ภาษาใน admin
+ * - NotificationProvider เปิด SSE หลัง auth พร้อม และ filter alert ตาม role
+ *
+ * ถ้าแก้ลำดับ provider ต้องทดสอบ viewer passive alert, notification center
+ * และหน้า settings ที่เปลี่ยนภาษา/เสียง alert.
+ */
 export default function AdminRootLayout({
   children,
 }: {

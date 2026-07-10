@@ -52,6 +52,17 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
+/**
+ * Root layout ของทั้ง mobile และ admin
+ *
+ * Flow สำคัญ:
+ * - ThemeProvider ครอบทุกหน้า เพราะ admin/mobile ใช้ class dark/light ร่วมกัน
+ * - Toaster อยู่ระดับ root เพื่อให้ toast จาก widget/feature ใดก็แสดงได้
+ * - Analytics เปิดเฉพาะ production เพื่อไม่ให้ local/test มี side effect เกินจำเป็น
+ *
+ * ถ้าแก้ provider stack ตรงนี้ต้อง smoke ทั้ง mobile create incident และ admin dashboard
+ * เพราะทั้งสอง flow แชร์ font, theme และ toast host เดียวกัน.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{

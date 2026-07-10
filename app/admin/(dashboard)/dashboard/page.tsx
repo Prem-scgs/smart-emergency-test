@@ -11,6 +11,15 @@ import {
 } from '@/shared/location'
 import { DashboardMapSection } from '@/widgets/dashboard-map'
 
+/**
+ * Dashboard route ยังทำหน้าที่ประกอบ context ที่เป็น cross-cutting เท่านั้น
+ *
+ * ข้อมูล auth, ภาษา, reference category/location ถูกส่งเข้า `DashboardMapSection`
+ * เพื่อให้ widget เป็นเจ้าของ map/queue/detail/realtime refresh flow จริง ๆ.
+ *
+ * ถ้าแก้ props ที่ส่งเข้าวิดเจ็ตนี้ ต้องทดสอบ role scope, location search,
+ * selected area bounds และ alert/queue/map/detail ว่าเปิดเคสเดียวกัน.
+ */
 export default function DashboardPage() {
   const { user, canViewAllAgencies, getFilteredCategories, getUserAgency } = useAuth()
   const { language, t } = useAdminI18n()
