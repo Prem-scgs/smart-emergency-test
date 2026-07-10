@@ -1,3 +1,6 @@
+/**
+ * ???? incident status workflow rules ???? next status, backward reason ??? close summary.
+ */
 import assert from "node:assert/strict";
 import test from "node:test";
 

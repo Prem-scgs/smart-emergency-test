@@ -1,3 +1,6 @@
+/**
+ * ???? backend location share helper ???? fixed recipient URL, masking ??? share availability.
+ */
 import test from "node:test";
 import assert from "node:assert/strict";
 

@@ -1,3 +1,6 @@
+/**
+ * ???? API base URL fallback ??????? local, Vercel rewrite ??? external tunnel env.
+ */
 import assert from 'node:assert/strict'
 import test from 'node:test'
 

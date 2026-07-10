@@ -1,3 +1,6 @@
+/**
+ * ???? auth restore/session behavior ????????? reject legacy operator session.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

@@ -1,3 +1,6 @@
+/**
+ * ???? NotificationProvider contract ???? unread, alert queue ??? visibility filtering.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

@@ -1,3 +1,6 @@
+/**
+ * ???? display helper ??? incident ???? case number fallback ??? description filtering.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

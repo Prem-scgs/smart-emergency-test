@@ -1,3 +1,6 @@
+/**
+ * ???? realtime admin wiring ??????? SSE, notification provider, alert popup ??? viewer passive behavior.
+ */
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'

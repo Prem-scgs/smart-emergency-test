@@ -1,3 +1,6 @@
+/**
+ * ???? env parsing/default/validation ??? emergency API runtime.
+ */
 import test from "node:test";
 import assert from "node:assert/strict";
 

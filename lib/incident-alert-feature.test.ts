@@ -1,3 +1,6 @@
+/**
+ * ???? artifact/visibility ??? incident-alert feature ???????? viewer passive ??? agency category scope.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

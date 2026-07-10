@@ -1,3 +1,6 @@
+/**
+ * ???? formatter ??? reports widget ???? number/percent/date/CSV/chart config.
+ */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 

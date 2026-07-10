@@ -1,3 +1,6 @@
+/**
+ * ???? contacts CRUD scope guard ?????? agency_admin/viewer ??? category ownership.
+ */
 import test from "node:test";
 import assert from "node:assert/strict";
 

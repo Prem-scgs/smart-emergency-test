@@ -1,3 +1,6 @@
+/**
+ * ???? helper geometry/display ??? area entity ??? GIS ??? dashboard map ??????????.
+ */
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { MultiPolygon, Polygon } from 'geojson'

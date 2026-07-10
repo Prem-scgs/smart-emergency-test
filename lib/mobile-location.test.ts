@@ -1,3 +1,6 @@
+/**
+ * ???? helper location ??? mobile incident ???? status message/failure state.
+ */
 import assert from 'node:assert/strict'
 import test from 'node:test'
 

@@ -1,3 +1,6 @@
+/**
+ * ???? mobile incident payload builder ??? reporter phone normalization ??????? API.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

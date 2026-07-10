@@ -1,3 +1,6 @@
+/**
+ * ???? mobile tracking URL/SSE URL ??? scope ???? incident ??? reporter session.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

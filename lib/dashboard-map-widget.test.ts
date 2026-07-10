@@ -1,3 +1,6 @@
+/**
+ * ???? view-model/filter/localization ??? dashboard map ???????? queue, markers ??? KPI/chart.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 

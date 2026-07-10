@@ -1,3 +1,6 @@
+/**
+ * ???? GIS area routes ???? standardized 404, audit log ??? viewer write guard.
+ */
 import test from "node:test";
 import assert from "node:assert/strict";
 
