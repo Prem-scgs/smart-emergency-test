@@ -1,101 +1,96 @@
 # Environment Guide
 
-เอกสารนี้สรุป env ที่ทีมต้องตั้งเวลา run local, Docker, Vercel และ Cloudflare tunnel/custom domain
+เอกสารนี้บอกว่าแต่ละ environment ใช้ค่าใด และแก้ตรงไหนจึงกระทบ frontend, API หรือ realtime จริง ค่าใช้งานจริงต้องอยู่ใน Vercel Environment Variables, host secret manager หรือไฟล์ `.env` ที่ถูก ignore เท่านั้น
 
-ห้าม commit secret, tunnel token, เบอร์จริง หรือ personal data ลง repo
+`.env.example` และ `services/emergency-api/.env.example` เป็น checklist สำหรับคนตั้งระบบใหม่ ไม่ใช่ไฟล์ที่ runtime โหลดโดยตรง และต้องไม่มี secret, Cloudflare token, เบอร์โทรจริง หรือ database credential ของระบบจริง
 
-## Local Frontend + Local API
+## 1. Cloud-First Runtime ของทีม
 
-ใช้ตอน dev บนเครื่องเดียวกัน:
+| ส่วน | ค่าใช้งานปัจจุบัน | ผลกระทบเมื่อหยุดทำงาน |
+| --- | --- | --- |
+| Frontend test | `https://smart-emergency-test.vercel.app` | ผู้ใช้เปิด UI ไม่ได้ถ้า Vercel มีปัญหา |
+| API domain | `https://emer-api.scgs-ai.com` | REST, admin data และ mobile tracking ใช้งานไม่ได้ |
+| API/DB | Docker/host machine ของทีม | API health, data, GIS และ write flow ใช้งานไม่ได้ |
+| Tunnel | Cloudflare named tunnel/custom domain | Vercel ไปไม่ถึง API และมักเห็น Error 1033 |
 
-```env
-EMERGENCY_API_INTERNAL_URL=http://127.0.0.1:4000
-NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL=
-NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL=
-```
-
-Frontend จะเรียก REST ผ่าน `/emergency-api/*` แล้ว Next rewrite ไปหา `EMERGENCY_API_INTERNAL_URL`
-
-SSE local จะ fallback ไป `http://localhost:4000` จาก helper ใน `shared/config`
-
-## Backend API
-
-ตั้งใน `services/emergency-api/.env`:
-
-```env
-PORT=4000
-DATABASE_URL=postgres://emergency:emergency_dev@localhost:5432/smart_emergency
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-```
-
-`CORS_ORIGINS` เป็น comma-separated allowlist ถ้ายังใช้ `CORS_ORIGIN` เดี่ยว backend ยังรองรับ fallback อยู่ แต่ควรใช้ `CORS_ORIGINS` เมื่อมีหลาย frontend origin
-
-## Docker Local
-
-ถ้า backend รันใน Docker network ให้ใช้ DB host เป็น `db`:
-
-```env
-DATABASE_URL=postgres://emergency:emergency_dev@db:5432/smart_emergency
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://web:3000
-```
-
-ถ้าแก้ port หรือ service name ใน Docker ต้องทดสอบ `pnpm db:up`, `pnpm db:migrate`, `pnpm dev:api` และ `/health`
-
-## Vercel Test + Cloudflare/API Domain
-
-Vercel test ปัจจุบันใช้ frontend:
-
-```text
-https://smart-emergency-test.vercel.app
-```
-
-API domain/tunnel ที่ทีมใช้:
-
-```text
-https://emer-api.scgs-ai.com
-```
-
-Vercel frontend ควรตั้ง:
+ตั้งใน Vercel Environment Variables ของ deployment test:
 
 ```env
 NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL=https://emer-api.scgs-ai.com
 NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL=https://emer-api.scgs-ai.com
 ```
 
-เหตุผลที่แยก 2 ค่า:
+ค่าแรกให้ Next.js rewrite REST/polling จาก `/emergency-api/*` ไป API domain จึงลด CORS ฝั่ง browser ได้ ส่วนค่าที่สองใช้กับ `EventSource` โดยตรง เพราะ SSE เป็น connection ระยะยาวและไม่ควรอาศัย fallback localhost
 
-- REST/polling บน Vercel ใช้ same-origin rewrite `/emergency-api/*` เพื่อลด CORS
-- SSE/EventSource ต้องใช้ absolute API URL เพราะเป็น long-lived connection และบาง proxy/tunnel จัดการต่างจาก REST
+ห้ามตั้ง `EMERGENCY_API_INTERNAL_URL` บน Vercel เป็น `localhost`, `127.0.0.1` หรือ `http://api:4000`; ค่าเหล่านั้นอ้างถึงเครื่อง/container ของ Vercel เอง ไม่ใช่เครื่อง host API ของทีม
 
-อย่าตั้ง `EMERGENCY_API_INTERNAL_URL` บน Vercel เป็น `localhost`, `127.0.0.1`, หรือ `http://api:4000` เพราะ Vercel จะมองเป็นเครื่องของ Vercel เอง ไม่ใช่เครื่องเปรม
+## 2. API Host / Docker
 
-## Share Channel Settings
-
-Backend รองรับ env fallback สำหรับช่องทางแชร์ตำแหน่ง:
+ตั้งค่าจริงใน `services/emergency-api/.env` หรือ secret manager ของ host:
 
 ```env
-LINE_OA_ID=@smartemergency
-SMS_CENTER_PHONE=0812345678
-WHATSAPP_CENTER_PHONE=66812345678
+PORT=4000
+DATABASE_URL=postgres://<db-user>:<db-password>@<db-host>:5432/<db-name>
+CORS_ORIGINS=https://smart-emergency-test.vercel.app
 ```
 
-ถ้าใน settings page มีค่า DB แล้ว DB จะมาก่อน env fallback ห้ามใส่เบอร์จริงใน repo
+`CORS_ORIGINS` เป็น comma-separated allowlist ใช้เมื่อ browser เรียก API ข้าม origin ถ้าเพิ่ม domain frontend ใหม่แล้วลืมค่านี้ จะเห็น CORS failure แม้ `/health` จะยังตอบปกติ
 
-## Troubleshooting Env
+ระบบ share location รองรับ env fallback ต่อไปนี้เมื่อ System Settings ใน DB ยังไม่มีค่า override:
 
-ถ้า frontend เปิดได้แต่ข้อมูลไม่มา:
+```env
+LINE_OA_ID=@your-line-oa
+SMS_CENTER_PHONE=<international-phone-number>
+WHATSAPP_CENTER_PHONE=<international-phone-number>
+```
 
-1. เช็ก `https://emer-api.scgs-ai.com/health`
-2. เช็ก `https://smart-emergency-test.vercel.app/emergency-api/health`
-3. เช็ก Docker/API/DB/cloudflared บนเครื่องที่ host API
-4. เช็ก Vercel env ว่า `NEXT_PUBLIC_EMERGENCY_API_EXTERNAL_URL` และ `NEXT_PUBLIC_EMERGENCY_EVENTS_EXTERNAL_URL` ชี้ domain เดียวกันหรือไม่
+ค่าเหล่านี้มีผลต่อช่องทางแชร์ตำแหน่งของ mobile เท่านั้น และไม่ควรใส่ข้อมูลจริงใน template หรือ Git
 
-ถ้าเจอ Cloudflare Error 1033 แปลว่า Cloudflare resolve tunnel ไม่ได้ ให้เช็กว่า cloudflared ยังรันและผูกกับ domain ถูก tunnel อยู่
+เมื่อแก้ source ของ API แต่ Docker ยังรัน image เก่า ต้อง rebuild/recreate เฉพาะ API:
 
-ถ้าแก้ env ต้องทดสอบ:
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.local.yml build api
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d api
+```
 
-- API health
-- mobile create incident
-- admin alert/queue/map/detail
-- viewer read-only/passive
-- SSE หรือ polling fallback
+คำสั่งนี้ไม่ลบ database volume แต่ควรตรวจ `https://emer-api.scgs-ai.com/health` และ endpoint ที่เพิ่งแก้หลัง container กลับมา
+
+## 3. Local Fallback สำหรับ Debug
+
+ใช้เฉพาะเมื่อจำเป็นต้อง debug เครื่องเดียวหรือ replay migration:
+
+```env
+# root .env สำหรับ Next.js
+EMERGENCY_API_INTERNAL_URL=http://127.0.0.1:4000
+
+# services/emergency-api/.env สำหรับ Fastify
+PORT=4000
+DATABASE_URL=postgres://emergency:emergency_dev@localhost:5432/smart_emergency
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+```
+
+Local REST จะวิ่งผ่าน Next rewrite และ local SSE จะ fallback ไป `http://localhost:4000` จาก `shared/config/emergency-api.ts`
+
+สำหรับ Docker local API ใช้ service name `db` และ web ใช้ `api`:
+
+```env
+DATABASE_URL=postgres://emergency:emergency_dev@db:5432/smart_emergency
+EMERGENCY_API_INTERNAL_URL=http://api:4000
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://web:3000
+```
+
+`docker-compose.local.yml` มีค่าหลักสำหรับ local stack อยู่แล้ว อย่าคัดลอกค่าจาก Docker ไปใช้บน Vercel
+
+## 4. Troubleshooting
+
+เมื่อ Vercel เปิดได้แต่ข้อมูลหาย ให้ตรวจตามลำดับ:
+
+1. เปิด `https://emer-api.scgs-ai.com/health`
+2. เปิด `https://smart-emergency-test.vercel.app/emergency-api/health`
+3. ตรวจ API container/process และ DB บนเครื่อง host
+4. ตรวจ cloudflared/named tunnel ว่ายัง online และ hostname ชี้ tunnel ที่ถูกต้อง
+5. ตรวจ Vercel variables สองตัวให้ชี้ `https://emer-api.scgs-ai.com`
+
+Cloudflare Error 1033 หมายถึง Cloudflare หา connector ของ tunnel ไม่เจอ ไม่ใช่ frontend bug โดยตรง ให้ตรวจ cloudflared, network ของเครื่อง host, API health และการผูก hostname กับ tunnel ก่อนแก้โค้ด
+
+หลังเปลี่ยน env ให้ทดสอบอย่างน้อย API health, mobile create incident, admin alert/queue/map/detail, viewer read-only/passive และ SSE หรือ polling fallback
