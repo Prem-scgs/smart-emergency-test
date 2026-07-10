@@ -16,7 +16,12 @@ export interface ReportSummary {
   }
   byStatus: Array<{ status: string; count: number }>
   byCategory: Array<{ category: string; count: number }>
-  byArea: Array<{ areaName: string; count: number }>
+  byArea: Array<{
+    provinceCode?: string | null
+    districtCode?: string | null
+    areaName: string
+    count: number
+  }>
   trend: Array<{ bucket: string; count: number; closedCount: number }>
 }
 

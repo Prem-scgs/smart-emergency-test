@@ -57,6 +57,7 @@ import { buildAdminApiHeaders } from "@/shared/api/admin-api"
 import { useAdminI18n } from "@/shared/i18n/admin"
 import { useAuth } from "@/shared/auth"
 import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api"
+import { useLocationLookupMaps } from "@/shared/location"
 import { buildAdminCategoryCollections, useReferenceCategories } from "@/shared/reference"
 import type { ReportCopy, ReportRange, ReportSummary } from "../model/types"
 import {
@@ -67,6 +68,7 @@ import {
   formatNumber,
   formatPercent,
   getChartConfig,
+  localizeReportSummaryAreas,
 } from "../lib/format"
 import { buildPdfReportPages, buildPrintableReportHtml } from "../lib/export"
 
@@ -77,6 +79,7 @@ export default function ReportsPage() {
   const preferThai = language !== "en"
   const { user, canViewAllAgencies, getUserAgency } = useAuth()
   const { categories: referenceCategories } = useReferenceCategories()
+  const { provinceByCode, districtByCode } = useLocationLookupMaps()
   const [dateRange, setDateRange] = useState<ReportRange>("month")
   const [reportSummary, setReportSummary] = useState<ReportSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -152,6 +155,11 @@ export default function ReportsPage() {
       color: categoryColors[index % categoryColors.length],
     }))
   }, [categoryLabelMap, reportSummary])
+  const localizedReportSummary = useMemo<ReportSummary | null>(() => {
+    if (!reportSummary) return null
+
+    return localizeReportSummaryAreas(reportSummary, provinceByCode, districtByCode, preferThai)
+  }, [districtByCode, preferThai, provinceByCode, reportSummary])
 
   /**
    * โหลด summary report ตาม role scope ของ admin ปัจจุบัน
@@ -185,7 +193,7 @@ export default function ReportsPage() {
    * ใส่ BOM (`\uFEFF`) เพื่อให้ Excel เปิดภาษาไทยได้ถูก encoding
    */
   const exportReportCsv = useCallback(() => {
-    if (!reportSummary) {
+    if (!localizedReportSummary) {
       toast.error(t("reportsNoDataToExport"))
       return
     }
@@ -194,26 +202,26 @@ export default function ReportsPage() {
       ...buildCsvSection("Smart Emergency Report", [
         [t("reportsDateRange"), reportRangeLabels[dateRange]],
         [t("reportsDataScope"), scopeLabel],
-        [t("reportsTotalIncidents"), reportSummary.totals.totalIncidents],
-        [t("reportsActiveIncidents"), reportSummary.totals.activeIncidents],
-        [t("reportsClosedCases"), reportSummary.totals.closedIncidents],
-        [t("reportsConnectedCalls"), reportSummary.totals.connectedCalls],
+        [t("reportsTotalIncidents"), localizedReportSummary.totals.totalIncidents],
+        [t("reportsActiveIncidents"), localizedReportSummary.totals.activeIncidents],
+        [t("reportsClosedCases"), localizedReportSummary.totals.closedIncidents],
+        [t("reportsConnectedCalls"), localizedReportSummary.totals.connectedCalls],
       ]),
       ...buildCsvSection(t("reportsTrendTitle"), [
         [t("reportsTableDate"), t("reportsTotalIncidents"), t("reportsClosedCases")],
-        ...reportSummary.trend.map(item => [item.bucket, item.count, item.closedCount]),
+        ...localizedReportSummary.trend.map(item => [item.bucket, item.count, item.closedCount]),
       ]),
       ...buildCsvSection(t("reportsCurrentStatus"), [
         [t("reportsStatusColumn"), t("reportsCountColumn")],
-        ...reportSummary.byStatus.map(item => [statusLabels[item.status] ?? item.status, item.count]),
+        ...localizedReportSummary.byStatus.map(item => [statusLabels[item.status] ?? item.status, item.count]),
       ]),
       ...buildCsvSection(t("reportsCategoryTab"), [
         [t("reportsCategoryTab"), t("reportsCountColumn")],
-        ...reportSummary.byCategory.map(item => [categoryLabelMap[item.category] ?? item.category, item.count]),
+        ...localizedReportSummary.byCategory.map(item => [categoryLabelMap[item.category] ?? item.category, item.count]),
       ]),
       ...buildCsvSection(t("reportsAreaTab"), [
         [t("reportsAreaTab"), t("reportsCountColumn")],
-        ...reportSummary.byArea.map(item => [item.areaName, item.count]),
+        ...localizedReportSummary.byArea.map(item => [item.areaName, item.count]),
       ]),
     ]
 
@@ -228,7 +236,7 @@ export default function ReportsPage() {
     link.remove()
     URL.revokeObjectURL(url)
     toast.success(t("reportsCsvExported"))
-  }, [categoryLabelMap, dateRange, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
+  }, [categoryLabelMap, dateRange, localizedReportSummary, reportRangeLabels, scopeLabel, statusLabels, t])
 
   /**
    * Export PDF ด้วย offscreen HTML snapshot
@@ -237,12 +245,12 @@ export default function ReportsPage() {
    * เพื่อให้ PDF/print อ่านได้เสมอแม้ admin เปิด dark mode
    */
   const exportReportPdf = useCallback(async () => {
-    if (!reportSummary) {
+    if (!localizedReportSummary) {
       toast.error(t("reportsNoDataToExport"))
       return
     }
 
-    const pdfPages = buildPdfReportPages(reportSummary, reportRangeLabels[dateRange], scopeLabel, language, statusLabels, categoryLabelMap, reportCopy)
+    const pdfPages = buildPdfReportPages(localizedReportSummary, reportRangeLabels[dateRange], scopeLabel, language, statusLabels, categoryLabelMap, reportCopy)
     try {
       setIsExportingPdf(true)
       const [{ default: html2canvas }, jsPdfModule] = await Promise.all([
@@ -280,7 +288,7 @@ export default function ReportsPage() {
       }
       setIsExportingPdf(false)
     }
-  }, [categoryLabelMap, dateRange, language, reportCopy, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
+  }, [categoryLabelMap, dateRange, language, localizedReportSummary, reportCopy, reportRangeLabels, scopeLabel, statusLabels, t])
 
   /**
    * Print report ผ่าน print-only DOM แทนเปิด window ใหม่
@@ -288,16 +296,16 @@ export default function ReportsPage() {
    * วิธีนี้เลี่ยง popup blocker และคงสีเอกสารเป็น light document ตาม requirement ของรายงาน
    */
   const printReport = useCallback(() => {
-    if (!reportSummary) {
+    if (!localizedReportSummary) {
       toast.error(t("reportsNoDataToExport"))
       return
     }
 
-    setPrintReportHtml(buildPrintableReportHtml(reportSummary, reportRangeLabels[dateRange], scopeLabel, language, statusLabels, categoryLabelMap, reportCopy))
+    setPrintReportHtml(buildPrintableReportHtml(localizedReportSummary, reportRangeLabels[dateRange], scopeLabel, language, statusLabels, categoryLabelMap, reportCopy))
     window.setTimeout(() => {
       window.print()
     }, 250)
-  }, [categoryLabelMap, dateRange, language, reportCopy, reportRangeLabels, reportSummary, scopeLabel, statusLabels, t])
+  }, [categoryLabelMap, dateRange, language, localizedReportSummary, reportCopy, reportRangeLabels, scopeLabel, statusLabels, t])
 
   useEffect(() => {
     void loadReports()
@@ -641,7 +649,7 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(reportSummary?.byArea ?? []).map((area, index) => (
+                  {(localizedReportSummary?.byArea ?? []).map((area, index) => (
                     <TableRow key={area.areaName}>
                       <TableCell>
                         <Badge variant="outline">{index + 1}</Badge>
@@ -650,7 +658,7 @@ export default function ReportsPage() {
                       <TableCell className="text-right">{formatNumber(area.count, language)}</TableCell>
                     </TableRow>
                   ))}
-                  {!isLoading && (reportSummary?.byArea.length ?? 0) === 0 && (
+                  {!isLoading && (localizedReportSummary?.byArea.length ?? 0) === 0 && (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center text-muted-foreground">
                         {t("reportsNoAreaData")}

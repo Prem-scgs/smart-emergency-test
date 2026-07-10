@@ -93,11 +93,13 @@ export async function registerIncidentReportRoutes(app: FastifyInstance) {
     const areaResult = await pool.query(
       `
         SELECT
+          i.province_code,
+          i.district_code,
           COALESCE(NULLIF(CONCAT_WS(' ', i.district, i.province), ''), 'ไม่ระบุพื้นที่') AS area_name,
           COUNT(*)::int AS count
         FROM incidents i
         ${whereClause}
-        GROUP BY area_name
+        GROUP BY i.province_code, i.district_code, area_name
         ORDER BY count DESC, area_name
         LIMIT 10
       `,
@@ -137,6 +139,8 @@ export async function registerIncidentReportRoutes(app: FastifyInstance) {
         count: numberFromRow(row.count),
       })),
       byArea: areaResult.rows.map((row) => ({
+        provinceCode: row.province_code ?? null,
+        districtCode: row.district_code ?? null,
         areaName: row.area_name,
         count: numberFromRow(row.count),
       })),

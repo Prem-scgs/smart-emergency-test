@@ -1866,7 +1866,17 @@ test("GET /api/reports/summary returns DB-backed report summary for super admin"
       return { rowCount: 1, rows: [{ category: "medical", count: 3 }] };
     }
     if (sql.includes("area_name")) {
-      return { rowCount: 1, rows: [{ area_name: "Mueang Phitsanulok Phitsanulok", count: 3 }] };
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            province_code: "65",
+            district_code: "6501",
+            area_name: "Mueang Phitsanulok Phitsanulok",
+            count: 3,
+          },
+        ],
+      };
     }
     return { rowCount: 1, rows: [{ bucket: "2026-06-27", count: 3, closed_count: 1 }] };
   };
@@ -1887,6 +1897,14 @@ test("GET /api/reports/summary returns DB-backed report summary for super admin"
       connectedCalls: 2,
     });
     assert.deepEqual(result.byCategory, [{ category: "medical", count: 3 }]);
+    assert.deepEqual(result.byArea, [
+      {
+        provinceCode: "65",
+        districtCode: "6501",
+        areaName: "Mueang Phitsanulok Phitsanulok",
+        count: 3,
+      },
+    ]);
     assert.equal(calls.length, 5);
     assert.equal(calls[0]?.values[0], "30 days");
   } finally {

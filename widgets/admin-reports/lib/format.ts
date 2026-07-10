@@ -4,6 +4,14 @@
  * ใช้ร่วมกันทั้ง UI, CSV และ PDF/print เพื่อให้ตัวเลข/เปอร์เซ็นต์/วันที่แสดงตรงกัน
  * ถ้าแก้ต้องทดสอบ export กับ chart labels ด้วย.
  */
+import type { ReportSummary } from "../model/types"
+
+interface ReportLocationLabel {
+  name: string
+  nameTh?: string | null
+  nameEn?: string | null
+}
+
 export function getChartConfig(totalLabel: string, closedLabel: string) {
   return {
     count: { label: totalLabel, color: "var(--chart-1)" },
@@ -46,4 +54,45 @@ export function buildCsvSection(title: string, rows: Array<Array<string | number
     ...rows,
     [],
   ]
+}
+
+function getReportLocationDisplayName(
+  item: ReportLocationLabel | null | undefined,
+  preferThai: boolean
+) {
+  if (!item) return ""
+  return preferThai
+    ? item.nameTh ?? item.nameEn ?? item.name
+    : item.nameEn ?? item.nameTh ?? item.name
+}
+
+/**
+ * แปลงชื่อพื้นที่ใน report summary ให้ตรงกับภาษา admin
+ *
+ * Backend group ข้อมูลจาก incident rows และส่ง code พื้นที่มาด้วย ส่วน widget ใช้
+ * province/district master data แทนชื่อ raw จาก incident เพื่อไม่ให้หน้าไทยแสดง Bangkok/Huai Khwang ปน.
+ */
+export function localizeReportSummaryAreas(
+  report: ReportSummary,
+  provinceByCode: Record<string, ReportLocationLabel>,
+  districtByCode: Record<string, ReportLocationLabel>,
+  preferThai: boolean
+): ReportSummary {
+  return {
+    ...report,
+    byArea: report.byArea.map(area => {
+      const province = area.provinceCode
+        ? getReportLocationDisplayName(provinceByCode[area.provinceCode], preferThai)
+        : ""
+      const district = area.districtCode
+        ? getReportLocationDisplayName(districtByCode[area.districtCode], preferThai)
+        : ""
+      const localizedAreaName = [district, province].filter(Boolean).join(" ")
+
+      return {
+        ...area,
+        areaName: localizedAreaName || area.areaName,
+      }
+    }),
+  }
 }

@@ -254,11 +254,8 @@ export default function GisPage() {
     const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
     if (!keyword || isDistrictLoading || filteredDistricts.length === 0) return
 
-    const matchedArea = filteredDistricts[0]
-    if (matchedArea.id !== selectedArea?.id) {
-      setSelectedArea(matchedArea)
-    }
-  }, [filteredDistricts, isDistrictLoading, searchTerm, selectedArea?.id])
+    setSelectedArea(filteredDistricts[0])
+  }, [filteredDistricts, isDistrictLoading, searchTerm])
 
   const matchedProvince = useMemo(() => {
     const keyword = searchTerm.trim().toLocaleLowerCase('th-TH').normalize('NFC')
