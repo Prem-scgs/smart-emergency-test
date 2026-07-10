@@ -11,6 +11,12 @@ import {
   type ResolvedShareChannels,
 } from "../../share-channel-settings.js";
 
+/**
+ * Admin share channel routes
+ *
+ * กระทบตาราง `system_settings` สำหรับ LINE/SMS/WhatsApp recipient และใช้ env เป็น fallback
+ * ถ้าแก้ต้องทดสอบ settings page กับ mobile incident location share card.
+ */
 const channelUpdate = z.object({
   enabled: z.boolean(),
   recipientValue: z.string().trim().min(1).nullable().optional(),
@@ -186,4 +192,3 @@ export async function registerAdminShareChannelRoutes(app: FastifyInstance) {
     };
   });
 }
-

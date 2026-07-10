@@ -1,5 +1,23 @@
 import { pool } from "./db.js";
 
+/**
+ * Audit log writer สำหรับ action สำคัญของ admin/API
+ *
+ * เขียนลงตาราง `audit_logs` แต่ตั้งใจไม่ทำให้ request หลัก fail ถ้า audit เขียนไม่สำเร็จ
+ * เพราะ action เช่น update status/contact save ไม่ควร rollback แค่เพราะ logging ล้ม.
+ */
+/**
+ * Audit log writer สำหรับ action สำคัญของ admin/API
+ *
+ * เขียนลงตาราง `audit_logs` แต่ตั้งใจไม่ทำให้ request หลัก fail ถ้า audit เขียนไม่สำเร็จ
+ * เพราะ action เช่น update status/contact save ไม่ควร rollback แค่เพราะ logging ล้ม.
+ */
+/**
+ * Audit log writer สำหรับ action สำคัญของ admin/API
+ *
+ * เขียนลงตาราง `audit_logs` แต่ตั้งใจไม่ทำให้ request หลัก fail ถ้า audit เขียนไม่สำเร็จ
+ * เพราะ action เช่น update status/contact save ไม่ควร rollback แค่เพราะ logging ล้ม.
+ */
 type RequestLike = {
   id: string;
   ip?: string;

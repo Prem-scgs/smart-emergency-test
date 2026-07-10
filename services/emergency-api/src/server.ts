@@ -17,6 +17,12 @@ import {
   registerObservability,
 } from "./observability.js";
 
+/**
+ * Fastify composition root ของ emergency API
+ *
+ * จุดนี้ register CORS, observability, error handler และทุก route module
+ * ถ้าแก้ต้องทดสอบ health, incidents, contacts, areas, reference และ admin settings.
+ */
 const app = Fastify({
   logger: true,
 });

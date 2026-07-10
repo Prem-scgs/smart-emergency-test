@@ -6,6 +6,12 @@ import {
 } from "../../admin-scope.js";
 import { buildApiErrorPayload } from "../../api-error.js";
 
+/**
+ * Helper contract ของ contacts routes
+ *
+ * รวม schema, query builder และ scope guard เพื่อให้ CRUD ทุก endpoint ใช้กติกาเดียวกัน:
+ * super_admin เห็น/จัดการทุกหมวด ส่วน agency_admin/viewer ถูกจำกัดตาม category.
+ */
 export const contactBody = z.object({
   name: z.string().min(1),
   phone: z.string().min(1),

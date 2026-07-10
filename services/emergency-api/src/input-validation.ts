@@ -5,6 +5,12 @@ import { pool } from "./db.js";
 const phonePattern = /^\+?[0-9][0-9()\-\s]{7,31}$/;
 const emergencyShortCodePattern = /^[0-9]{3,5}$/;
 
+/**
+ * Validation helper กลางของ API input
+ *
+ * ใช้กับ contacts/incidents/share flows เพื่อ normalize error payload และตรวจว่า
+ * category/contact/phone ยัง active ก่อนเขียน DB.
+ */
 type QueryExecutor = (
   queryText: string,
   values?: unknown[]

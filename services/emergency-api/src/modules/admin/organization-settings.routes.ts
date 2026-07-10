@@ -5,6 +5,12 @@ import { getMockAdminScope } from "../../admin-scope.js";
 import { writeAuditLog } from "../../audit-log.js";
 import { pool } from "../../db.js";
 
+/**
+ * Admin organization settings routes
+ *
+ * กระทบตาราง `system_settings` และ frontend admin shell จะ refresh หลัง save
+ * เฉพาะ super_admin เท่านั้นที่อ่าน/บันทึกค่าชุดนี้ได้.
+ */
 const defaultOrganizationSettings = {
   systemName: "Smart Emergency Platform",
   organizationName: "ศูนย์บัญชาการเหตุฉุกเฉิน",

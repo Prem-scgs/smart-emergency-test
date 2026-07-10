@@ -1,6 +1,24 @@
 import "dotenv/config";
 import { z } from "zod";
 
+/**
+ * Runtime config validation ของ emergency API
+ *
+ * ใช้ zod บังคับ env สำคัญก่อน server start เช่น DATABASE_URL, CORS, share channels
+ * ถ้าแก้ default ต้องทดสอบ Docker local, Vercel tunnel และ settings/share-channel flow.
+ */
+/**
+ * Runtime config validation ของ emergency API
+ *
+ * ใช้ zod บังคับ env สำคัญก่อน server start เช่น DATABASE_URL, CORS, share channels
+ * ถ้าแก้ default ต้องทดสอบ Docker local, Vercel tunnel และ settings/share-channel flow.
+ */
+/**
+ * Runtime config validation ของ emergency API
+ *
+ * ใช้ zod บังคับ env สำคัญก่อน server start เช่น DATABASE_URL, CORS, share channels
+ * ถ้าแก้ default ต้องทดสอบ Docker local, Vercel tunnel และ settings/share-channel flow.
+ */
 const envSchema = z.object({
   PORT: z
     .string()

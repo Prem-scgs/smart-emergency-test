@@ -1,5 +1,11 @@
 import type { FastifyInstance } from "fastify";
 
+/**
+ * Observability hooks สำหรับ Fastify
+ *
+ * สร้าง log context ที่มี reqId/method/url/ip เพื่อ trace request fail path
+ * โดยไม่ผูกกับ route ใด route หนึ่ง.
+ */
 type RequestLike = {
   id: string;
   method: string;

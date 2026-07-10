@@ -6,6 +6,12 @@ import {
   toPublicShareChannelAvailability,
 } from "../../share-channel-settings.js";
 
+/**
+ * Reference data routes
+ *
+ * ให้ frontend โหลด category/province/district/share-channel availability จาก DB/env
+ * โดยไม่ hardcode master data ใน UI ถ้าแก้ response shape ต้องทดสอบ shared reference loaders.
+ */
 function rowToCategory(row: Record<string, unknown>) {
   return {
     id: row.id,
