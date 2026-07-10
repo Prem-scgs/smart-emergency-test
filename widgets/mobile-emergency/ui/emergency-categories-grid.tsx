@@ -19,6 +19,12 @@ const iconMap: Record<string, LucideIcon> = {
   Luggage,
 }
 
+/**
+ * Category grid หน้าแรกของ mobile
+ *
+ * แสดงหมวดจาก reference API พร้อม fallback icon map ถ้าแก้ category/icon ต้องทดสอบ
+ * mobile create incident เพราะค่าที่เลือกถูกส่งต่อไป payload builder.
+ */
 interface EmergencyCategoriesGridProps {
   onSelectCategory: (category: EmergencyCategory) => void
 }

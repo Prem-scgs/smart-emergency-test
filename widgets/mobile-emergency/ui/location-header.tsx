@@ -8,6 +8,12 @@ import { getLocationDisplayName, useReferenceLocations } from '@/shared/location
 import { locationStatusMessage, type LocationLockStatus } from '@/features/mobile-incident'
 import { cn } from '@/shared/utils'
 
+/**
+ * Header แสดงสถานะ location lock ของ mobile flow
+ *
+ * ใช้ reference location เพื่อโชว์ชื่อจังหวัด/อำเภอแทน raw code และเปิดให้ผู้ใช้ refresh
+ * location ก่อนเลือกหมวดเหตุฉุกเฉิน.
+ */
 interface LocationData {
   latitude: number
   longitude: number

@@ -1,3 +1,9 @@
+/**
+ * Types เฉพาะ reports widget
+ *
+ * ReportSummary สะท้อน response `/api/reports/summary` และถูกใช้สร้าง KPI, chart,
+ * table, CSV/PDF และ print snapshot ในหน้าเดียวกัน.
+ */
 export type ReportRange = "week" | "month" | "quarter" | "year"
 
 export interface ReportSummary {

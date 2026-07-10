@@ -11,6 +11,12 @@ import { cn } from '@/shared/utils'
 const OPEN_INCIDENT_DETAIL_EVENT = 'smart-emergency:open-incident-detail'
 const PENDING_INCIDENT_DETAIL_KEY = 'smart-emergency:pending-incident-detail'
 
+/**
+ * เปิด incident detail จาก notification center
+ *
+ * ถ้าอยู่หน้า dashboard จะ dispatch event ให้ widget เปิด panel ทันที ถ้าอยู่หน้าอื่น
+ * จะฝาก incident id ไว้ใน sessionStorage แล้วพาไป dashboard เพื่อเปิดภายหลัง.
+ */
 function openIncidentDetailFromNotification(incidentId: string) {
   if (typeof window === 'undefined') return
 

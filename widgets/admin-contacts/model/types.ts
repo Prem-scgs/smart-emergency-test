@@ -1,3 +1,9 @@
+/**
+ * Types เฉพาะ contacts widget
+ *
+ * แยก type form ออกจาก API shape เพื่อให้ dialog state คุม string/boolean fallback
+ * ได้ชัดเจนก่อนส่งกลับ `/api/contacts`.
+ */
 export interface Contact {
   id: string
   name: string
@@ -21,4 +27,3 @@ export interface ContactFormState {
   is24Hours: boolean
   active: boolean
 }
-

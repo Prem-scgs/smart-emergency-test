@@ -1,3 +1,9 @@
+/**
+ * Formatting helper ของ reports page
+ *
+ * ใช้ร่วมกันทั้ง UI, CSV และ PDF/print เพื่อให้ตัวเลข/เปอร์เซ็นต์/วันที่แสดงตรงกัน
+ * ถ้าแก้ต้องทดสอบ export กับ chart labels ด้วย.
+ */
 export function getChartConfig(totalLabel: string, closedLabel: string) {
   return {
     count: { label: totalLabel, color: "var(--chart-1)" },

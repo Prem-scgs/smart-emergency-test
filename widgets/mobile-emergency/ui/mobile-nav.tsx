@@ -2,6 +2,12 @@
 
 import { cn } from '@/shared/utils'
 
+/**
+ * Bottom navigation ของ mobile emergency app
+ *
+ * ตอนนี้มี home/history เท่านั้น ถ้าเพิ่ม tab ใหม่ต้องอัปเดต MobileApp state
+ * และทดสอบว่า tracking/history navigation ไม่หาย.
+ */
 type NavItem = 'home' | 'history'
 
 interface MobileNavProps {

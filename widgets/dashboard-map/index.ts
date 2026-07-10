@@ -1,3 +1,9 @@
+/**
+ * Public API ของ dashboard-map widget
+ *
+ * Widget นี้เป็น owner ของ dashboard data, map, queue, detail panel, timeline
+ * และ helper/controller ที่ผูกกับ incident detail flow.
+ */
 export * from './lib/helpers.ts'
 export * from './lib/incident-detail.ts'
 export * from './model/hooks.ts'

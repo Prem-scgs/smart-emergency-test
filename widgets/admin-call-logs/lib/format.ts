@@ -1,6 +1,12 @@
 import type { CallStatus } from "@/entities/call"
 import type { ApiIncident } from "../model/types"
 
+/**
+ * Formatting helper ของ call logs
+ *
+ * แปลง incident จาก API เป็นค่าแสดงผล/CSV โดยไม่เปลี่ยน raw data ถ้าแก้ fallback
+ * ต้องทดสอบ call status, location label และ export CSV/PDF.
+ */
 export function getCallStatus(incident: ApiIncident): CallStatus {
   if (incident.callStatus) return incident.callStatus
   if (incident.status === "closed") return "connected"

@@ -4,6 +4,12 @@ import type {
   ShareChannelState,
 } from "../model/types"
 
+/**
+ * Default state ของช่องทางแชร์ตำแหน่ง
+ *
+ * ตั้งเป็น disabled/source none เพื่อไม่ให้ settings UI สื่อว่ามี channel พร้อมใช้งาน
+ * ก่อน backend/env ส่งค่าจริงกลับมา.
+ */
 export const DEFAULT_SHARE_CHANNELS: ShareChannelState = {
   line: { enabled: false, maskedValue: null, source: "none" },
   sms: { enabled: false, maskedValue: null, source: "none" },
@@ -15,4 +21,3 @@ export const DEFAULT_SHARE_CHANNEL_DRAFTS: Record<ShareChannelName, ShareChannel
   sms: { enabled: false, recipientValue: "" },
   whatsapp: { enabled: false, recipientValue: "" },
 }
-

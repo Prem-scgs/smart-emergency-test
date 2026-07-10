@@ -24,6 +24,12 @@ const iconMap: Record<string, LucideIcon> = {
   Luggage,
 }
 
+/**
+ * หน้าสรุปก่อนเริ่มโทร/สร้าง incident
+ *
+ * Component นี้รับ contact/location/category แล้วเปิด native tel call และแจ้ง MobileApp
+ * ให้สร้าง incident ต่อ ถ้าแก้ปุ่มหรือ callback ต้องทดสอบ iPhone call flow.
+ */
 interface IncidentSelectionScreenProps {
   categoryId: EmergencyCategory
   contacts: EmergencyContact[]

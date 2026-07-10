@@ -6,6 +6,12 @@ import { AlertCircle, CheckCircle2, Loader2, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { locationStatusMessage, type LocationLockStatus } from '@/features/mobile-incident'
 
+/**
+ * Splash/location gate ก่อนเข้า mobile app
+ *
+ * หน้านี้พยายามล็อก location ก่อน แต่ยังมีทางไปต่อแบบไม่มี location เพื่อไม่ให้
+ * ผู้ใช้ติดอยู่ในเหตุฉุกเฉินจริง ถ้าแก้ต้องทดสอบ retry และ continue-without-location.
+ */
 interface SplashScreenProps {
   locationStatus: LocationLockStatus
   onRetry: () => void

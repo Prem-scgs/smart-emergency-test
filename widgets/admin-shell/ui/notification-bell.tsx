@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button'
 import { useNotifications } from '@/features/incident-alert/model/notification-context'
 import { NotificationCenter } from './notification-center'
 
+/**
+ * Bell trigger ของ notification center ใน admin header
+ *
+ * อ่าน unread count จาก incident-alert provider เดียวกับ popup เพื่อให้ badge,
+ * drawer และ realtime visibility ใช้ source เดียวกัน.
+ */
 export function NotificationBell() {
   const { unreadCount } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)

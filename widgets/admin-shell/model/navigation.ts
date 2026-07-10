@@ -7,6 +7,12 @@ import {
   Settings,
 } from 'lucide-react'
 
+/**
+ * Navigation contract ของ admin shell
+ *
+ * แต่ละ item ผูกกับ permission key จาก shared auth ถ้าเพิ่มเมนูใหม่ต้องเพิ่ม
+ * permission/i18n key และทดสอบ role scope ใน sidebar ด้วย.
+ */
 export const adminShellSidebarItems = [
   { href: '/admin/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
   { href: '/admin/contacts', labelKey: 'contacts', icon: Phone, permission: 'contacts.view' },

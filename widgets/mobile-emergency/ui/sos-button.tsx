@@ -4,6 +4,12 @@ import { Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/shared/utils'
 
+/**
+ * SOS button หลักของ mobile
+ *
+ * เป็น action สำคัญที่สุดของ citizen flow ถ้าแก้ตำแหน่ง/ขนาด/callback ต้องทดสอบ
+ * touch target บน iPhone และ path ไป incident selection.
+ */
 interface SOSButtonProps {
   onPress: () => void
   className?: string

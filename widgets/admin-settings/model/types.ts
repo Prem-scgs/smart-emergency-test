@@ -1,3 +1,9 @@
+/**
+ * Types เฉพาะ settings widget
+ *
+ * แยก personal preference, system health และ share-channel drafts ออกจากกัน
+ * เพราะแต่ละชุดมี source/side effect คนละแบบ: browser preference, health API และ admin API.
+ */
 export type LanguagePreference = "th" | "en"
 export type HealthStatus = "checking" | "online" | "offline"
 export type SseStatus = "connecting" | "connected" | "disconnected" | "unknown"
@@ -25,4 +31,3 @@ export interface ShareChannelDraft {
   enabled: boolean
   recipientValue: string
 }
-
