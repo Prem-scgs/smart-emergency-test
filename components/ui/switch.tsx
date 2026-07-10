@@ -4,6 +4,12 @@ import { Switch as SwitchPrimitive } from "@base-ui/react/switch"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Switch primitive สำหรับ toggle preference/settings
+ *
+ * ใช้กับ setting ที่มี side effect เช่น reduced motion หรือ alert preferences
+ * จึงต้องรักษา checked/disabled/focus state ให้ accessible.
+ */
 function Switch({
   className,
   size = "default",

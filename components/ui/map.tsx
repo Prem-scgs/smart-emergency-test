@@ -21,6 +21,16 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/shared/utils";
 
+/**
+ * MapLibre wrapper กลางของ dashboard/GIS maps
+ *
+ * Wrapper นี้ซ่อน lifecycle ของ MapLibre ไว้ให้ React component ใช้งานง่ายขึ้น:
+ * สร้าง/ทำลาย map instance, expose context สำหรับ marker/popup/source/layer
+ * และกันไม่ให้ GIS/dashboard ต้องคุยกับ MapLibre โดยตรงทุกจุด.
+ *
+ * ถ้าแก้ไฟล์นี้ต้อง smoke dashboard map และ GIS boundary map เพราะทั้งคู่พึ่ง
+ * fit bounds, marker click, popup และ dark map rendering จาก primitive เดียวกัน.
+ */
 const defaultStyles = {
   dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
   light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",

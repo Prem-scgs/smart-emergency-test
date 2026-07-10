@@ -3,6 +3,12 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Input primitive กลางสำหรับ admin/mobile forms
+ *
+ * รวม focus, disabled และ invalid state ไว้ที่เดียว เพื่อให้ validation ใน contacts,
+ * settings และ search/filter แสดงผลเหมือนกัน.
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <InputPrimitive

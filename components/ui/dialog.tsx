@@ -7,6 +7,12 @@ import { cn } from "@/shared/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+/**
+ * Dialog primitive สำหรับ modal ทั่วไปของ admin UI
+ *
+ * ใช้ร่วมกับ form/edit flow หลายหน้า จึงต้องระวัง overlay, close button และ
+ * focus management ไม่ให้ชนกับ Sheet/AlertDialog ที่อาจซ้อนใน flow เดียวกัน.
+ */
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }

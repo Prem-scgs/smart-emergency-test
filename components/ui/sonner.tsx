@@ -4,6 +4,12 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
+/**
+ * Toast host กลางของระบบ
+ *
+ * Root layout mount component นี้ครั้งเดียว เพื่อให้ widget/feature ต่าง ๆ ส่ง toast
+ * ได้โดยไม่ต้องรู้ตำแหน่ง DOM และยัง sync theme กับ next-themes อัตโนมัติ.
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
 

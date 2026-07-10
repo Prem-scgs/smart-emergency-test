@@ -12,6 +12,12 @@ const THEMES = { light: "", dark: ".dark" } as const
 const INITIAL_DIMENSION = { width: 320, height: 200 } as const
 type TooltipNameType = number | string
 
+/**
+ * Chart primitives สำหรับ Recharts ใน reports/dashboard
+ *
+ * จุดสำคัญคือ wrapper นี้ผูก theme token กับ chart config และมี fallback dimension
+ * เพื่อกัน chart วัดขนาดเป็น 0 ตอน render แรก ถ้าแก้ต้องเช็กทั้ง dark mode และ print/export.
+ */
 export type ChartConfig = Record<
   string,
   {

@@ -2,6 +2,12 @@ import * as React from "react"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Textarea primitive สำหรับ notes/summary ที่ส่งผลกับ incident workflow
+ *
+ * ใช้ใน flow ที่ note อาจถูกบันทึกลง backend เช่น status update จึงควรรักษา
+ * invalid/disabled state ให้ชัดเจนสำหรับ role ที่แก้ไขไม่ได้.
+ */
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea

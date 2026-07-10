@@ -4,6 +4,12 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Tooltip primitive สำหรับคำอธิบายสั้นใน admin UI
+ *
+ * Provider ตั้ง delay เริ่มต้นไว้ 0 เพื่อให้ข้อมูลช่วยเหลือขึ้นเร็วใน dashboard
+ * แต่ยังใช้ Base UI เพื่อรักษา hover/focus accessibility.
+ */
 function TooltipProvider({
   delay = 0,
   ...props

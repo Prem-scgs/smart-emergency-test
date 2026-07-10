@@ -5,6 +5,12 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Drawer primitive สำหรับ panel แบบลาก/สไลด์ โดยเฉพาะ mobile-friendly UI
+ *
+ * เก็บ wrapper นี้ไว้กลางระบบเพื่อให้ overlay, handle และ responsive behavior
+ * เหมือนกันทุก feature ที่ต้องใช้ drawer.
+ */
 function Drawer({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {

@@ -4,6 +4,12 @@ import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Separator primitive สำหรับแบ่ง section ใน panel/card/menu
+ *
+ * เก็บ orientation และ spacing pattern ไว้กลางระบบ เพื่อให้ layout หน้า admin
+ * ไม่ต้องสร้างเส้นคั่นเฉพาะหน้าเอง.
+ */
 function Separator({
   className,
   orientation = "horizontal",

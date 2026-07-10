@@ -4,6 +4,12 @@ import { Progress as ProgressPrimitive } from "@base-ui/react/progress"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Progress primitive สำหรับแสดงขั้นตอน/โหลดข้อมูลแบบ determinate
+ *
+ * ใช้ใน flow ที่ต้องสื่อสถานะให้ผู้ใช้เข้าใจเร็ว เช่น incident tracking timeline
+ * จึงควรรักษา aria/value behavior ให้ถูกต้อง.
+ */
 function Progress({
   className,
   children,

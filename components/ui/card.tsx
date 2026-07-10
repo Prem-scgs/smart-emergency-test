@@ -2,6 +2,12 @@ import * as React from "react"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Card primitive สำหรับ grouping ข้อมูลใน dashboard/admin/mobile
+ *
+ * ควรเก็บไว้เป็น layout shell เบา ๆ เท่านั้น อย่าใส่ business state ใน primitive นี้
+ * เพราะถูกใช้กว้างตั้งแต่ KPI cards ถึง settings panels.
+ */
 function Card({
   className,
   size = "default",

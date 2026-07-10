@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 
+/**
+ * InputGroup primitive สำหรับช่องกรอกที่มีปุ่ม/ไอคอนประกอบ
+ *
+ * ใช้ใน form ที่ต้องวาง action ติด input เช่น search/filter จึงควรรักษา spacing
+ * และ disabled/focus behavior ให้สอดคล้องกับ Input/Textarea หลัก.
+ */
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div

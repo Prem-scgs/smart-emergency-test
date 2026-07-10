@@ -5,6 +5,12 @@ import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * ScrollArea primitive สำหรับ panel ที่มีข้อมูลยาว เช่น notification center/detail
+ *
+ * ช่วยให้ scrollbar styling และ viewport behavior เหมือนกัน โดยไม่ให้แต่ละ widget
+ * สร้าง scroll container เฉพาะตัวจน layout ซ้อนกันอ่านยาก.
+ */
 function ScrollArea({
   className,
   children,

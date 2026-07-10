@@ -5,6 +5,11 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 import { cn } from "@/shared/utils"
 import { CheckIcon } from "lucide-react"
 
+/**
+ * Checkbox primitive สำหรับ form/filter ที่ต้องมี accessible checked indicator
+ *
+ * ใช้ Base UI เป็นแกนเพื่อให้ keyboard/focus behavior คงที่ใน admin forms.
+ */
 function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
   return (
     <CheckboxPrimitive.Root

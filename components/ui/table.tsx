@@ -4,6 +4,12 @@ import * as React from "react"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Table primitive สำหรับข้อมูล tabular ใน reports/call logs/settings
+ *
+ * Wrapper นี้ตั้งใจให้มี horizontal scroll ในหน้าจอเล็ก ถ้าแก้ต้องทดสอบ mobile width
+ * และ print/export preview ที่อิง table layout.
+ */
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div

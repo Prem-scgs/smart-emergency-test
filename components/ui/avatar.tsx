@@ -5,6 +5,12 @@ import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Avatar primitive กลางของ admin shell/user UI
+ *
+ * รวม size และ fallback pattern ไว้ที่เดียว เพื่อให้ user menu/header เปลี่ยนหน้าตา
+ * ได้โดยไม่กระทบ component ที่แค่ต้องการรูป/initial ของผู้ใช้.
+ */
 function Avatar({
   className,
   size = "default",

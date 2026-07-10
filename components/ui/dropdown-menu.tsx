@@ -6,6 +6,12 @@ import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "@/shared/utils"
 import { ChevronRightIcon, CheckIcon } from "lucide-react"
 
+/**
+ * Dropdown menu primitive สำหรับ user menu, actions และ filter menus
+ *
+ * ระวังเรื่อง keyboard navigation และ sub-menu alignment เพราะ component นี้ถูกใช้
+ * ใน admin shell ที่ต้องทำงานทั้ง desktop และ mobile sheet.
+ */
 function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }

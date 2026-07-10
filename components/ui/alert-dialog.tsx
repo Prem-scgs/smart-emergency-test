@@ -6,6 +6,12 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { cn } from "@/shared/utils"
 import { Button } from "@/components/ui/button"
 
+/**
+ * Alert dialog primitive สำหรับ action ที่ต้องยืนยันก่อนทำจริง
+ *
+ * ใช้ใน flow ที่มีผลข้างเคียง เช่น ปิดเคส/ลบข้อมูล จึงควรรักษา focus trap,
+ * overlay และปุ่ม cancel/action ให้สอดคล้องกันทั้งระบบ.
+ */
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }

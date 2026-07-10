@@ -5,6 +5,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/shared/utils"
 
+/**
+ * Tabs primitive สำหรับแบ่ง view ใน reports/settings/dashboard widgets
+ *
+ * เก็บ orientation และ variant ไว้กลางระบบ เพื่อให้ tab navigation มี keyboard behavior
+ * และ visual language เดียวกันทุกหน้า.
+ */
 function Tabs({
   className,
   orientation = "horizontal",

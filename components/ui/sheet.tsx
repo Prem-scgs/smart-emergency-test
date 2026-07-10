@@ -7,6 +7,12 @@ import { cn } from "@/shared/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
+/**
+ * Sheet primitive สำหรับ side panel เช่น incident detail
+ *
+ * Flow สำคัญอย่าง detail panel ใช้ sheet เป็น container หลัก จึงต้องระวัง
+ * overlay/focus/close behavior ไม่ให้กระทบ status update หรือ unsaved warning.
+ */
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }

@@ -6,6 +6,12 @@ import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "@/shared/utils"
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
+/**
+ * Select primitive กลางของ form/filter
+ *
+ * ใช้ Base UI เพื่อคุม keyboard navigation, portal และ layering ให้ตรงกันทั้ง
+ * contacts/settings/reports. ถ้าแก้ positioning ต้องทดสอบ select ใน dialog/sheet ด้วย.
+ */
 const Select = SelectPrimitive.Root
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
