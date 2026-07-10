@@ -1,3 +1,6 @@
+-- Migration 004: เพิ่ม metadata/geometry shape ของ area boundary สำหรับ GIS
+-- กระทบ GIS page และ dashboard selected area bounds ที่ใช้ polygon/label จากตาราง areas
+
 ALTER TABLE areas
   ALTER COLUMN polygon TYPE GEOMETRY(MULTIPOLYGON, 4326)
   USING ST_Multi(polygon);

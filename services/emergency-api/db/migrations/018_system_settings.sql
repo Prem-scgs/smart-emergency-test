@@ -1,3 +1,6 @@
+-- Migration 018: เพิ่ม system settings ของ organization/admin shell
+-- กระทบ settings page และ header branding ที่โหลดค่าจาก /api/admin/organization-settings
+
 BEGIN;
 
 -- ค่าองค์กรที่ admin shell/settings ใช้แสดงชื่อระบบและ timezone กลาง

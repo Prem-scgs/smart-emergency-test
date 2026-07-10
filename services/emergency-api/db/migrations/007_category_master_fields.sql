@@ -1,3 +1,6 @@
+-- Migration 007: ขยาย emergency category master data
+-- Frontend reference loaders ใช้ label/icon/color/sort_order/active จาก columns ชุดนี้
+
 ALTER TABLE emergency_categories ADD COLUMN IF NOT EXISTS label_th TEXT;
 ALTER TABLE emergency_categories ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE emergency_categories ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;

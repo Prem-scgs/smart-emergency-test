@@ -1,3 +1,6 @@
+-- Migration 017: เพิ่ม settings สำหรับช่องทางแชร์ตำแหน่งส่วนกลาง
+-- Settings page และ mobile location sharing ใช้ค่า DB เหล่านี้ก่อน fallback ไป env
+
 BEGIN;
 
 -- ช่องทางแชร์ตำแหน่งส่วนกลางที่หน้า Settings ของ super_admin จัดการได้

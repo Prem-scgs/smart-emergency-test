@@ -10,6 +10,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      # PostgreSQL entrypoint จะรัน migration ใน folder นี้เฉพาะตอนสร้าง volume ใหม่
+      # ถ้า volume มีข้อมูลแล้ว ให้ใช้ `make db-migrate` แทนการคาดหวังให้ init scripts รันซ้ำ
       - smart_emergency_db:/var/lib/postgresql/data
       - ./services/emergency-api/db/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:

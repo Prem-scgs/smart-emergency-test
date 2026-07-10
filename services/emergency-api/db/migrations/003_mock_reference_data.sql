@@ -1,3 +1,6 @@
+-- Migration 003: สร้าง reference table และข้อมูลตั้งต้นสำหรับ development/demo
+-- ช่วยให้ mobile/admin มี category/contact พื้นฐานหลัง db-reset
+
 CREATE TABLE IF NOT EXISTS emergency_categories (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,

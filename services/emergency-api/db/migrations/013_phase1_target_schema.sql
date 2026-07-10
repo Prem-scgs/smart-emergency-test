@@ -1,3 +1,6 @@
+-- Migration 013: Phase 1 target schema ของ production data model
+-- กระทบ incidents/contacts/areas หลัก ถ้าแก้ต้องทดสอบ API route suite และ db-reset
+
 CREATE TABLE IF NOT EXISTS agencies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,

@@ -1,3 +1,6 @@
+-- Migration 010: เพิ่ม generated column coverage_type ให้ contacts
+-- ต้องมาก่อน readiness/target schema ที่อ้าง column นี้ใน migration ถัดไป
+
 ALTER TABLE contacts
   ADD COLUMN IF NOT EXISTS coverage_type TEXT GENERATED ALWAYS AS (
     CASE

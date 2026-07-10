@@ -1,3 +1,9 @@
+-- Migration 016: เพิ่ม tracking/status history ของ incident
+-- กระทบ mobile tracking, admin detail timeline และ optimistic concurrency ด้วย status_version
+
+-- Migration 016: เพิ่ม tracking/status history ของ incident
+-- กระทบ mobile tracking, admin detail timeline และ optimistic concurrency ด้วย status_version
+
 BEGIN;
 
 -- เพิ่ม field ที่ทำให้ mobile/admin ติดตาม workflow เดียวกันได้

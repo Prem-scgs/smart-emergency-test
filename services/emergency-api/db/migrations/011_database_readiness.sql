@@ -1,3 +1,6 @@
+-- Migration 011: ปรับ DB ให้พร้อมก่อนเข้าสู่ target schema
+-- เป็นสะพานหลังเพิ่ม coverage/location fields ห้ามย้ายลำดับโดยไม่ replay migrations ทั้งชุด
+
 DO $$
 BEGIN
   IF NOT EXISTS (

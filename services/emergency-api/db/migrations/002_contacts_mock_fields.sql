@@ -1,3 +1,6 @@
+-- Migration 002: เพิ่ม field ที่ contacts mock/early UI เคยใช้
+-- คงไว้เพื่อให้ DB ใหม่ replay migration ได้ครบ แม้ production UI ถูก refactor แล้ว
+
 ALTER TABLE contacts
   ADD COLUMN IF NOT EXISTS category TEXT,
   ADD COLUMN IF NOT EXISTS province TEXT,

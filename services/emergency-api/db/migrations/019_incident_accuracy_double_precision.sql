@@ -1,3 +1,6 @@
+-- Migration 019: ปรับ accuracy ของ incident เป็น double precision
+-- กระทบ location accuracy จาก mobile GPS ถ้า rollback ต้องระวัง precision loss
+
 BEGIN;
 
 -- iPhone/Android GPS accuracy can be fractional meters, so incidents must match

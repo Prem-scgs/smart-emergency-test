@@ -1,3 +1,6 @@
+-- Migration 014: Backfill ข้อมูลให้เข้ากับ target schema หลัง Phase 1
+-- เป็น data migration ที่ช่วยให้ข้อมูลเก่าไม่หลุด constraint ใหม่
+
 INSERT INTO agencies (name, category_id, active)
 SELECT
   COALESCE(NULLIF(recommended_agency, ''), NULLIF(label_th, ''), NULLIF(name, ''), id) AS name,

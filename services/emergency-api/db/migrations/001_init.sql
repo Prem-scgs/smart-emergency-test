@@ -1,3 +1,6 @@
+-- Migration 001: สร้าง extension และ schema แรกของ emergency API
+-- ระวัง: เป็นฐานของ DB ใหม่ migration ถัดไปอ้างตาราง incidents/contacts/reference จากที่นี่
+
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

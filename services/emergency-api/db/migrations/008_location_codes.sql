@@ -1,3 +1,6 @@
+-- Migration 008: เพิ่ม province/district code เพื่อผูก location กับ master data
+-- กระทบ contacts selector, GIS labels, dashboard filters และ mobile location display
+
 ALTER TABLE contacts
   ADD COLUMN IF NOT EXISTS province_code TEXT,
   ADD COLUMN IF NOT EXISTS district_code TEXT;

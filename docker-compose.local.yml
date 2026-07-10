@@ -6,6 +6,7 @@ services:
     container_name: smart-emergency-api
     restart: unless-stopped
     environment:
+      # API ต้องเปิดที่ 4000 เพราะ Vercel rewrite, Cloudflare tunnel และ health check อ้าง port นี้
       PORT: 4000
       DATABASE_URL: postgres://emergency:emergency_dev@db:5432/smart_emergency
       CORS_ORIGINS: https://smart-emergency-test.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://web:3000
@@ -43,6 +44,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: smart-emergency-cloudflared
     restart: unless-stopped
+    # Quick tunnel นี้ URL จะเปลี่ยนเมื่อ container restart; production/demo domain ควรใช้ Named Tunnel
     command: tunnel --protocol http2 --url http://api:4000
     depends_on:
       api:

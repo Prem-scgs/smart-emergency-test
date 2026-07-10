@@ -46,6 +46,8 @@ db-status:
 	docker compose ps
 
 db-migrate:
+	# Apply migrations in production replay order for local dev DB.
+	# Keep this list aligned with package.json db:migrate:* scripts when adding a new migration.
 	pnpm db:migrate:contacts
 	pnpm db:migrate:mock
 	pnpm db:migrate:areas

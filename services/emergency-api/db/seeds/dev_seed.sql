@@ -1,3 +1,6 @@
+-- Development seed สำหรับ local demo/test
+-- ใช้เติมข้อมูลตัวอย่างหลัง db-reset เท่านั้น ไม่ควรใช้แทน migration หรือ production seed จริง
+
 INSERT INTO areas
   (id, name, color, polygon)
 VALUES
