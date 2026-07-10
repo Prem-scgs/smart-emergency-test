@@ -1,3 +1,9 @@
+/**
+ * Display helper ของ contact forms/list
+ *
+ * ใช้ map category/coverage value เป็น label ตาม reference data ของ admin page
+ * ถ้าแก้ fallback ต้องทดสอบ contacts filter และ dialog form.
+ */
 export function getSelectOptionLabel(
   options: ReadonlyArray<{ value: string; label: string }>,
   value: string | null | undefined,

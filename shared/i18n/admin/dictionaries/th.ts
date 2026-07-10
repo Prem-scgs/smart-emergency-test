@@ -1,3 +1,9 @@
+/**
+ * Thai admin dictionary
+ *
+ * เป็น source of truth ของ key ทั้งหมดใน admin UI ถ้าแก้ชื่อ key ต้องเช็ก wiring tests
+ * เพราะหลาย widget ใช้ `useAdminI18n().t(key)` แทน string ตรง.
+ */
 export const th = {
     admin: "แอดมิน",
     adminSystem: "ระบบแอดมิน",

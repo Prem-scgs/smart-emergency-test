@@ -3,6 +3,12 @@
 import type { EmergencyCategory } from '../../entities/incident'
 import { FALLBACK_REFERENCE_CATEGORIES, getCategoryDisplayLabel, type ReferenceCategory } from './categories'
 
+/**
+ * Helper แปลง reference category เป็น collection สำหรับ admin UI
+ *
+ * ใช้สร้าง options, label map และ style map ให้ dashboard/contacts/reports ใช้ชุดเดียวกัน
+ * ถ้าแก้ต้องทดสอบภาษาไทย-อังกฤษและ role/category filter.
+ */
 export const emergencyCategoryLabelsTh: Record<EmergencyCategory, string> = {
   police: 'ตำรวจ',
   medical: 'แพทย์',

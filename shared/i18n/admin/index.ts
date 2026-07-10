@@ -1,3 +1,9 @@
+/**
+ * Public API ของ admin i18n
+ *
+ * ให้ widgets/features import provider, hook, key และ constants จาก path เดียว
+ * แทนการผูกกับไฟล์ dictionary/context ภายในโดยตรง.
+ */
 export {
   AdminI18nProvider,
   useAdminI18n,

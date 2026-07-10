@@ -1,3 +1,9 @@
+/**
+ * Coverage model ของ contact
+ *
+ * กำหนดว่าหน่วยงานรับผิดชอบระดับส่วนกลาง/จังหวัด/อำเภอ และ normalize province/district
+ * ให้สอดคล้องกับ coverage เพื่อไม่ส่งพื้นที่เกิน scope ไป backend.
+ */
 export type ContactCoverage = 'central' | 'province' | 'district'
 
 export interface ContactCoverageState {

@@ -28,6 +28,12 @@ import { useNotifications } from '@/features/incident-alert/model/notification-c
 import { useAdminI18n } from '@/shared/i18n/admin'
 import { cn } from '@/shared/utils'
 
+/**
+ * Alert popup UI ของ admin realtime
+ *
+ * รับ alert ที่ผ่าน visibility rule จาก NotificationProvider แล้วเล่นเสียงตาม preference
+ * ไม่อิง severity และปุ่มดูรายละเอียดจะ dispatch event ไปเปิด incident detail panel.
+ */
 function getSeverityConfig(severity: string) {
   switch (severity) {
     case 'critical':

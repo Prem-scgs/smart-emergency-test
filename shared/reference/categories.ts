@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { EmergencyCategory } from '../../entities/incident'
 import { getEmergencyApiBaseUrl } from '../config/emergency-api.ts'
 
+/**
+ * Reference category loader/cache
+ *
+ * เป็น source กลางของหมวดเหตุฉุกเฉินที่ admin/mobile ใช้ร่วมกัน มี fallback local
+ * เพื่อให้ UI ยังแสดงหมวดพื้นฐานได้ถ้า API reference data ชั่วคราวไม่พร้อม.
+ */
 export interface ReferenceCategory {
   id: EmergencyCategory
   name: string

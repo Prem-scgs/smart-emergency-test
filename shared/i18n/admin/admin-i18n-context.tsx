@@ -8,6 +8,12 @@ import {
   ADMIN_SETTINGS_PREFERENCES_KEY,
 } from './constants'
 
+/**
+ * Admin i18n provider/hook
+ *
+ * โหลดภาษาเริ่มต้นจาก admin settings preference และฟัง event กลางจาก settings page
+ * เพื่อให้ header, dashboard widgets และ notification center เปลี่ยนภาษาพร้อมกัน.
+ */
 export type AdminLanguage = "th" | "en"
 
 const dictionaries = { th, en } as const

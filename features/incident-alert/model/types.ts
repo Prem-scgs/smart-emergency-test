@@ -1,5 +1,11 @@
 import type { EmergencyCategory } from '@/entities/incident'
 
+/**
+ * Types ของ notification/alert/SSE ที่ admin realtime flow ใช้ร่วมกัน
+ *
+ * `category` และ `incidentId` ใช้ filter ตาม role และเปิด detail panel ถ้าแก้ field
+ * ต้องทดสอบ viewer passive, agency scope และ alert detail navigation.
+ */
 export type NotificationType =
   | 'new-incident'
   | 'incident-update'

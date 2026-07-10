@@ -1,5 +1,11 @@
 import type { th } from './th'
 
+/**
+ * English admin dictionary
+ *
+ * ใช้ shape จาก dictionary ไทยเป็น source of truth เพื่อบังคับให้ key ครบทั้งสองภาษา.
+ * ถ้าเพิ่ม key ใหม่ต้องเพิ่มที่ `th.ts` ก่อน แล้วไฟล์นี้จะช่วยให้ TypeScript เช็กความครบ.
+ */
 type AdminDictionaryShape = Record<keyof typeof th, string>
 
 export const en = {

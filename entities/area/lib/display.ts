@@ -1,3 +1,9 @@
+/**
+ * Display helper ของพื้นที่/จังหวัด/อำเภอ
+ *
+ * เลือกชื่อไทย/อังกฤษจากข้อมูล master location ก่อน fallback เป็นชื่อพื้นที่
+ * เพื่อให้ GIS และ dashboard แสดง label ตรงกับภาษา admin.
+ */
 export interface AreaDisplaySource {
   name: string
   areaType?: string | null

@@ -1,3 +1,9 @@
+/**
+ * Phone helper สำหรับเบอร์ติดต่อฉุกเฉิน
+ *
+ * รองรับทั้งเบอร์สั้น เช่น 199/1669 และเบอร์ไทยขึ้นต้น 0 ถ้าแก้ regex
+ * ต้องทดสอบ create/edit contact เพราะ backend และ UI คาดหวัง normalize format เดิม.
+ */
 export function normalizeContactPhone(phone: string) {
   return phone.replace(/\D/g, '')
 }

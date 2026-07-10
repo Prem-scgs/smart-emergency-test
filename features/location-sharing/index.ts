@@ -1,3 +1,9 @@
+/**
+ * Public API ของ location-sharing feature
+ *
+ * ครอบ production flow แชร์ตำแหน่งเหตุจาก mobile tracking: โหลด channel availability,
+ * สร้างข้อความ/แผนที่, validate เบอร์ และบันทึก share attempt กลับ API.
+ */
 export {
   buildIncidentShareAttemptUrl,
   buildIncidentShareCopyMessage,

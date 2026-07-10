@@ -1,5 +1,11 @@
 import type { MultiPolygon, Polygon } from 'geojson'
 
+/**
+ * Geometry helper ของพื้นที่ GIS
+ *
+ * ใช้กับ polygon/multipolygon จาก backend เพื่อหา bounds ให้ map fit viewport.
+ * ถ้าแก้การเดิน coordinates ต้องทดสอบทั้ง GIS boundary และ dashboard selected area.
+ */
 export type AreaPolygon = Polygon | MultiPolygon
 export type AreaMapBounds = [[number, number], [number, number]]
 

@@ -1,3 +1,9 @@
+/**
+ * Display helper ของ incident ที่ใช้กับ user-facing UI
+ *
+ * ระบบเก็บ UUID เป็น internal id แต่ UI ต้องพยายามแสดง `caseNumber` ก่อนเสมอ
+ * และซ่อน description เชิงเทคนิคที่สร้างจาก mobile app ไม่ให้ผู้ใช้เห็น.
+ */
 const MOBILE_CALL_SYSTEM_DESCRIPTION_PATTERN =
   /^Call (?:initiated|completed) via mobile app to .+/i
 

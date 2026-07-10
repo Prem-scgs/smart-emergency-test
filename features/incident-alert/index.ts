@@ -1,3 +1,9 @@
+/**
+ * Public API ของ incident-alert feature
+ *
+ * Feature นี้เป็น owner ของ alert/notification artifacts, visibility, sound preference,
+ * detail navigation และ popup UI. Realtime hook ภายในยังแยกไว้ใน model เพื่อลด import React โดยไม่จำเป็น.
+ */
 export type {
   Alert,
   AlertSeverity,

@@ -1,3 +1,9 @@
+/**
+ * Scope helper ของ contact management
+ *
+ * ล็อกกติกาเดิม: super_admin จัดการได้ทุกหมวด, agency_admin จัดการได้เฉพาะ
+ * category ของหน่วยตัวเอง และ viewer ไม่ควรได้ action create/edit/delete.
+ */
 export interface ContactScopeInput {
   isSuperAdmin: boolean
   role?: string | null

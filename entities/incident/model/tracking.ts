@@ -1,3 +1,9 @@
+/**
+ * Workflow status ของ incident tracking
+ *
+ * Order นี้เป็น contract ร่วมของ mobile tracking, admin detail panel, status controls
+ * และ backend status history ถ้าแก้ต้องทดสอบ next status, backward transition และ SSE.
+ */
 export type IncidentWorkflowStatus =
   | 'reported'
   | 'acknowledged'

@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getEmergencyApiBaseUrl } from '../config/emergency-api.ts'
 
+/**
+ * Reference location loader/cache
+ *
+ * โหลด province/district master data จาก API แล้วทำ lookup maps ให้ UI แสดงชื่อพื้นที่
+ * ตามภาษา admin/mobile ได้ตรงกัน ถ้าแก้ cache ต้องทดสอบ contacts selector และ dashboard search.
+ */
 export interface ReferenceProvince {
   id: string
   provinceCode: string | null

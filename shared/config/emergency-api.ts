@@ -1,3 +1,9 @@
+/**
+ * API base URL helper สำหรับ frontend runtime
+ *
+ * REST/polling บน Vercel ใช้ `/emergency-api` ผ่าน Next rewrite เพื่อลด CORS
+ * ส่วน EventSource/SSE ต้องใช้ absolute URL จึงมี helper events แยกด้านล่าง.
+ */
 export interface ApiLocation {
   origin: string
 }
