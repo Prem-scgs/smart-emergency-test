@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Languages, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -477,9 +477,10 @@ export function MobileApp() {
             >
               <SelectTrigger
                 size="sm"
-                className="h-9 w-[82px] text-xs font-semibold"
+                className="h-9 w-[96px] text-xs font-semibold"
                 aria-label={t("languageToggle")}
               >
+                <Languages className="h-4 w-4 text-muted-foreground" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
