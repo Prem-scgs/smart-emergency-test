@@ -66,6 +66,7 @@ db-migrate:
 	pnpm db:migrate:system-settings
 	pnpm db:migrate:incident-accuracy
 	pnpm db:migrate:incident-case-number
+	pnpm db:migrate:admin-auth
 
 db-seed:
 	pnpm db:seed
@@ -91,6 +92,7 @@ db-reset:
 	pnpm db:migrate:system-settings
 	pnpm db:migrate:incident-accuracy
 	pnpm db:migrate:incident-case-number
+	pnpm db:migrate:admin-auth
 	pnpm db:seed
 
 web:

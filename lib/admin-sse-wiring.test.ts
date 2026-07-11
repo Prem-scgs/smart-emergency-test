@@ -77,7 +77,11 @@ test('admin realtime uses the dedicated SSE helper and REST polling helper', asy
     'utf8'
   )
 
-  assert.match(source, /new EventSource\(buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), user\)\)/)
+  assert.match(source, /\/api\/auth\/sse-ticket/)
+  assert.match(
+    source,
+    /new EventSource\(\s*buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), ticket\)\s*\)/,
+  )
   assert.match(source, /buildRealtimeApiUrl\(getEmergencyApiBaseUrl\(\), `\/api\/incidents\/recent\?\$\{searchParams\.toString\(\)\}`\)/)
 })
 

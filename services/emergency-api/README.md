@@ -106,6 +106,14 @@ GET    /api/admin/organization-settings
 PUT    /api/admin/organization-settings
 GET    /api/admin/share-channels
 PUT    /api/admin/share-channels
+
+POST   /api/auth/login
+GET    /api/auth/me
+POST   /api/auth/sse-ticket
+GET    /api/admin/users
+POST   /api/admin/users
+PATCH  /api/admin/users/:id
+DELETE /api/admin/users/:id
 ```
 
 ## Current Runtime Flows
@@ -124,9 +132,10 @@ creating a duplicate case.
 
 ### Realtime
 
-Admin opens `GET /api/events` with demo scope from `x-admin-role` /
-`x-admin-category` headers or `role` / `category` query parameters. The stream
-publishes `incident.created` and `incident.status_updated`.
+Admin first exchanges its Bearer JWT at `POST /api/auth/sse-ticket`, then opens
+`GET /api/events?ticket=...`. The ticket is short-lived and one-time so the
+access JWT never appears in a URL. The stream publishes `incident.created` and
+`incident.status_updated`.
 
 The frontend also polls `GET /api/incidents/recent?since=...` as a fallback for
 Cloudflare/browser cases where SSE connects but event delivery is unreliable.
@@ -134,7 +143,9 @@ Clients de-duplicate by incident id and status version.
 
 ### Role scope
 
-Current auth is a demo boundary, not production authentication.
+Admin authenticates with email/password. REST requests use a Bearer JWT, while
+the API reloads the current active role and agency from the database on every
+request. Browser-supplied role/category headers are not trusted.
 
 - `super_admin` can see/manage all categories.
 - `agency_admin` can see/manage only its own category.

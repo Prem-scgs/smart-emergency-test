@@ -1,4 +1,5 @@
 import type { AdminUser } from '@/shared/auth'
+import { getStoredAdminAccessToken } from '../auth/session.ts'
 
 export interface BackendAdminScope {
   role: 'super_admin' | 'agency_admin' | 'viewer'
@@ -15,9 +16,8 @@ function normalizeLegacyAgencyCategory(category: string | undefined) {
 /**
  * แปลง user ฝั่ง frontend เป็น scope ที่ backend mock auth เข้าใจ
  *
- * REST request ส่ง scope ผ่าน header ได้ แต่ EventSource ส่ง custom header ไม่ได้
- * จึงมีทั้ง buildAdminApiHeaders และ buildAdminApiUrl/buildAdminEventsUrl ที่แนบ scope ผ่าน query
- * ถ้าแก้ตรงนี้ต้องทดสอบ viewer detail, agency scope และ SSE dashboard พร้อมกัน
+ * REST request ส่ง JWT ที่ backend ตรวจแล้วเท่านั้น ส่วน EventSource ใช้ one-time SSE ticket
+ * ห้ามนำ role/category จาก profile กลับไปใส่ header/query เพราะ browser สามารถปลอมค่านั้นได้
  */
 export function getBackendAdminScope(user: AdminUser | null | undefined): BackendAdminScope | null {
   if (!user) return null
@@ -35,25 +35,13 @@ export function getBackendAdminScope(user: AdminUser | null | undefined): Backen
   return null
 }
 
-export function buildAdminApiHeaders(user: AdminUser | null | undefined): HeadersInit {
-  const scope = getBackendAdminScope(user)
-
-  if (!scope) return {}
-
+export function buildAdminApiHeaders(
+  _user: AdminUser | null | undefined,
+  accessToken = getStoredAdminAccessToken(),
+): Record<string, string> {
   return {
-    'x-admin-role': scope.role,
-    ...(scope.category ? { 'x-admin-category': scope.category } : {}),
-  }
-}
-
-function appendAdminScope(searchParams: URLSearchParams, user: AdminUser | null | undefined) {
-  const scope = getBackendAdminScope(user)
-
-  if (!scope) return
-
-  searchParams.set('role', scope.role)
-  if (scope.category) {
-    searchParams.set('category', scope.category)
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    'Content-Type': 'application/json',
   }
 }
 
@@ -70,16 +58,16 @@ function buildApiUrl(baseUrl: string, path: string, searchParams: URLSearchParam
   return `${base}${path}${query ? `?${query}` : ''}`
 }
 
-export function buildAdminApiUrl(baseUrl: string, path: string, user: AdminUser | null | undefined) {
-  const searchParams = new URLSearchParams()
-  appendAdminScope(searchParams, user)
-
-  return buildApiUrl(baseUrl, path, searchParams)
+export function buildAdminApiUrl(
+  baseUrl: string,
+  path: string,
+  _user: AdminUser | null | undefined,
+) {
+  return buildApiUrl(baseUrl, path, new URLSearchParams())
 }
 
-export function buildAdminEventsUrl(baseUrl: string, user: AdminUser | null | undefined) {
-  const searchParams = new URLSearchParams()
-  appendAdminScope(searchParams, user)
+export function buildAdminEventsUrl(baseUrl: string, ticket: string) {
+  const searchParams = new URLSearchParams({ ticket })
 
   return buildApiUrl(baseUrl, '/api/events', searchParams)
 }

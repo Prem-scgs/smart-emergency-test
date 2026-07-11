@@ -10,8 +10,10 @@ export {
 } from './auth-context'
 
 export {
-  AGENCIES,
-  restoreStoredAdminUser,
+  ADMIN_ACCESS_TOKEN_STORAGE_KEY,
+  clearAdminAccessToken,
+  getStoredAdminAccessToken,
+  saveAdminAccessToken,
 } from './session'
 
 export {

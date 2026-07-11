@@ -94,8 +94,7 @@ export function useSse(options: UseSseOptions = {}) {
     seenStatusVersionsRef.current = new Set()
     pollingCursorRef.current = new Date().toISOString()
     isPollingRef.current = false
-    const eventSource = new EventSource(buildAdminEventsUrl(getEmergencyApiEventsBaseUrl(), user))
-    eventSourceRef.current = eventSource
+    let reconnectTimeout: number | null = null
 
     const setDebugStatus = (status: SseDebugStatus) => {
       if (connectionStateRef.current === status) {
@@ -232,28 +231,68 @@ export function useSse(options: UseSseOptions = {}) {
       }
     }
 
-    setDebugStatus('connecting')
+    const closeEventStream = () => {
+      const eventSource = eventSourceRef.current
+      if (!eventSource) return
 
-    eventSource.onopen = () => {
-      setDebugStatus('connected')
+      eventSource.removeEventListener('incident.created', handleIncidentCreated as EventListener)
+      eventSource.removeEventListener(
+        'incident.status_updated',
+        handleIncidentStatusUpdated as EventListener
+      )
+      eventSource.close()
+      eventSourceRef.current = null
     }
 
-    eventSource.addEventListener('incident.created', handleIncidentCreated as EventListener)
-    eventSource.addEventListener(
-      'incident.status_updated',
-      handleIncidentStatusUpdated as EventListener
-    )
+    const scheduleReconnect = () => {
+      if (isDisposed || reconnectTimeout !== null) return
+      reconnectTimeout = window.setTimeout(() => {
+        reconnectTimeout = null
+        void openEventStream()
+      }, POLLING_FALLBACK_INTERVAL_MS)
+    }
 
-    eventSource.onerror = () => {
-      if (isDisposed) {
-        return
+    const openEventStream = async () => {
+      closeEventStream()
+      setDebugStatus('connecting')
+      try {
+        const ticketResponse = await fetch(
+          buildRealtimeApiUrl(getEmergencyApiBaseUrl(), '/api/auth/sse-ticket'),
+          {
+            method: 'POST',
+            headers: buildAdminApiHeaders(user),
+            cache: 'no-store',
+          }
+        )
+        if (!ticketResponse.ok) throw new Error('Unable to issue SSE ticket')
+        const { ticket } = (await ticketResponse.json()) as { ticket: string }
+        if (isDisposed) return
+
+        const eventSource = new EventSource(
+          buildAdminEventsUrl(getEmergencyApiEventsBaseUrl(), ticket)
+        )
+        eventSourceRef.current = eventSource
+        eventSource.onopen = () => setDebugStatus('connected')
+        eventSource.addEventListener('incident.created', handleIncidentCreated as EventListener)
+        eventSource.addEventListener(
+          'incident.status_updated',
+          handleIncidentStatusUpdated as EventListener
+        )
+        eventSource.onerror = () => {
+          if (isDisposed) return
+          setDebugStatus('disconnected')
+          closeEventStream()
+          scheduleReconnect()
+        }
+      } catch (error) {
+        if (isDisposed) return
+        setDebugStatus('disconnected')
+        console.error('[smart-emergency] failed to open authenticated event stream', error)
+        scheduleReconnect()
       }
-
-      // Native EventSource already reconnects by itself and honors `retry:` from the server.
-      setDebugStatus('disconnected')
-      console.error('[smart-emergency] event stream disconnected, waiting for automatic reconnect...')
     }
 
+    void openEventStream()
     void pollLatestIncidents()
     const pollingFallbackInterval = window.setInterval(() => {
       void pollLatestIncidents()
@@ -262,16 +301,8 @@ export function useSse(options: UseSseOptions = {}) {
     return () => {
       isDisposed = true
       window.clearInterval(pollingFallbackInterval)
-      eventSource.removeEventListener('incident.created', handleIncidentCreated as EventListener)
-      eventSource.removeEventListener(
-        'incident.status_updated',
-        handleIncidentStatusUpdated as EventListener
-      )
-      eventSource.close()
-
-      if (eventSourceRef.current === eventSource) {
-        eventSourceRef.current = null
-      }
+      if (reconnectTimeout !== null) window.clearTimeout(reconnectTimeout)
+      closeEventStream()
     }
   }, [
     enabled,

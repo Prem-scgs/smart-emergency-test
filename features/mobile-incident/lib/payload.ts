@@ -23,6 +23,7 @@ interface IncidentCreatePayloadInput {
 interface IncidentCallUpdatePayloadInput {
   status: CallStatus
   contact: EmergencyContact
+  sessionId: string
 }
 
 export function normalizeReporterPhone(value: string) {
@@ -75,9 +76,11 @@ export function buildIncidentCreatePayload({
 export function buildIncidentCallUpdatePayload({
   status,
   contact,
+  sessionId,
 }: IncidentCallUpdatePayloadInput) {
   return {
     callStatus: status,
+    sessionId,
     reporterPhone: null,
     description: `Call completed via mobile app to ${contact.agencyName} (${status})`,
   }

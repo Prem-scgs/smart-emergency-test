@@ -120,7 +120,7 @@ test('incident detail status update body keeps expected version and normalized n
   })
 })
 
-test('incident detail request helpers preserve admin scope headers and tracking URL scope', () => {
+test('incident detail request helpers use JWT transport without spoofable scope query or headers', () => {
   const viewer = {
     id: 'viewer-1',
     email: 'viewer@example.com',
@@ -133,7 +133,7 @@ test('incident detail request helpers preserve admin scope headers and tracking 
 
   assert.equal(
     buildIncidentDetailTrackingUrl('/emergency-api', incident.id, viewer),
-    `/emergency-api/api/incidents/${incident.id}/tracking?role=viewer&category=police`
+    `/emergency-api/api/incidents/${incident.id}/tracking`
   )
 
   const request = buildIncidentStatusUpdateRequest({
@@ -148,8 +148,6 @@ test('incident detail request helpers preserve admin scope headers and tracking 
   assert.equal(request.init.method, 'PATCH')
   assert.deepEqual(request.init.headers, {
     'Content-Type': 'application/json',
-    'x-admin-role': 'viewer',
-    'x-admin-category': 'police',
   })
   assert.equal(
     request.init.body,

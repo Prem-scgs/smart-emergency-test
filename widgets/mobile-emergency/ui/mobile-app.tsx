@@ -363,6 +363,7 @@ export function MobileApp() {
               buildIncidentCallUpdatePayload({
                 status,
                 contact: pendingCallResult.contact,
+                sessionId: getOrCreateReporterSessionId(),
               }),
             ),
           },

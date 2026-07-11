@@ -76,3 +76,12 @@ test("useSse polling fallback uses cursor-based recent endpoint and in-flight gu
   assert.match(source, /isPollingRef\.current/);
   assert.match(source, /incident\.status_updated\.poll/);
 });
+
+test("useSse exchanges the bearer session for a one-time SSE ticket", async () => {
+  const source = await readUseSseSource();
+
+  assert.match(source, /\/api\/auth\/sse-ticket/);
+  assert.match(source, /headers: buildAdminApiHeaders\(user\)/);
+  assert.match(source, /buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), ticket\)/);
+  assert.match(source, /scheduleReconnect/);
+});

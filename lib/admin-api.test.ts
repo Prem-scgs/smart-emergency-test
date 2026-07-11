@@ -1,8 +1,6 @@
-/**
- * ???? contract ??? admin API helper ???? headers/query scope ??? frontend ???????? backend ??? role.
- */
-import test from 'node:test'
+/** Contract ของ admin API client หลังเปลี่ยนจาก browser-supplied scope เป็น JWT. */
 import assert from 'node:assert/strict'
+import test from 'node:test'
 
 import {
   buildAdminApiHeaders,
@@ -11,58 +9,13 @@ import {
   getBackendAdminScope,
 } from '../shared/api/admin-api.ts'
 
-test('getBackendAdminScope maps super admin role to backend format', () => {
-  const scope = getBackendAdminScope({
-    id: 'user-1',
-    email: 'prem@example.com',
-    name: 'Prem',
-    role: 'super_admin',
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.deepEqual(scope, { role: 'super_admin', category: null })
-})
-
-test('getBackendAdminScope maps agency admin role to backend format with category', () => {
-  const scope = getBackendAdminScope({
-    id: 'user-2',
-    email: 'prem@example.com',
-    name: 'Prem',
-    role: 'agency_admin',
-    agencyId: 'medical',
-    agency: {
-      id: 'medical',
-      name: 'Medical',
-      nameTh: 'การแพทย์ฉุกเฉิน',
-      category: 'medical',
-      description: 'Emergency Medical Services',
-      icon: 'Heart',
-      color: 'text-red-600',
-    },
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.deepEqual(scope, { role: 'agency_admin', category: 'medical' })
-})
-
-test('getBackendAdminScope maps viewer role to category-scoped backend format', () => {
+test('getBackendAdminScope still derives UI workflow permissions from the authenticated profile', () => {
   const scope = getBackendAdminScope({
     id: 'user-viewer',
     email: 'viewer@example.com',
     name: 'Viewer',
     role: 'viewer',
     agencyId: 'medical',
-    agency: {
-      id: 'medical',
-      name: 'Medical',
-      nameTh: 'การแพทย์ฉุกเฉิน',
-      category: 'medical',
-      description: 'Emergency Medical Services',
-      icon: 'Heart',
-      color: 'text-red-600',
-    },
     permissions: [],
     lastLogin: new Date(),
   })
@@ -70,129 +23,30 @@ test('getBackendAdminScope maps viewer role to category-scoped backend format', 
   assert.deepEqual(scope, { role: 'viewer', category: 'medical' })
 })
 
-test('getBackendAdminScope falls back to agencyId for legacy viewer sessions', () => {
-  const scope = getBackendAdminScope({
-    id: 'user-viewer-legacy',
-    email: 'viewer@example.com',
-    name: 'Viewer',
-    role: 'viewer',
-    agencyId: 'police',
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.deepEqual(scope, { role: 'viewer', category: 'police' })
-})
-
-test('getBackendAdminScope normalizes legacy agency-prefixed ids', () => {
-  const scope = getBackendAdminScope({
-    id: 'user-viewer-legacy-prefixed',
-    email: 'viewer@example.com',
-    name: 'Viewer',
-    role: 'viewer',
-    agencyId: 'agency-medical',
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.deepEqual(scope, { role: 'viewer', category: 'medical' })
-})
-
-test('buildAdminApiHeaders returns backend scope headers', () => {
-  const headers = buildAdminApiHeaders({
-    id: 'user-2',
-    email: 'prem@example.com',
-    name: 'Prem',
-    role: 'agency_admin',
-    agencyId: 'medical',
-    agency: {
-      id: 'medical',
-      name: 'Medical',
-      nameTh: 'การแพทย์ฉุกเฉิน',
-      category: 'medical',
-      description: 'Emergency Medical Services',
-      icon: 'Heart',
-      color: 'text-red-600',
-    },
-    permissions: [],
-    lastLogin: new Date(),
-  })
+test('buildAdminApiHeaders sends the signed bearer token without spoofable scope headers', () => {
+  const headers = buildAdminApiHeaders(null, 'signed.jwt')
 
   assert.deepEqual(headers, {
-    'x-admin-role': 'agency_admin',
-    'x-admin-category': 'medical',
+    Authorization: 'Bearer signed.jwt',
+    'Content-Type': 'application/json',
   })
+  assert.equal('x-admin-role' in headers, false)
+  assert.equal('x-admin-category' in headers, false)
 })
 
-test('buildAdminApiUrl appends viewer scope query params for Vercel rewrite requests', () => {
-  const url = buildAdminApiUrl('/emergency-api', '/api/incidents/incident-1/tracking', {
-    id: 'user-viewer',
-    email: 'viewer@example.com',
-    name: 'Viewer',
-    role: 'viewer',
-    agencyId: 'agency-police',
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.equal(url, '/emergency-api/api/incidents/incident-1/tracking?role=viewer&category=police')
+test('buildAdminApiHeaders keeps JSON content type but no authorization without a session token', () => {
+  assert.deepEqual(buildAdminApiHeaders(null, null), { 'Content-Type': 'application/json' })
 })
 
-test('buildAdminEventsUrl appends scope as query params for event source', () => {
-  const url = buildAdminEventsUrl('http://localhost:4000', {
-    id: 'user-2',
-    email: 'prem@example.com',
-    name: 'Prem',
-    role: 'agency_admin',
-    agencyId: 'medical',
-    agency: {
-      id: 'medical',
-      name: 'Medical',
-      nameTh: 'การแพทย์ฉุกเฉิน',
-      category: 'medical',
-      description: 'Emergency Medical Services',
-      icon: 'Heart',
-      color: 'text-red-600',
-    },
-    permissions: [],
-    lastLogin: new Date(),
-  })
+test('buildAdminApiUrl no longer appends role or category query parameters', () => {
+  const url = buildAdminApiUrl('/emergency-api', '/api/incidents/incident-1/tracking', null)
 
-  assert.equal(url, 'http://localhost:4000/api/events?role=agency_admin&category=medical')
+  assert.equal(url, '/emergency-api/api/incidents/incident-1/tracking')
 })
 
-test('buildAdminEventsUrl supports relative API base paths', () => {
-  const url = buildAdminEventsUrl('/emergency-api', {
-    id: 'user-1',
-    email: 'prem@example.com',
-    name: 'Prem',
-    role: 'super_admin',
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.equal(url, '/emergency-api/api/events?role=super_admin')
-})
-
-test('buildAdminEventsUrl scopes viewer event streams by category', () => {
-  const url = buildAdminEventsUrl('http://localhost:4000', {
-    id: 'user-viewer',
-    email: 'viewer@example.com',
-    name: 'Viewer',
-    role: 'viewer',
-    agencyId: 'fire',
-    agency: {
-      id: 'fire',
-      name: 'Fire Department',
-      nameTh: 'ดับเพลิง',
-      category: 'fire',
-      description: 'Fire',
-      icon: 'Flame',
-      color: 'text-orange-600',
-    },
-    permissions: [],
-    lastLogin: new Date(),
-  })
-
-  assert.equal(url, 'http://localhost:4000/api/events?role=viewer&category=fire')
+test('buildAdminEventsUrl uses only the short-lived SSE ticket', () => {
+  assert.equal(
+    buildAdminEventsUrl('https://emer-api.scgs-ai.com', 'one-time-ticket'),
+    'https://emer-api.scgs-ai.com/api/events?ticket=one-time-ticket',
+  )
 })

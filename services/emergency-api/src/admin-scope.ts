@@ -4,14 +4,15 @@ export type MockAdminScope =
   | { role: "viewer"; category: string };
 
 /**
- * Scope ฝั่ง backend สำหรับ demo/admin mock auth
+ * Compatibility scope shape ที่ route เดิมใช้กรองข้อมูล admin
  *
- * ตอนนี้ backend ยังไม่ได้ใช้ real auth token จึงรับสิทธิ์จาก header/query:
+ * `admin-boundary` จะลบ header จาก browser แล้วเติม role/category ที่อ่านจาก JWT + DB เท่านั้น
+ * ชื่อ helper ยังมีคำว่า Mock เพื่อเลี่ยง refactor query ทั้งระบบใน release auth เดียว ห้ามเรียก helper นี้
+ * ก่อนผ่าน boundary เพราะจะทำให้ browser spoof สิทธิ์ได้:
  * - super_admin เห็นทุกหมวด
  * - agency_admin/viewer ต้องมี category เพื่อจำกัดข้อมูลตามหน่วยงาน
  *
- * ถ้าเปลี่ยนเป็น real auth ภายหลัง ต้องให้ endpoint เดิมยังได้ scope shape เดิม
- * ไม่อย่างนั้น dashboard, contacts, GIS และ tracking detail จะเห็นข้อมูลผิดหมวดได้
+ * ถ้าเปลี่ยน shape นี้ต้องทดสอบ dashboard, contacts, GIS, reports และ tracking detail ทุก role
  */
 export function isCategoryScopedAdmin(scope: MockAdminScope | null | undefined) {
   return scope?.role === "agency_admin" || scope?.role === "viewer";
@@ -43,23 +44,7 @@ export function getMockAdminScope(headers: Record<string, unknown> | undefined):
 
 export function getMockAdminScopeFromRequest(
   headers: Record<string, unknown> | undefined,
-  query: Record<string, unknown> | undefined
+  _query: Record<string, unknown> | undefined
 ): MockAdminScope | null {
-  const headerScope = getMockAdminScope(headers);
-  if (headerScope) {
-    return headerScope;
-  }
-
-  const role = typeof query?.role === "string" ? query.role.trim() : "";
-  const category = typeof query?.category === "string" ? query.category.trim() : "";
-
-  if (role === "super_admin") {
-    return { role: "super_admin" };
-  }
-
-  if ((role === "agency_admin" || role === "viewer") && category.length > 0) {
-    return { role, category };
-  }
-
-  return null;
+  return getMockAdminScope(headers);
 }

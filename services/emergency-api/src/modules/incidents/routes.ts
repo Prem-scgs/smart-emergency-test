@@ -50,6 +50,7 @@ const incidentBody = z.object({
 
 const incidentCallUpdateBody = z.object({
   callStatus: z.enum(["connected", "busy", "no-answer", "wrong-number", "cancelled"]),
+  sessionId: z.string().trim().min(8).max(128).optional(),
   reporterPhone: z.string().trim().min(1).max(32).nullable().optional(),
   description: z.string().nullable().optional(),
 });
@@ -1025,10 +1026,21 @@ export async function registerIncidentRoutes(app: FastifyInstance) {
       body.description ?? null,
     ];
 
+    if (!adminScope && !body.sessionId) {
+      reply.code(403);
+      return buildApiErrorPayload(
+        403,
+        "INCIDENT_CALL_UPDATE_ACCESS_DENIED",
+        "Reporter session is required"
+      );
+    }
+
     const updateScopeCondition =
       isCategoryScopedAdmin(adminScope)
         ? ` AND category = $${values.push(adminScope.category)}`
-        : "";
+        : adminScope?.role === "super_admin"
+          ? ""
+          : ` AND session_id = $${values.push(body.sessionId ?? null)}`;
 
     const result = await pool.query(
       `
