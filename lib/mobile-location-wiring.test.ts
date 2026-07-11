@@ -13,8 +13,8 @@ test('mobile incidents never use fallback coordinates', async () => {
   const source = await readFile(mobileAppUrl, 'utf8')
 
   assert.doesNotMatch(source, /FALLBACK_LOCATION/)
-  assert.match(source, /useState<MobileLocation \| null>\(null\)/)
-  assert.match(source, /if \(!currentLocation \|\| locationStatus !== 'locked'\)/)
+  assert.match(source, /useState<MobileLocation \| null>\(\s*null,?\s*\)/)
+  assert.match(source, /if \(!currentLocation \|\| locationStatus !== ["']locked["']\)/)
 })
 
 test('mobile splash reflects real GPS state instead of timers', async () => {

@@ -1,70 +1,573 @@
-'use client'
+"use client";
 
-import { useCallback, useEffect, useState } from 'react'
-import { Languages, Moon, Sun } from 'lucide-react'
-import { useTheme } from 'next-themes'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { SplashScreen } from './splash-screen'
-import { LocationHeader } from './location-header'
-import { EmergencyCategoriesGrid } from './emergency-categories-grid'
-import { SOSButton } from './sos-button'
-import { IncidentSelectionScreen } from './incident-selection-screen'
-import { IncidentHistoryScreen } from './incident-history-screen'
-import { IncidentTrackingScreen } from './incident-tracking-screen'
-import { MobileNav, type NavItem } from './mobile-nav'
-import type { EmergencyCategory, IncidentTrackingHistoryEntry, IncidentWorkflowStatus } from '@/entities/incident'
-import type { CallStatus } from '@/entities/call'
-import type { EmergencyContact } from '@/entities/contact'
-import { buildIncidentCallUpdatePayload, buildIncidentCreatePayload, getLocationFailureStatus, getOrCreateReporterSessionId, type LocationLockStatus } from '@/features/mobile-incident'
-import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { useMobileI18n } from '@/shared/i18n/mobile'
+import { useCallback, useEffect, useState } from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SplashScreen } from "./splash-screen";
+import { LocationHeader } from "./location-header";
+import { EmergencyCategoriesGrid } from "./emergency-categories-grid";
+import { SOSButton } from "./sos-button";
+import { IncidentSelectionScreen } from "./incident-selection-screen";
+import { IncidentHistoryScreen } from "./incident-history-screen";
+import { IncidentTrackingScreen } from "./incident-tracking-screen";
+import { MobileNav, type NavItem } from "./mobile-nav";
+import type {
+  EmergencyCategory,
+  IncidentTrackingHistoryEntry,
+  IncidentWorkflowStatus,
+} from "@/entities/incident";
+import type { CallStatus } from "@/entities/call";
+import type { EmergencyContact } from "@/entities/contact";
+import {
+  buildIncidentCallUpdatePayload,
+  buildIncidentCreatePayload,
+  getLocationFailureStatus,
+  getOrCreateReporterSessionId,
+  type LocationLockStatus,
+} from "@/features/mobile-incident";
+import { getEmergencyApiBaseUrl } from "@/shared/config/emergency-api";
+import { useMobileI18n } from "@/shared/i18n/mobile";
 
-type Screen = 'splash' | 'home' | 'incident' | 'history' | 'tracking'
-interface MobileLocation { latitude: number; longitude: number; provinceCode?: string; province: string; provinceNameTh?: string; provinceNameEn?: string; districtCode?: string; district: string; districtNameTh?: string; districtNameEn?: string; accuracy: number; lastUpdated: Date }
-interface LocalTrackingSnapshot { incidentId: string; caseNumber?: string | null; status: IncidentWorkflowStatus; updatedAt: string; history: IncidentTrackingHistoryEntry[] }
-interface PendingCallResult { incidentId: string; contact: EmergencyContact }
-interface ApiContact { id: string; name: string; phone: string; category: EmergencyCategory; provinceCode?: string | null; province: string | null; districtCode?: string | null; district: string | null; active: boolean; is24Hours: boolean; latitude?: number | null; longitude?: number | null }
-const isGlobalApiContact = (contact: ApiContact) => !contact.provinceCode && !contact.province && !contact.districtCode && !contact.district
-const isGlobalContact = (contact: EmergencyContact) => !contact.provinceCode && !contact.province && !contact.districtCode && !contact.district
+type Screen = "splash" | "home" | "incident" | "history" | "tracking";
+interface MobileLocation {
+  latitude: number;
+  longitude: number;
+  provinceCode?: string;
+  province: string;
+  provinceNameTh?: string;
+  provinceNameEn?: string;
+  districtCode?: string;
+  district: string;
+  districtNameTh?: string;
+  districtNameEn?: string;
+  accuracy: number;
+  lastUpdated: Date;
+}
+interface LocalTrackingSnapshot {
+  incidentId: string;
+  caseNumber?: string | null;
+  status: IncidentWorkflowStatus;
+  updatedAt: string;
+  history: IncidentTrackingHistoryEntry[];
+}
+interface PendingCallResult {
+  incidentId: string;
+  contact: EmergencyContact;
+}
+interface ApiContact {
+  id: string;
+  name: string;
+  phone: string;
+  category: EmergencyCategory;
+  provinceCode?: string | null;
+  province: string | null;
+  districtCode?: string | null;
+  district: string | null;
+  active: boolean;
+  is24Hours: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+const isGlobalApiContact = (contact: ApiContact) =>
+  !contact.provinceCode &&
+  !contact.province &&
+  !contact.districtCode &&
+  !contact.district;
+const isGlobalContact = (contact: EmergencyContact) =>
+  !contact.provinceCode &&
+  !contact.province &&
+  !contact.districtCode &&
+  !contact.district;
 
 export function MobileApp() {
-  const [screen, setScreen] = useState<Screen>('splash')
-  const [activeNav, setActiveNav] = useState<NavItem>('home')
-  const [selectedCategory, setSelectedCategory] = useState<EmergencyCategory | null>(null)
-  const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(null)
-  const [contacts, setContacts] = useState<EmergencyContact[]>([])
-  const [isLoadingContacts, setIsLoadingContacts] = useState(false)
-  const [currentLocation, setCurrentLocation] = useState<MobileLocation | null>(null)
-  const [locationStatus, setLocationStatus] = useState<LocationLockStatus>('requesting')
-  const [localTrackingSnapshot, setLocalTrackingSnapshot] = useState<LocalTrackingSnapshot | null>(null)
-  const [pendingCallResult, setPendingCallResult] = useState<PendingCallResult | null>(null)
-  const [isSavingCallResult, setIsSavingCallResult] = useState(false)
-  const { theme, setTheme } = useTheme()
-  const { language, setLanguage, t } = useMobileI18n()
+  const [screen, setScreen] = useState<Screen>("splash");
+  const [activeNav, setActiveNav] = useState<NavItem>("home");
+  const [selectedCategory, setSelectedCategory] =
+    useState<EmergencyCategory | null>(null);
+  const [trackingIncidentId, setTrackingIncidentId] = useState<string | null>(
+    null,
+  );
+  const [contacts, setContacts] = useState<EmergencyContact[]>([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<MobileLocation | null>(
+    null,
+  );
+  const [locationStatus, setLocationStatus] =
+    useState<LocationLockStatus>("requesting");
+  const [localTrackingSnapshot, setLocalTrackingSnapshot] =
+    useState<LocalTrackingSnapshot | null>(null);
+  const [pendingCallResult, setPendingCallResult] =
+    useState<PendingCallResult | null>(null);
+  const [isSavingCallResult, setIsSavingCallResult] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const { language, setLanguage, t } = useMobileI18n();
 
-  useEffect(() => { getOrCreateReporterSessionId() }, [])
-  const resolveLocation = async (latitude: number, longitude: number) => { const query = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude) }); const response = await fetch(getEmergencyApiBaseUrl() + '/api/areas/resolve-point?' + query); if (!response.ok) throw new Error(); return await response.json() as { provinceCode: string | null; provinceNameTh: string | null; provinceNameEn: string | null; districtCode: string | null; districtNameTh: string | null; districtNameEn: string | null } }
-  const loadContacts = useCallback(async (location: MobileLocation | null) => { try { setIsLoadingContacts(true); const load = async (query: URLSearchParams) => { const response = await fetch(getEmergencyApiBaseUrl() + '/api/contacts?' + query); if (!response.ok) throw new Error(); return await response.json() as ApiContact[] }; const exact = new URLSearchParams({ active: 'true' }); if (location?.provinceCode) exact.set('provinceCode', location.provinceCode); if (location?.districtCode) exact.set('districtCode', location.districtCode); if (location?.province) exact.set('province', location.province); if (location?.district) exact.set('district', location.district); const provinceFallback = new URLSearchParams({ active: 'true' }); if (location?.provinceCode) provinceFallback.set('provinceCode', location.provinceCode); if (location?.province) provinceFallback.set('province', location.province); let apiContacts = await load(exact); if (apiContacts.length === 0 && location?.provinceCode) apiContacts = await load(provinceFallback); if (!location) apiContacts = apiContacts.filter(isGlobalApiContact); setContacts(apiContacts.filter((contact): contact is ApiContact & { category: EmergencyCategory } => Boolean(contact.category)).map(contact => ({ id: contact.id, agencyName: contact.name, phoneNumber: contact.phone, category: contact.category, provinceCode: contact.provinceCode ?? location?.provinceCode, province: contact.province ?? location?.province ?? '', districtCode: contact.districtCode ?? location?.districtCode, district: contact.district ?? location?.district ?? '', status: contact.active ? 'active' as const : 'inactive' as const, is24Hours: contact.is24Hours, coordinates: contact.latitude != null && contact.longitude != null ? { latitude: contact.latitude, longitude: contact.longitude } : undefined }))) } catch { setContacts([]) } finally { setIsLoadingContacts(false) } }, [])
-  const syncLocation = useCallback(async (next: Pick<MobileLocation, 'latitude' | 'longitude' | 'accuracy'>) => { try { const resolved = await resolveLocation(next.latitude, next.longitude); const location: MobileLocation = { ...next, provinceCode: resolved.provinceCode ?? undefined, province: resolved.provinceNameTh ?? resolved.provinceNameEn ?? '', provinceNameTh: resolved.provinceNameTh ?? undefined, provinceNameEn: resolved.provinceNameEn ?? undefined, districtCode: resolved.districtCode ?? undefined, district: resolved.districtNameTh ?? resolved.districtNameEn ?? '', districtNameTh: resolved.districtNameTh ?? undefined, districtNameEn: resolved.districtNameEn ?? undefined, lastUpdated: new Date() }; setCurrentLocation(location); setLocationStatus('locked'); await loadContacts(location) } catch { const location: MobileLocation = { ...next, province: '', district: '', lastUpdated: new Date() }; setCurrentLocation(location); setLocationStatus('locked'); await loadContacts(null) } }, [loadContacts])
-  const refreshLocation = useCallback(() => { setLocationStatus('requesting'); if (typeof window === 'undefined' || !('geolocation' in navigator)) { setCurrentLocation(null); setLocationStatus('unavailable'); void loadContacts(null); return } navigator.geolocation.getCurrentPosition(position => void syncLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy }), error => { setCurrentLocation(null); setLocationStatus(getLocationFailureStatus(error.code)); void loadContacts(null) }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }) }, [loadContacts, syncLocation])
-  useEffect(() => { refreshLocation() }, [refreshLocation])
-  const createIncidentForCall = useCallback(async (contact: EmergencyContact, category: EmergencyCategory, clientRequestId: string) => { if (!currentLocation || locationStatus !== 'locked') throw new Error(t('locationUnavailable')); const response = await fetch(getEmergencyApiBaseUrl() + '/api/incidents', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildIncidentCreatePayload({ category, contact, location: currentLocation, sessionId: getOrCreateReporterSessionId(), clientRequestId })) }); if (!response.ok) throw new Error(t('incidentCreateFailed')); return await response.json() as { id: string; caseNumber?: string | null } }, [currentLocation, locationStatus, t])
-  const startCallFlow = useCallback(async (contact: EmergencyContact, category: EmergencyCategory) => { const clientRequestId = crypto.randomUUID(); setSelectedCategory(category); setLocalTrackingSnapshot(null); if ((!currentLocation || locationStatus !== 'locked') && isGlobalContact(contact)) return; try { const incident = await createIncidentForCall(contact, category, clientRequestId); const updatedAt = new Date().toISOString(); setLocalTrackingSnapshot({ incidentId: incident.id, caseNumber: incident.caseNumber ?? null, status: 'reported', updatedAt, history: [{ toStatus: 'reported', createdAt: updatedAt }] }); setTrackingIncidentId(incident.id); setPendingCallResult({ incidentId: incident.id, contact }); setScreen('tracking'); toast.success(t('incidentCreated')) } catch (error) { toast.error(error instanceof Error ? error.message : t('incidentCreateFailed')) } }, [createIncidentForCall, currentLocation, locationStatus, t])
-  const updateCallResult = useCallback(async (status: CallStatus) => { if (!pendingCallResult) return; try { setIsSavingCallResult(true); const response = await fetch(getEmergencyApiBaseUrl() + `/api/incidents/${pendingCallResult.incidentId}/call`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildIncidentCallUpdatePayload({ status, contact: pendingCallResult.contact })) }); if (!response.ok) throw new Error(); setPendingCallResult(null); toast.success(t('callResultSaved')) } catch { toast.error(t('callResultSaveFailed')) } finally { setIsSavingCallResult(false) } }, [pendingCallResult, t])
-  const handleBack = () => { setScreen('home'); setActiveNav('home'); setSelectedCategory(null); setTrackingIncidentId(null); setPendingCallResult(null) }
-  if (screen === 'splash') return <SplashScreen locationStatus={locationStatus} onRetry={refreshLocation} onContinueWithoutLocation={() => setScreen('home')} onComplete={() => setScreen('home')} />
-  if (screen === 'incident' && selectedCategory) return <IncidentSelectionScreen categoryId={selectedCategory} contacts={contacts} isLoadingContacts={isLoadingContacts} onBack={handleBack} onCall={contact => startCallFlow(contact, selectedCategory)} onViewMap={() => toast.info(t('mapComingSoon'))} />
-  if (screen === 'history') return <IncidentHistoryScreen onBack={handleBack} onViewTracking={(id, category) => { setTrackingIncidentId(id); setSelectedCategory(category); setScreen('tracking') }} />
-  if (screen === 'tracking' && trackingIncidentId && selectedCategory) { const snapshot = localTrackingSnapshot?.incidentId === trackingIncidentId ? localTrackingSnapshot : null; return <><IncidentTrackingScreen incidentId={trackingIncidentId} caseNumber={snapshot?.caseNumber} categoryId={selectedCategory} trackingStatus={snapshot?.status} trackingHistory={snapshot?.history} trackingUpdatedAt={snapshot?.updatedAt} onBack={handleBack} onCall={() => { const contact = contacts.find(item => item.category === selectedCategory); if (!contact) { toast.error(t('categoryContactMissing')); return } void startCallFlow(contact, selectedCategory) }} /><CallResultDialog open={pendingCallResult?.incidentId === trackingIncidentId} isSaving={isSavingCallResult} onClose={() => setPendingCallResult(null)} onSelect={updateCallResult} /></> }
-  return <div className="flex flex-col min-h-screen bg-background"><header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b"><div className="flex items-center justify-between p-4"><div><h1 className="text-xl font-bold text-foreground">Smart Emergency</h1><p className="text-xs text-muted-foreground">{t('appTagline')}</p></div><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={t('themeToggle')}><Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" /><Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" /></Button><Button variant="ghost" size="icon" onClick={() => setLanguage(language === 'th' ? 'en' : 'th')} aria-label={t('languageToggle')} className="gap-0.5 text-xs font-semibold"><Languages className="h-4 w-4" /><span>{language === 'th' ? 'EN' : 'ไทย'}</span></Button></div></div><MobileNav active={activeNav} onNavigate={item => { setActiveNav(item); setScreen(item === 'history' ? 'history' : 'home') }} /></header><ScrollArea className="flex-1"><div className="p-4 pb-40 space-y-6"><LocationHeader location={currentLocation} locationStatus={locationStatus} onRefresh={refreshLocation} /><div><h2 className="text-sm font-medium text-muted-foreground mb-3">{t('emergencyCategories')}</h2><EmergencyCategoriesGrid onSelectCategory={category => { setSelectedCategory(category); setScreen('incident') }} /></div></div></ScrollArea><SOSButton onPress={() => { const contact = contacts.find(item => item.category === 'medical'); if (!contact) { toast.error(t('medicalContactMissing')); return } void startCallFlow(contact, 'medical') }} /></div>
+  useEffect(() => {
+    getOrCreateReporterSessionId();
+  }, []);
+  const resolveLocation = async (latitude: number, longitude: number) => {
+    const query = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+    });
+    const response = await fetch(
+      getEmergencyApiBaseUrl() + "/api/areas/resolve-point?" + query,
+    );
+    if (!response.ok) throw new Error();
+    return (await response.json()) as {
+      provinceCode: string | null;
+      provinceNameTh: string | null;
+      provinceNameEn: string | null;
+      districtCode: string | null;
+      districtNameTh: string | null;
+      districtNameEn: string | null;
+    };
+  };
+  const loadContacts = useCallback(async (location: MobileLocation | null) => {
+    try {
+      setIsLoadingContacts(true);
+      const load = async (query: URLSearchParams) => {
+        const response = await fetch(
+          getEmergencyApiBaseUrl() + "/api/contacts?" + query,
+        );
+        if (!response.ok) throw new Error();
+        return (await response.json()) as ApiContact[];
+      };
+      const exact = new URLSearchParams({ active: "true" });
+      if (location?.provinceCode)
+        exact.set("provinceCode", location.provinceCode);
+      if (location?.districtCode)
+        exact.set("districtCode", location.districtCode);
+      if (location?.province) exact.set("province", location.province);
+      if (location?.district) exact.set("district", location.district);
+      const provinceFallback = new URLSearchParams({ active: "true" });
+      if (location?.provinceCode)
+        provinceFallback.set("provinceCode", location.provinceCode);
+      if (location?.province)
+        provinceFallback.set("province", location.province);
+      let apiContacts = await load(exact);
+      if (apiContacts.length === 0 && location?.provinceCode)
+        apiContacts = await load(provinceFallback);
+      if (!location) apiContacts = apiContacts.filter(isGlobalApiContact);
+      setContacts(
+        apiContacts
+          .filter(
+            (
+              contact,
+            ): contact is ApiContact & { category: EmergencyCategory } =>
+              Boolean(contact.category),
+          )
+          .map((contact) => ({
+            id: contact.id,
+            agencyName: contact.name,
+            phoneNumber: contact.phone,
+            category: contact.category,
+            provinceCode: contact.provinceCode ?? location?.provinceCode,
+            province: contact.province ?? location?.province ?? "",
+            districtCode: contact.districtCode ?? location?.districtCode,
+            district: contact.district ?? location?.district ?? "",
+            status: contact.active
+              ? ("active" as const)
+              : ("inactive" as const),
+            is24Hours: contact.is24Hours,
+            coordinates:
+              contact.latitude != null && contact.longitude != null
+                ? { latitude: contact.latitude, longitude: contact.longitude }
+                : undefined,
+          })),
+      );
+    } catch {
+      setContacts([]);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, []);
+  const syncLocation = useCallback(
+    async (
+      next: Pick<MobileLocation, "latitude" | "longitude" | "accuracy">,
+    ) => {
+      try {
+        const resolved = await resolveLocation(next.latitude, next.longitude);
+        const location: MobileLocation = {
+          ...next,
+          provinceCode: resolved.provinceCode ?? undefined,
+          province: resolved.provinceNameTh ?? resolved.provinceNameEn ?? "",
+          provinceNameTh: resolved.provinceNameTh ?? undefined,
+          provinceNameEn: resolved.provinceNameEn ?? undefined,
+          districtCode: resolved.districtCode ?? undefined,
+          district: resolved.districtNameTh ?? resolved.districtNameEn ?? "",
+          districtNameTh: resolved.districtNameTh ?? undefined,
+          districtNameEn: resolved.districtNameEn ?? undefined,
+          lastUpdated: new Date(),
+        };
+        setCurrentLocation(location);
+        setLocationStatus("locked");
+        await loadContacts(location);
+      } catch {
+        const location: MobileLocation = {
+          ...next,
+          province: "",
+          district: "",
+          lastUpdated: new Date(),
+        };
+        setCurrentLocation(location);
+        setLocationStatus("locked");
+        await loadContacts(null);
+      }
+    },
+    [loadContacts],
+  );
+  const refreshLocation = useCallback(() => {
+    setLocationStatus("requesting");
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setCurrentLocation(null);
+      setLocationStatus("unavailable");
+      void loadContacts(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) =>
+        void syncLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        }),
+      (error) => {
+        setCurrentLocation(null);
+        setLocationStatus(getLocationFailureStatus(error.code));
+        void loadContacts(null);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  }, [loadContacts, syncLocation]);
+  useEffect(() => {
+    refreshLocation();
+  }, [refreshLocation]);
+  const createIncidentForCall = useCallback(
+    async (
+      contact: EmergencyContact,
+      category: EmergencyCategory,
+      clientRequestId: string,
+    ) => {
+      if (!currentLocation || locationStatus !== "locked")
+        throw new Error(t("locationUnavailable"));
+      const response = await fetch(
+        getEmergencyApiBaseUrl() + "/api/incidents",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            buildIncidentCreatePayload({
+              category,
+              contact,
+              location: currentLocation,
+              sessionId: getOrCreateReporterSessionId(),
+              clientRequestId,
+            }),
+          ),
+        },
+      );
+      if (!response.ok) throw new Error(t("incidentCreateFailed"));
+      return (await response.json()) as {
+        id: string;
+        caseNumber?: string | null;
+      };
+    },
+    [currentLocation, locationStatus, t],
+  );
+  const startCallFlow = useCallback(
+    async (contact: EmergencyContact, category: EmergencyCategory) => {
+      const clientRequestId = crypto.randomUUID();
+      setSelectedCategory(category);
+      setLocalTrackingSnapshot(null);
+      if (
+        (!currentLocation || locationStatus !== "locked") &&
+        isGlobalContact(contact)
+      )
+        return;
+      try {
+        const incident = await createIncidentForCall(
+          contact,
+          category,
+          clientRequestId,
+        );
+        const updatedAt = new Date().toISOString();
+        setLocalTrackingSnapshot({
+          incidentId: incident.id,
+          caseNumber: incident.caseNumber ?? null,
+          status: "reported",
+          updatedAt,
+          history: [{ toStatus: "reported", createdAt: updatedAt }],
+        });
+        setTrackingIncidentId(incident.id);
+        setPendingCallResult({ incidentId: incident.id, contact });
+        setScreen("tracking");
+        toast.success(t("incidentCreated"));
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : t("incidentCreateFailed"),
+        );
+      }
+    },
+    [createIncidentForCall, currentLocation, locationStatus, t],
+  );
+  const updateCallResult = useCallback(
+    async (status: CallStatus) => {
+      if (!pendingCallResult) return;
+      try {
+        setIsSavingCallResult(true);
+        const response = await fetch(
+          getEmergencyApiBaseUrl() +
+            `/api/incidents/${pendingCallResult.incidentId}/call`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(
+              buildIncidentCallUpdatePayload({
+                status,
+                contact: pendingCallResult.contact,
+              }),
+            ),
+          },
+        );
+        if (!response.ok) throw new Error();
+        setPendingCallResult(null);
+        toast.success(t("callResultSaved"));
+      } catch {
+        toast.error(t("callResultSaveFailed"));
+      } finally {
+        setIsSavingCallResult(false);
+      }
+    },
+    [pendingCallResult, t],
+  );
+  const handleBack = () => {
+    setScreen("home");
+    setActiveNav("home");
+    setSelectedCategory(null);
+    setTrackingIncidentId(null);
+    setPendingCallResult(null);
+  };
+  if (screen === "splash")
+    return (
+      <SplashScreen
+        locationStatus={locationStatus}
+        onRetry={refreshLocation}
+        onContinueWithoutLocation={() => setScreen("home")}
+        onComplete={() => setScreen("home")}
+      />
+    );
+  if (screen === "incident" && selectedCategory)
+    return (
+      <IncidentSelectionScreen
+        categoryId={selectedCategory}
+        contacts={contacts}
+        isLoadingContacts={isLoadingContacts}
+        onBack={handleBack}
+        onCall={(contact) => startCallFlow(contact, selectedCategory)}
+        onViewMap={() => toast.info(t("mapComingSoon"))}
+      />
+    );
+  if (screen === "history")
+    return (
+      <IncidentHistoryScreen
+        onBack={handleBack}
+        onViewTracking={(id, category) => {
+          setTrackingIncidentId(id);
+          setSelectedCategory(category);
+          setScreen("tracking");
+        }}
+      />
+    );
+  if (screen === "tracking" && trackingIncidentId && selectedCategory) {
+    const snapshot =
+      localTrackingSnapshot?.incidentId === trackingIncidentId
+        ? localTrackingSnapshot
+        : null;
+    return (
+      <>
+        <IncidentTrackingScreen
+          incidentId={trackingIncidentId}
+          caseNumber={snapshot?.caseNumber}
+          categoryId={selectedCategory}
+          trackingStatus={snapshot?.status}
+          trackingHistory={snapshot?.history}
+          trackingUpdatedAt={snapshot?.updatedAt}
+          onBack={handleBack}
+          onCall={() => {
+            const contact = contacts.find(
+              (item) => item.category === selectedCategory,
+            );
+            if (!contact) {
+              toast.error(t("categoryContactMissing"));
+              return;
+            }
+            void startCallFlow(contact, selectedCategory);
+          }}
+        />
+        <CallResultDialog
+          open={pendingCallResult?.incidentId === trackingIncidentId}
+          isSaving={isSavingCallResult}
+          onClose={() => setPendingCallResult(null)}
+          onSelect={updateCallResult}
+        />
+      </>
+    );
+  }
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b">
+        <div className="flex items-center justify-between p-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">
+              Smart Emergency
+            </h1>
+            <p className="text-xs text-muted-foreground">{t("appTagline")}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label={t("themeToggle")}
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </Button>
+            <Select
+              value={language}
+              onValueChange={(value) => setLanguage(value as "th" | "en")}
+            >
+              <SelectTrigger
+                size="sm"
+                className="h-9 w-[82px] text-xs font-semibold"
+                aria-label={t("languageToggle")}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="th">{t("languageThai")}</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <MobileNav
+          active={activeNav}
+          onNavigate={(item) => {
+            setActiveNav(item);
+            setScreen(item === "history" ? "history" : "home");
+          }}
+        />
+      </header>
+      <ScrollArea className="flex-1">
+        <div className="p-4 pb-40 space-y-6">
+          <LocationHeader
+            location={currentLocation}
+            locationStatus={locationStatus}
+            onRefresh={refreshLocation}
+          />
+          <div>
+            <h2 className="text-sm font-medium text-muted-foreground mb-3">
+              {t("emergencyCategories")}
+            </h2>
+            <EmergencyCategoriesGrid
+              onSelectCategory={(category) => {
+                setSelectedCategory(category);
+                setScreen("incident");
+              }}
+            />
+          </div>
+        </div>
+      </ScrollArea>
+      <SOSButton
+        onPress={() => {
+          const contact = contacts.find((item) => item.category === "medical");
+          if (!contact) {
+            toast.error(t("medicalContactMissing"));
+            return;
+          }
+          void startCallFlow(contact, "medical");
+        }}
+      />
+    </div>
+  );
 }
 
-function CallResultDialog({ open, isSaving, onClose, onSelect }: { open: boolean; isSaving: boolean; onClose: () => void; onSelect: (status: CallStatus) => void }) {
+function CallResultDialog({
+  open,
+  isSaving,
+  onClose,
+  onSelect,
+}: {
+  open: boolean;
+  isSaving: boolean;
+  onClose: () => void;
+  onSelect: (status: CallStatus) => void;
+}) {
   // callResultTitle: ผลการโทรเป็นอย่างไร?
-  const { t } = useMobileI18n()
-  const options: Array<[CallStatus, 'callConnected' | 'callBusy' | 'callNoAnswer' | 'callWrongNumber' | 'callCancelled']> = [['connected', 'callConnected'], ['busy', 'callBusy'], ['no-answer', 'callNoAnswer'], ['wrong-number', 'callWrongNumber'], ['cancelled', 'callCancelled']]
-  return <Dialog open={open} onOpenChange={next => !next && !isSaving && onClose()}><DialogContent className="max-w-[calc(100vw-2rem)] rounded-3xl sm:max-w-sm"><DialogHeader><DialogTitle>{t('callResultTitle')}</DialogTitle><DialogDescription>{t('callResultDescription')}</DialogDescription></DialogHeader><div className="grid gap-2">{options.map(([status, key], index) => <Button key={status} variant={index === 0 ? 'default' : index === 4 ? 'ghost' : 'outline'} className="justify-start" disabled={isSaving} onClick={() => void onSelect(status)}>{t(key)}</Button>)}</div></DialogContent></Dialog>
+  const { t } = useMobileI18n();
+  const options: Array<
+    [
+      CallStatus,
+      (
+        | "callConnected"
+        | "callBusy"
+        | "callNoAnswer"
+        | "callWrongNumber"
+        | "callCancelled"
+      ),
+    ]
+  > = [
+    ["connected", "callConnected"],
+    ["busy", "callBusy"],
+    ["no-answer", "callNoAnswer"],
+    ["wrong-number", "callWrongNumber"],
+    ["cancelled", "callCancelled"],
+  ];
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && !isSaving && onClose()}
+    >
+      <DialogContent className="max-w-[calc(100vw-2rem)] rounded-3xl sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t("callResultTitle")}</DialogTitle>
+          <DialogDescription>{t("callResultDescription")}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-2">
+          {options.map(([status, key], index) => (
+            <Button
+              key={status}
+              variant={
+                index === 0 ? "default" : index === 4 ? "ghost" : "outline"
+              }
+              className="justify-start"
+              disabled={isSaving}
+              onClick={() => void onSelect(status)}
+            >
+              {t(key)}
+            </Button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
