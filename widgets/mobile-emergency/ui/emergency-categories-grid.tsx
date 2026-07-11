@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { getCategoryDisplayLabel, useReferenceCategories } from '@/shared/reference'
 import type { EmergencyCategory } from '@/entities/incident'
 import { cn } from '@/shared/utils'
+import { useMobileI18n } from '@/shared/i18n/mobile'
 
 const iconMap: Record<string, LucideIcon> = {
   ShieldAlert,
@@ -31,6 +32,8 @@ interface EmergencyCategoriesGridProps {
 
 export function EmergencyCategoriesGrid({ onSelectCategory }: EmergencyCategoriesGridProps) {
   const { categories } = useReferenceCategories()
+  const { language } = useMobileI18n()
+  const preferThai = language === 'th'
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -44,7 +47,7 @@ export function EmergencyCategoriesGrid({ onSelectCategory }: EmergencyCategorie
             onClick={() => onSelectCategory(category.id)}
             role="button"
             tabIndex={0}
-            aria-label={getCategoryDisplayLabel(category, false) + ' - ' + category.description}
+            aria-label={getCategoryDisplayLabel(category, preferThai) + ' - ' + category.description}
             onKeyDown={event => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault()
@@ -57,7 +60,7 @@ export function EmergencyCategoriesGrid({ onSelectCategory }: EmergencyCategorie
                 <Icon className={cn('h-7 w-7', category.color)} />
               </div>
               <h3 className="text-sm font-medium text-foreground leading-tight">
-                {getCategoryDisplayLabel(category, false)}
+                {getCategoryDisplayLabel(category, preferThai)}
               </h3>
             </CardContent>
           </Card>

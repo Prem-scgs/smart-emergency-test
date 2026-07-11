@@ -29,7 +29,7 @@ test('mobile splash reflects real GPS state instead of timers', async () => {
 test('mobile keeps central contacts available without GPS', async () => {
   const source = await readFile(mobileAppUrl, 'utf8')
 
-  assert.match(source, /function isGlobalContact/)
+  assert.match(source, /const isGlobalContact/)
   assert.match(source, /loadContacts\(null\)/)
   assert.match(source, /apiContacts = apiContacts\.filter\(isGlobalApiContact\)/)
 })
@@ -42,8 +42,8 @@ test('mobile call button uses a native tel link while preserving the app call ha
   assert.match(source, /href=\{buildTelUrl\(contact\.phoneNumber\)\}/)
   assert.match(source, /event\.preventDefault\(\)/)
   assert.match(source, /await onCall\(contact\)/)
-  assert.match(source, /window\.location\.assign\(telUrl\)/)
-  assert.match(mobileAppSource, /return startCallFlow\(contact, incidentCategory\)/)
+  assert.match(source, /window\.location\.assign\(buildTelUrl\(contact\.phoneNumber\)\)/)
+  assert.match(mobileAppSource, /startCallFlow\(contact, selectedCategory\)/)
   assert.match(mobileAppSource, /buildIncidentCallUpdatePayload/)
   assert.match(mobileAppSource, /\/api\/incidents\/\$\{pendingCallResult\.incidentId\}\/call/)
   assert.match(mobileAppSource, /ผลการโทรเป็นอย่างไร\?/)

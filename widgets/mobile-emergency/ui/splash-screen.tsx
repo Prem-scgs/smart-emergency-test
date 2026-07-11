@@ -2,16 +2,10 @@
 
 import { useEffect } from 'react'
 import { AlertCircle, CheckCircle2, Loader2, Shield } from 'lucide-react'
-
 import { Button } from '@/components/ui/button'
-import { locationStatusMessage, type LocationLockStatus } from '@/features/mobile-incident'
+import { type LocationLockStatus } from '@/features/mobile-incident'
+import { useMobileI18n, type MobileI18nKey } from '@/shared/i18n/mobile'
 
-/**
- * Splash/location gate ก่อนเข้า mobile app
- *
- * หน้านี้พยายามล็อก location ก่อน แต่ยังมีทางไปต่อแบบไม่มี location เพื่อไม่ให้
- * ผู้ใช้ติดอยู่ในเหตุฉุกเฉินจริง ถ้าแก้ต้องทดสอบ retry และ continue-without-location.
- */
 interface SplashScreenProps {
   locationStatus: LocationLockStatus
   onRetry: () => void
@@ -19,20 +13,22 @@ interface SplashScreenProps {
   onComplete: () => void
 }
 
-export function SplashScreen({
-  locationStatus,
-  onRetry,
-  onContinueWithoutLocation,
-  onComplete,
-}: SplashScreenProps) {
-  useEffect(() => {
-    if (locationStatus === 'locked') {
-      onComplete()
-    }
-  }, [locationStatus, onComplete])
+const locationStatusKeys: Record<LocationLockStatus, MobileI18nKey> = {
+  requesting: 'locationRequesting',
+  locked: 'locationLocked',
+  denied: 'locationDenied',
+  unavailable: 'locationUnavailable',
+  timeout: 'locationTimeout',
+}
 
+export function SplashScreen({ locationStatus, onRetry, onContinueWithoutLocation, onComplete }: SplashScreenProps) {
+  const { t } = useMobileI18n()
   const isRequesting = locationStatus === 'requesting'
   const isLocked = locationStatus === 'locked'
+
+  useEffect(() => {
+    if (isLocked) onComplete()
+  }, [isLocked, onComplete])
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center bg-background safe-area-inset">
@@ -41,47 +37,29 @@ export function SplashScreen({
           <Shield className="h-12 w-12 text-primary-foreground" />
         </div>
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Smart Emergency
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Emergency Response Platform
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Smart Emergency</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('appTagline')}</p>
         </div>
       </div>
 
       <div className="w-full max-w-sm space-y-4 px-8">
         <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-4">
-          {isRequesting ? (
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          ) : isLocked ? (
-            <CheckCircle2 className="h-5 w-5 text-success" />
-          ) : (
-            <AlertCircle className="h-5 w-5 text-destructive" />
-          )}
+          {isRequesting ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : isLocked ? <CheckCircle2 className="h-5 w-5 text-success" /> : <AlertCircle className="h-5 w-5 text-destructive" />}
           <div>
-            <p className="text-sm font-medium">ตำแหน่งปัจจุบัน</p>
-            <p className="text-sm text-muted-foreground">
-              {locationStatusMessage[locationStatus]}
-            </p>
+            <p className="text-sm font-medium">{t('currentLocation')}</p>
+            <p className="text-sm text-muted-foreground">{t(locationStatusKeys[locationStatus])}</p>
           </div>
         </div>
 
         {!isRequesting && !isLocked ? (
           <div className="space-y-2">
-            <Button className="w-full" onClick={onRetry}>ลองอีกครั้ง</Button>
-            <Button className="w-full" variant="outline" onClick={onContinueWithoutLocation}>
-              เข้าสู่หน้าหลักโดยไม่ใช้ตำแหน่ง
-            </Button>
+            <Button className="w-full" onClick={onRetry}>{t('splashRetry')}</Button>
+            <Button className="w-full" variant="outline" onClick={onContinueWithoutLocation}>{t('splashContinueWithoutLocation')}</Button>
           </div>
         ) : null}
       </div>
 
-      <div className="absolute bottom-8 text-center">
-        <p className="text-xs text-muted-foreground">
-          Version 1.0.0
-        </p>
-      </div>
+      <div className="absolute bottom-8 text-center"><p className="text-xs text-muted-foreground">Version 1.0.0</p></div>
     </div>
   )
 }

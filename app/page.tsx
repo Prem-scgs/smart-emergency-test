@@ -1,4 +1,5 @@
 import { MobileApp } from '@/widgets/mobile-emergency'
+import { MobileI18nProvider } from '@/shared/i18n/mobile'
 
 /**
  * Mobile citizen entry route
@@ -7,5 +8,9 @@ import { MobileApp } from '@/widgets/mobile-emergency'
  * อยู่ใน `widgets/mobile-emergency` เพื่อกันไม่ให้หน้าแรกกลับมาแบก business logic.
  */
 export default function Home() {
-  return <MobileApp />
+  return (
+    <MobileI18nProvider>
+      <MobileApp />
+    </MobileI18nProvider>
+  )
 }

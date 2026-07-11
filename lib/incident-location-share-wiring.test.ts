@@ -36,10 +36,10 @@ test('share card keeps unavailable channels disabled and protects optional phone
   )
 
   assert.match(card, /useState\(false\)/)
-  assert.match(card, /disabled=\{isLoading \|\| !enabled \|\| pendingChannel !== null\}/)
+  assert.match(card, /disabled=\{isLoading \|\| !availability\[id\]\.enabled \|\| pendingChannel !== null\}/)
   assert.match(card, /ยังไม่เปิดใช้งาน/)
   assert.match(card, /isValidThaiReporterPhone/)
   assert.match(card, /บันทึกประวัติการแชร์ไม่สำเร็จ/)
   assert.match(card, /เปิดต่อ/)
-  assert.match(card, /shouldCopyMessageBeforeOpeningChannel\(share\.channel, platform\)/)
+  assert.match(card, /shouldCopyMessageBeforeOpeningChannel\(payload\.channel, platform\)/)
 })
