@@ -10,6 +10,7 @@ interface SOSButtonProps {
   className?: string
 }
 
+/** ปุ่มลัด SOS ส่ง event ให้ MobileApp ตัดสินใจ flow เดียวกับการเลือกหมวดปกติ ไม่สร้าง incident ซ้ำใน UI นี้. */
 export function SOSButton({ onPress, className }: SOSButtonProps) {
   const { t } = useMobileI18n()
 

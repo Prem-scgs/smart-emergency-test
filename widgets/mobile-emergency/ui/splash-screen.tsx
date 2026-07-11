@@ -21,6 +21,10 @@ const locationStatusKeys: Record<LocationLockStatus, MobileI18nKey> = {
   timeout: 'locationTimeout',
 }
 
+/**
+ * Location gate ก่อนเข้า home. สถานะมาจาก GPS จริง ไม่ใช่ timer; ผู้ใช้ยังเข้าหน้าหลักได้เมื่อ
+ * ไม่อนุญาต location เพื่อให้ติดต่อหน่วยงานกลางได้ แต่การสร้างเคสที่ต้องใช้พิกัดจะถูก guard ภายหลัง.
+ */
 export function SplashScreen({ locationStatus, onRetry, onContinueWithoutLocation, onComplete }: SplashScreenProps) {
   const { t } = useMobileI18n()
   const isRequesting = locationStatus === 'requesting'

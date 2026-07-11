@@ -30,6 +30,10 @@ interface EmergencyCategoriesGridProps {
   onSelectCategory: (category: EmergencyCategory) => void
 }
 
+/**
+ * จุดเริ่มเลือกประเภทเหตุของ mobile flow. ใช้ master category ตาม locale จึงไม่ควร hard-code label
+ * หรือส่งข้อความที่แปลแล้วกลับไป API; callback ต้องส่ง category id เดิมเพื่อสร้าง incident ถูกหมวด.
+ */
 export function EmergencyCategoriesGrid({ onSelectCategory }: EmergencyCategoriesGridProps) {
   const { categories } = useReferenceCategories()
   const { language } = useMobileI18n()

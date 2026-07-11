@@ -40,6 +40,10 @@ const locationStatusKeys: Record<LocationLockStatus, MobileI18nKey> = {
   timeout: 'locationTimeout',
 }
 
+/**
+ * แสดงผล GPS ที่ MobileApp เป็น owner. Component นี้เลือกชื่อจังหวัด/อำเภอจากข้อมูลสองภาษาเท่านั้น
+ * และไม่ reverse-geocode เอง เพื่อให้การ refresh, contact scope และ incident payload ใช้ตำแหน่งชุดเดียวกัน.
+ */
 export function LocationHeader({ className, location, locationStatus, isRefreshing = false, onRefresh }: LocationHeaderProps) {
   const { provinces, districts, setSelectedProvinceCode } = useReferenceLocations({ autoSelectFirstProvince: false })
   const { language, locale, t } = useMobileI18n()

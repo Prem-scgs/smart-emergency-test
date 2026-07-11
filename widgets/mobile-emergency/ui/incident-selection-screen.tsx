@@ -27,6 +27,10 @@ function buildTelUrl(phoneNumber: string) {
   return `tel:${phoneNumber.replace(/[^\d+*#]/g, '')}`
 }
 
+/**
+ * เลือกหน่วยงานที่จะโทรในหมวดที่ผู้ใช้เลือก. รายการ contact ถูก scope มาจาก MobileApp แล้ว;
+ * component นี้ต้องเรียก callback เดิมเพื่อคงลำดับ create incident ก่อน native tel call.
+ */
 export function IncidentSelectionScreen({ categoryId, contacts, isLoadingContacts = false, onBack, onCall, onViewMap }: IncidentSelectionScreenProps) {
   const { categories } = useReferenceCategories()
   const { language, t } = useMobileI18n()

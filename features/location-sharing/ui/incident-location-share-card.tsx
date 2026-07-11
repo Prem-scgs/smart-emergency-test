@@ -18,9 +18,14 @@ interface IncidentLocationShareCardProps { incident: MobileTrackingIncident }
 const EMPTY_AVAILABILITY: ShareChannelAvailability = { line: { enabled: false }, sms: { enabled: false }, whatsapp: { enabled: false } }
 const CHANNELS = [{ id: 'line' as const, label: 'LINE', icon: MessageCircle }, { id: 'sms' as const, label: 'SMS', icon: MessageSquare }, { id: 'whatsapp' as const, label: 'WhatsApp', icon: Send }]
 
-// shareUnavailable: ยังไม่เปิดใช้งาน
-// shareRecordFailedTitle: บันทึกประวัติการแชร์ไม่สำเร็จ
-// continue: เปิดต่อ
+/**
+ * การแชร์ตำแหน่งของเคสที่กำลังติดตาม
+ *
+ * Card นี้อ่าน channel availability และบันทึก share attempt ผ่าน API ก่อนเปิด LINE/SMS/WhatsApp
+ * เพื่อให้ระบบมี audit trail. ข้อความที่ API ส่งกลับเป็นข้อมูลของเคส จึงไม่แปลข้อความที่ผู้ใช้
+ * หรือ backend บันทึกเอง; แปลเฉพาะ UI ของ card ผ่าน mobile i18n เช่น “ยังไม่เปิดใช้งาน”,
+ * dialog “บันทึกประวัติการแชร์ไม่สำเร็จ” และปุ่ม “เปิดต่อ”.
+ */
 
 export function IncidentLocationShareCard({ incident }: IncidentLocationShareCardProps) {
   const { t } = useMobileI18n()
@@ -31,6 +36,7 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
   const [reporterPhone, setReporterPhone] = useState('')
   const [deferredShare, setDeferredShare] = useState<IncidentShareAttemptResponse | null>(null)
 
+  // ยกเลิก request เมื่อออกจากหน้าติดตาม เพื่อไม่ให้ response เก่าอัปเดต state ของ card ที่ unmount แล้ว.
   useEffect(() => {
     const controller = new AbortController()
     void fetch(buildShareChannelsUrl(getEmergencyApiBaseUrl()), { signal: controller.signal })
@@ -50,6 +56,10 @@ export function IncidentLocationShareCard({ incident }: IncidentLocationShareCar
     window.location.assign(shareUrl)
   }
   const validatePhone = () => { if (phoneIsValid) return true; toast.error(t('sharePhoneInvalid')); return false }
+  /**
+   * ต้องบันทึก attempt ให้สำเร็จก่อนจึงเปิด app ภายนอก. ถ้า backend ตอบ deferred จะให้ผู้ใช้ยืนยัน
+   * เปิดต่อเอง เพื่อไม่ให้ความล้มเหลวของ audit ถูกซ่อนไปโดยเงียบ ๆ.
+   */
   const handleShare = async (channel: IncidentShareChannel) => {
     if (!validatePhone()) return
     setPendingChannel(channel)

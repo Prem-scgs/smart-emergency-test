@@ -41,6 +41,10 @@ export function IncidentTrackingScreen({ incidentId, caseNumber = null, category
   }, [incidentId, t])
 
   useEffect(() => { void loadTracking().catch(error => setTrackingError(error instanceof Error ? error.message : t('trackingLoadingFailed'))) }, [loadTracking, t])
+  /**
+   * ติดตามเคสด้วย SSE หลังโหลด snapshot ครั้งแรก. Event นี้มีไว้ refresh tracking ของผู้แจ้ง
+   * เท่านั้น; ห้ามเปลี่ยนชื่อ event หรือ URL โดยไม่ทดสอบกับ backend incidents events และ polling fallback.
+   */
   useEffect(() => {
     const eventSource = new EventSource(buildMobileIncidentEventsUrl(getEmergencyApiBaseUrl(), incidentId, getOrCreateReporterSessionId()))
     const refresh = () => void loadTracking().catch(error => setTrackingError(error instanceof Error ? error.message : t('trackingLoadingFailed')))

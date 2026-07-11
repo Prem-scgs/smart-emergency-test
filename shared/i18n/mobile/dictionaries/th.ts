@@ -1,3 +1,4 @@
+/** ข้อความที่ระบบเป็นเจ้าของใน mobile flow; key นี้เป็น source of truth และเป็น fallback ของภาษาอังกฤษ. */
 export const th = {
   languageThai: 'ไทย',
   languageEnglish: 'EN',

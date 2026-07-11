@@ -10,6 +10,7 @@ interface MobileNavProps {
   onNavigate: (item: NavItem) => void
 }
 
+/** Navigation ของ mobile shell; เก็บ nav id ไว้เป็น stable value เพื่อไม่ให้ภาษาที่แสดงกระทบ routing state. */
 export function MobileNav({ active, onNavigate }: MobileNavProps) {
   const { t } = useMobileI18n()
   const navItems = [

@@ -34,6 +34,13 @@ function readLanguage() {
   return getStoredMobileLanguage(window.localStorage, window.navigator.language)
 }
 
+/**
+ * Provider ภาษาเฉพาะ mobile emergency flow
+ *
+ * ถูก mount ที่ `app/page.tsx` จึงไม่แชร์ preference กับ admin i18n. การเปลี่ยนภาษาจะ
+ * บันทึกลงอุปกรณ์นี้, อัปเดต `html[lang]` เพื่อ accessibility และยิง custom event สำหรับ
+ * integration ที่ต้องฟังการเปลี่ยนภาษา โดยไม่ส่งข้อมูลหรือแก้ contract ของ API.
+ */
 export function MobileI18nProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<MobileLanguage>('th')
 
@@ -53,12 +60,14 @@ export function MobileI18nProvider({ children }: { children: React.ReactNode }) 
       setLanguageState(nextLanguage)
       window.dispatchEvent(new CustomEvent(MOBILE_LANGUAGE_CHANGE_EVENT, { detail: { language: nextLanguage } }))
     },
+    // Thai เป็น fallback สุดท้าย เพื่อป้องกัน key อังกฤษที่เพิ่งเพิ่มทำให้ flow แจ้งเหตุแสดงค่าว่าง.
     t: (key, values) => formatTemplate(dictionaries[language][key] ?? dictionaries.th[key], values),
   }), [language])
 
   return <MobileI18nContext.Provider value={value}>{children}</MobileI18nContext.Provider>
 }
 
+/** ใช้ใน mobile route/widget เท่านั้น; ถ้า provider หายให้ fail เร็วแทนการแสดงข้อความผิดภาษา. */
 export function useMobileI18n() {
   const context = useContext(MobileI18nContext)
   if (!context) throw new Error('useMobileI18n must be used within MobileI18nProvider')

@@ -122,6 +122,12 @@ export function MobileApp() {
   useEffect(() => {
     getOrCreateReporterSessionId();
   }, []);
+  /**
+   * แปลงพิกัด GPS เป็นรหัส/ชื่อจังหวัดและอำเภอจาก master area ของ API.
+   *
+   * ข้อมูล code ถูกใช้เลือก contact และสร้าง incident ส่วนชื่อสองภาษาเก็บไว้เพื่อ render ตาม
+   * mobile locale. ห้ามใช้ชื่อที่แสดงบนจอแทน code เพราะ role/location scope ของ backend อิง code.
+   */
   const resolveLocation = async (latitude: number, longitude: number) => {
     const query = new URLSearchParams({
       latitude: String(latitude),
@@ -140,6 +146,12 @@ export function MobileApp() {
       districtNameEn: string | null;
     };
   };
+  /**
+   * โหลดหน่วยงานตามพื้นที่แบบ exact -> จังหวัด -> หน่วยงานกลาง.
+   *
+   * ลำดับนี้ทำให้ผู้แจ้งได้รับเบอร์ที่เจาะจงที่สุดก่อน ขณะเดียวกันยังเปิด flow ได้เมื่อ GPS
+   * หรือ reverse lookup ล้มเหลว. ถ้าแก้เงื่อนไขนี้ต้องทดสอบ contact fallback และการสร้าง incident.
+   */
   const loadContacts = useCallback(async (location: MobileLocation | null) => {
     try {
       setIsLoadingContacts(true);
@@ -260,6 +272,10 @@ export function MobileApp() {
   useEffect(() => {
     refreshLocation();
   }, [refreshLocation]);
+  /**
+   * สร้าง incident ก่อนเปิด native `tel:` เพื่อให้ admin ได้เห็นเคสและ realtime event ทันที.
+   * `clientRequestId` ต้องส่งต่อไป API เพื่อกันการสร้างเคสซ้ำจากการแตะปุ่มหรือ retry ของ mobile.
+   */
   const createIncidentForCall = useCallback(
     async (
       contact: EmergencyContact,
@@ -328,6 +344,10 @@ export function MobileApp() {
     },
     [createIncidentForCall, currentLocation, locationStatus, t],
   );
+  /**
+   * บันทึกผลหลังกลับจากสายโทรศัพท์โดยไม่สร้าง incident ใหม่.
+   * กระทบ call log/report จึงต้องคง payload builder และ endpoint เดิมไว้.
+   */
   const updateCallResult = useCallback(
     async (status: CallStatus) => {
       if (!pendingCallResult) return;

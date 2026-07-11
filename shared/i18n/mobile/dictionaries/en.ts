@@ -1,3 +1,4 @@
+/** English counterpart ของ mobile dictionary; ต้องรักษา key ให้ตรงกับ `th.ts` เพื่อให้ `t()` fallback ได้ปลอดภัย. */
 export const en = {
   languageThai: 'ไทย',
   languageEnglish: 'EN',

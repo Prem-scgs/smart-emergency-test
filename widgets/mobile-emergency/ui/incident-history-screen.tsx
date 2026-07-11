@@ -24,6 +24,10 @@ const statusConfig: Record<CallStatus, { icon: typeof CheckCircle2; color: strin
   connected: { icon: CheckCircle2, color: 'text-success', labelKey: 'callConnected' }, busy: { icon: Clock, color: 'text-warning', labelKey: 'callBusy' }, 'no-answer': { icon: PhoneMissed, color: 'text-muted-foreground', labelKey: 'callNoAnswer' }, 'wrong-number': { icon: PhoneOff, color: 'text-destructive', labelKey: 'callWrongNumber' }, cancelled: { icon: XCircle, color: 'text-muted-foreground', labelKey: 'callCancelled' },
 }
 
+/**
+ * ประวัติเคสของ reporter session ปัจจุบัน. ชื่อพื้นที่/หมวด/สถานะเลือกตาม mobile locale แต่ข้อความ
+ * ที่เคสบันทึกเองคงค่าจาก API; การเปิดรายการต้องส่ง id เดิมกลับไป tracking screen.
+ */
 export function IncidentHistoryScreen({ onBack, onViewTracking }: IncidentHistoryScreenProps) {
   const { categories } = useReferenceCategories()
   const { provinceByCode, districtByCode } = useLocationLookupMaps()
