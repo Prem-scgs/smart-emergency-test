@@ -260,7 +260,11 @@ export function useSse(options: UseSseOptions = {}) {
           buildRealtimeApiUrl(getEmergencyApiBaseUrl(), '/api/auth/sse-ticket'),
           {
             method: 'POST',
-            headers: buildAdminApiHeaders(user),
+            headers: {
+              ...buildAdminApiHeaders(user),
+              'Content-Type': 'application/json',
+            },
+            body: '{}',
             cache: 'no-store',
           }
         )

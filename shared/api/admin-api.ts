@@ -39,10 +39,7 @@ export function buildAdminApiHeaders(
   _user: AdminUser | null | undefined,
   accessToken = getStoredAdminAccessToken(),
 ): Record<string, string> {
-  return {
-    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    'Content-Type': 'application/json',
-  }
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
 }
 
 function buildApiUrl(baseUrl: string, path: string, searchParams: URLSearchParams) {

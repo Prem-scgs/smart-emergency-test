@@ -26,16 +26,13 @@ test('getBackendAdminScope still derives UI workflow permissions from the authen
 test('buildAdminApiHeaders sends the signed bearer token without spoofable scope headers', () => {
   const headers = buildAdminApiHeaders(null, 'signed.jwt')
 
-  assert.deepEqual(headers, {
-    Authorization: 'Bearer signed.jwt',
-    'Content-Type': 'application/json',
-  })
+  assert.deepEqual(headers, { Authorization: 'Bearer signed.jwt' })
   assert.equal('x-admin-role' in headers, false)
   assert.equal('x-admin-category' in headers, false)
 })
 
-test('buildAdminApiHeaders keeps JSON content type but no authorization without a session token', () => {
-  assert.deepEqual(buildAdminApiHeaders(null, null), { 'Content-Type': 'application/json' })
+test('buildAdminApiHeaders returns no authorization header without a session token', () => {
+  assert.deepEqual(buildAdminApiHeaders(null, null), {})
 })
 
 test('buildAdminApiUrl no longer appends role or category query parameters', () => {
