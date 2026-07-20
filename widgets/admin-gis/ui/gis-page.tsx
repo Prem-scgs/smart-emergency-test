@@ -21,8 +21,6 @@ import { useAdminI18n } from '@/shared/i18n/admin'
 import { buildAdminCategoryCollections, useReferenceCategories } from '@/shared/reference'
 import { getUserFacingIncidentDescription } from '@/entities/incident'
 import { getEmergencyApiBaseUrl } from '@/shared/config/emergency-api'
-import { buildAdminApiHeaders } from '@/shared/api/admin-api'
-import { useAuth } from '@/shared/auth'
 
 const API_BASE_URL = getEmergencyApiBaseUrl()
 const OFFICIAL_SOURCE = 'chingchai/OpenGISData-Thailand'
@@ -116,7 +114,6 @@ function geometryPointCount(area: GisBoundary) {
 }
 
 export default function GisPage() {
-  const { user } = useAuth()
   const { language, t } = useAdminI18n()
   const preferThai = language !== 'en'
   const { categories: referenceCategories } = useReferenceCategories()
@@ -204,12 +201,8 @@ export default function GisPage() {
     try {
       setIsDetailLoading(true)
       const [contactsResponse, incidentsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/areas/${area.id}/contacts`, {
-          headers: buildAdminApiHeaders(user),
-        }),
-        fetch(`${API_BASE_URL}/api/areas/${area.id}/incidents`, {
-          headers: buildAdminApiHeaders(user),
-        }),
+        fetch(`${API_BASE_URL}/api/areas/${area.id}/contacts`),
+        fetch(`${API_BASE_URL}/api/areas/${area.id}/incidents`),
       ])
 
       if (!contactsResponse.ok) throw new Error(t('gisLoadContactsError'))

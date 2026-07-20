@@ -26,15 +26,12 @@ https://emer-api.scgs-ai.com
 - `caseNumber`: เลขเคสสำหรับผู้ใช้ เช่น `EMS-20260706-0001`
 - UI ต้องแสดง `caseNumber` ก่อน ถ้าไม่มีให้ fallback เป็น `id.slice(0, 8)` เท่านั้น
 
-## Admin Auth / Role Scope
+## Demo Auth / Role Scope
 
-```text
-POST /api/auth/login
-GET  /api/auth/me
-POST /api/auth/sse-ticket
-```
+ระบบยังใช้ demo auth boundary:
 
-Admin REST request ต้องส่ง `Authorization: Bearer <access-token>`. API verify JWT แล้วอ่าน `active`, role และ agency category ล่าสุดจาก `admin_users`/`agencies`; header/query scope จาก browser ไม่ใช่ security contract และถูกละทิ้งที่ API boundary
+- Header: `x-admin-role`, `x-admin-category`
+- Query fallback บาง endpoint: `role`, `category`
 
 Roles:
 
@@ -42,7 +39,7 @@ Roles:
 - `agency_admin`: เห็น/จัดการเฉพาะ category ตัวเอง
 - `viewer`: read-only/passive ตาม category
 
-Token ฝั่ง frontend อยู่ใน `sessionStorage` และไม่มี Remember Me
+ยังไม่พบข้อมูล real JWT/team auth contract ใน Repository
 
 ## Health
 
@@ -75,14 +72,13 @@ POST   /api/incidents/:id/share-attempts
 - `GET /api/incidents/recent?since=<cursor>&limit=50` เป็น polling fallback ของ dashboard
 - `GET /api/incidents/:id/events?sessionId=<sessionId>` เป็น reporter-scoped SSE
 - `POST /api/incidents/:id/share-attempts` บันทึกการพยายามแชร์ตำแหน่งและ validate reporter ownership
-- `PUT /api/incidents/:id/call` จาก mobile ต้องส่ง reporter `sessionId`; UUID อย่างเดียวไม่ใช่หลักฐาน ownership ส่วน admin ใช้ Bearer JWT
 
 DB ที่เกี่ยวข้องหลัก: `incidents`, `incident_status_history`, `incident_location_history`, `incident_case_counters`, `audit_logs`, `center_share_channels`
 
 ## Realtime
 
 ```text
-GET /api/events?ticket=<one-time-ticket>
+GET /api/events?role=<role>&category=<category>
 ```
 
 ใช้สำหรับ admin SSE stream
@@ -93,8 +89,6 @@ Events สำคัญ:
 - `incident.status_updated`
 
 Dashboard ต้อง de-duplicate ระหว่าง SSE และ polling fallback ด้วย incident id/status version
-
-Ticket ได้จาก `POST /api/auth/sse-ticket`, มีอายุสั้นและใช้ได้ครั้งเดียว ห้ามใส่ access JWT ใน URL
 
 ## Contacts
 
@@ -165,22 +159,6 @@ Behavior:
 - write สำคัญต้องลง `audit_logs`
 
 DB หลัก: `system_settings`, `center_share_channels`, `audit_logs`
-
-## Admin Users
-
-```text
-GET    /api/admin/users
-POST   /api/admin/users
-PATCH  /api/admin/users/:id
-DELETE /api/admin/users/:id
-```
-
-- เฉพาะ `super_admin`
-- `DELETE` เป็น soft deactivate เพื่อรักษา audit และ incident status history
-- ห้ามเปลี่ยน role, reset password, deactivate หรือลบบัญชีตัวเอง
-- `agency_admin`/`viewer` ต้องผูก agency จริง ส่วน `super_admin` ต้องไม่มี agency
-
-DB หลัก: `admin_users`, `agencies`, `audit_logs`
 
 ## Reports
 

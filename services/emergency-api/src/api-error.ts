@@ -33,18 +33,3 @@ export function buildApiErrorPayload(
     statusCode,
   };
 }
-
-export function getHttpErrorStatus(error: unknown, replyStatusCode: number) {
-  const errorStatusCode =
-    error && typeof error === "object" && "statusCode" in error
-      ? (error as { statusCode?: unknown }).statusCode
-      : undefined;
-  if (
-    typeof errorStatusCode === "number" &&
-    errorStatusCode >= 400 &&
-    errorStatusCode <= 599
-  ) {
-    return errorStatusCode;
-  }
-  return replyStatusCode >= 400 ? replyStatusCode : 500;
-}

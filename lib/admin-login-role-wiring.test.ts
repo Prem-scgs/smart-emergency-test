@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-test('admin login delegates role and agency identity to the authenticated backend profile', async () => {
+test('admin login exposes super admin, agency admin, and viewer only', async () => {
   const route = await readFile(new URL('../app/admin/page.tsx', import.meta.url), 'utf8')
   const source = await readFile(new URL('../widgets/admin-login/ui/admin-login-page.tsx', import.meta.url), 'utf8')
 
@@ -13,8 +13,9 @@ test('admin login delegates role and agency identity to the authenticated backen
   assert.doesNotMatch(route, /useAuth/)
   assert.doesNotMatch(route, /ROLE_OPTIONS/)
 
-  assert.match(source, /login\(email, password\)/)
-  assert.doesNotMatch(source, /ROLE_OPTIONS/)
-  assert.doesNotMatch(source, /selectedRole|selectedAgency|needsAgency/)
-  assert.doesNotMatch(source, /value: 'super_admin'|value: 'agency_admin'|value: 'viewer'/)
+  assert.match(source, /value: 'super_admin'/)
+  assert.match(source, /value: 'agency_admin'/)
+  assert.match(source, /value: 'viewer'/)
+  assert.doesNotMatch(source, /value: 'operator'/)
+  assert.match(source, /const needsAgency = selectedRole && selectedRole !== 'super_admin'/)
 })

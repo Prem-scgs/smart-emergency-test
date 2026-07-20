@@ -45,19 +45,6 @@ const envSchema = z.object({
     .transform((value) => value ?? "http://localhost:3000")
     .pipe(z.string().url("CORS_ORIGIN must be a valid URL")),
   CORS_ORIGINS: z.string().optional(),
-  JWT_SECRET: z.string().min(32, "JWT_SECRET must contain at least 32 characters"),
-  ADMIN_BOOTSTRAP_EMAIL: z.preprocess(
-    value => typeof value === "string" && value.trim() === "" ? undefined : value,
-    z.string().trim().email().optional()
-  ),
-  ADMIN_BOOTSTRAP_PASSWORD: z.preprocess(
-    value => value === "" ? undefined : value,
-    z.string().min(8).optional()
-  ),
-  ADMIN_BOOTSTRAP_NAME: z.preprocess(
-    value => typeof value === "string" && value.trim() === "" ? undefined : value,
-    z.string().trim().min(1).optional()
-  ),
   LINE_OA_ID: z
     .string()
     .trim()
@@ -79,10 +66,6 @@ export function parseConfig(
   env: Record<string, string | undefined>
 ) {
   const parsed = envSchema.parse(env);
-  const bootstrapValues = [parsed.ADMIN_BOOTSTRAP_EMAIL, parsed.ADMIN_BOOTSTRAP_PASSWORD, parsed.ADMIN_BOOTSTRAP_NAME];
-  if (bootstrapValues.some(Boolean) && !bootstrapValues.every(Boolean)) {
-    throw new Error("ADMIN_BOOTSTRAP_EMAIL, ADMIN_BOOTSTRAP_PASSWORD, and ADMIN_BOOTSTRAP_NAME must be provided together");
-  }
   const corsOrigins = z
     .array(z.string().url("CORS_ORIGINS must contain valid URLs"))
     .min(1, "CORS_ORIGINS must contain at least one URL")
@@ -98,14 +81,6 @@ export function parseConfig(
     databaseUrl: parsed.DATABASE_URL,
     corsOrigin: corsOrigins[0],
     corsOrigins,
-    auth: {
-      jwtSecret: parsed.JWT_SECRET,
-      bootstrap: parsed.ADMIN_BOOTSTRAP_EMAIL ? {
-        email: parsed.ADMIN_BOOTSTRAP_EMAIL.toLowerCase(),
-        password: parsed.ADMIN_BOOTSTRAP_PASSWORD!,
-        displayName: parsed.ADMIN_BOOTSTRAP_NAME!,
-      } : null,
-    },
     shareChannels: {
       lineOaId: parsed.LINE_OA_ID ?? null,
       smsCenterPhone: parsed.SMS_CENTER_PHONE ?? null,

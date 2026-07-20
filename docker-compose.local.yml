@@ -10,11 +10,6 @@ services:
       PORT: 4000
       DATABASE_URL: postgres://emergency:emergency_dev@db:5432/smart_emergency
       CORS_ORIGINS: https://smart-emergency-test.vercel.app,http://localhost:3000,http://127.0.0.1:3000,http://web:3000
-      # JWT secret is required even for local Docker because every admin API now verifies a signed token.
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in the shell or root .env before starting the API}
-      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
-      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
-      ADMIN_BOOTSTRAP_NAME: ${ADMIN_BOOTSTRAP_NAME:-}
     ports:
       - "4000:4000"
     depends_on:

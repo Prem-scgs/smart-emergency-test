@@ -1607,21 +1607,6 @@ test("GET /api/incidents/history returns standardized validation error for inval
   assert.ok(Array.isArray((result as any).issues));
 });
 
-test("PUT /api/incidents/:id/call rejects a public update without reporter ownership", async () => {
-  const app = createFakeApp();
-  await registerIncidentRoutes(app as any);
-  const handler = app.putHandlers.get("/api/incidents/:id/call");
-  const reply = createReplyDouble();
-
-  const result = await handler?.(
-    { params: { id: "incident-1" }, body: { callStatus: "busy" }, headers: {}, query: {} },
-    reply
-  );
-
-  assert.equal(reply.statusCode, 403);
-  assert.equal((result as any).code, "INCIDENT_CALL_UPDATE_ACCESS_DENIED");
-});
-
 test("PUT /api/incidents/:id/call updates call status and writes an audit log", async () => {
   const app = createFakeApp();
   const queryMock = pool.query as unknown as (...args: unknown[]) => Promise<{ rowCount?: number; rows: Record<string, unknown>[] }>;
@@ -1683,7 +1668,6 @@ test("PUT /api/incidents/:id/call updates call status and writes an audit log", 
         params: { id: "incident-1" },
         body: {
           callStatus: "connected",
-          sessionId: "session-12345678",
           reporterPhone: "0812345678",
           description: "Reported via mobile app to EMS (connected)",
         },
@@ -1694,7 +1678,6 @@ test("PUT /api/incidents/:id/call updates call status and writes an audit log", 
     assert.equal(reply.statusCode, 200);
     assert.equal(calls.length, 2);
     assert.match(String(calls[0]?.[0]), /UPDATE incidents/);
-    assert.match(String(calls[0]?.[0]), /session_id/);
     assert.match(String(calls[1]?.[0]), /INSERT INTO audit_logs/);
     assert.deepEqual(result, {
       id: "incident-1",
@@ -1744,7 +1727,7 @@ test("PUT /api/incidents/:id/call returns 404 when incident is missing", async (
     const result = await handler?.(
       {
         params: { id: "missing-incident" },
-        body: { callStatus: "busy", sessionId: "session-12345678" },
+        body: { callStatus: "busy" },
       },
       reply
     );
@@ -1821,7 +1804,6 @@ test("PUT /api/incidents/:id/call updates incident even when agency contact is m
         params: { id: "incident-no-contact" },
         body: {
           callStatus: "busy",
-          sessionId: "session-87654321",
           reporterPhone: "0899999999",
         },
       },

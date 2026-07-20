@@ -59,11 +59,9 @@ test('buildIncidentCallUpdatePayload updates the result without requiring report
   const payload = buildIncidentCallUpdatePayload({
     status: 'busy',
     contact: baseContact,
-    sessionId: 'reporter-session-123',
   })
 
   assert.equal(payload.callStatus, 'busy')
-  assert.equal(payload.sessionId, 'reporter-session-123')
   assert.equal(payload.reporterPhone, null)
   assert.equal(payload.description, 'Call completed via mobile app to Emergency Medical Services (busy)')
 })

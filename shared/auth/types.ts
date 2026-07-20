@@ -32,8 +32,7 @@ export interface AuthState {
 /**
  * Permission matrix ที่ frontend ใช้ซ่อน/แสดงเมนูและ action
  *
- * Backend ยังต้อง verify JWT และอ่าน role/agency ล่าสุดจาก DB เสมอ เพราะ UI permission อย่างเดียว
- * ป้องกัน request ตรงไม่ได้ และ browser ต้องไม่ส่ง role/category เพื่อกำหนดสิทธิ์เอง
+ * Backend ยังต้องตรวจ scope ซ้ำด้วย header/query เสมอ เพราะ UI permission อย่างเดียวกัน request ตรงไม่ได้
  */
 export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   super_admin: [
