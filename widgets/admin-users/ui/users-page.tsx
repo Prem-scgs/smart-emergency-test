@@ -159,10 +159,7 @@ export default function UsersPage() {
         API_BASE_URL + (isCreate ? '/api/admin/users' : `/api/admin/users/${selectedUser!.id}`),
         {
           method: isCreate ? 'POST' : 'PATCH',
-          headers: {
-            ...buildAdminApiHeaders(user),
-            'Content-Type': 'application/json',
-          },
+          headers: buildAdminApiHeaders(user),
           body: JSON.stringify(body),
         }
       )
@@ -192,7 +189,7 @@ export default function UsersPage() {
     setIsSaving(true)
     try {
       const response = await fetch(`${API_BASE_URL}/api/admin/users/${targetUser.id}`, {
-        method: 'PATCH', headers: { ...buildAdminApiHeaders(user), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+        method: 'PATCH', headers: buildAdminApiHeaders(user), body: JSON.stringify(body),
       })
       if (!response.ok) throw new Error(await readApiError(response, t('usersSaveError')))
       toast.success(successMessage)

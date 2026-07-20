@@ -81,8 +81,7 @@ test("useSse exchanges the bearer session for a one-time SSE ticket", async () =
   const source = await readUseSseSource();
 
   assert.match(source, /\/api\/auth\/sse-ticket/);
-  assert.match(source, /\.\.\.buildAdminApiHeaders\(user\)/);
-  assert.match(source, /body: '\{\}'/);
+  assert.match(source, /headers: buildAdminApiHeaders\(user\)/);
   assert.match(source, /buildAdminEventsUrl\(getEmergencyApiEventsBaseUrl\(\), ticket\)/);
   assert.match(source, /scheduleReconnect/);
 });
