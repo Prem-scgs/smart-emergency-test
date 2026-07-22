@@ -5,19 +5,27 @@ import {
   MapPin,
   Phone,
   Settings,
+  Users,
 } from 'lucide-react'
 
+import { adminRouteDefinitions } from './route-permissions'
+
 /**
- * Navigation contract ของ admin shell
+ * เมนู sidebar และ route guard ต้องใช้ route definition ชุดเดียวกัน
  *
- * แต่ละ item ผูกกับ permission key จาก shared auth ถ้าเพิ่มเมนูใหม่ต้องเพิ่ม
- * permission/i18n key และทดสอบ role scope ใน sidebar ด้วย.
+ * อย่าสร้าง permission map ซ้ำใน component เพราะจะเกิดกรณีเมนูถูกซ่อนแต่ผู้ใช้ยังเปิด URL ตรงได้
+ * ไฟล์นี้เติมเฉพาะ icon ซึ่งเป็นรายละเอียดการแสดงผลของ sidebar
  */
-export const adminShellSidebarItems = [
-  { href: '/admin/dashboard', labelKey: 'dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-  { href: '/admin/contacts', labelKey: 'contacts', icon: Phone, permission: 'contacts.view' },
-  { href: '/admin/call-logs', labelKey: 'callLogs', icon: FileText, permission: 'call-logs.view' },
-  { href: '/admin/gis', labelKey: 'gis', icon: MapPin, permission: 'gis.view' },
-  { href: '/admin/reports', labelKey: 'reports', icon: BarChart3, permission: 'reports.view' },
-  { href: '/admin/settings', labelKey: 'settingsTitle', icon: Settings, permission: 'settings.view' },
-] as const
+const sidebarIcons = {
+  '/admin/dashboard': LayoutDashboard,
+  '/admin/contacts': Phone,
+  '/admin/call-logs': FileText,
+  '/admin/gis': MapPin,
+  '/admin/reports': BarChart3,
+  '/admin/settings': Settings,
+  '/admin/users': Users,
+} as const
+
+export const adminShellSidebarItems = adminRouteDefinitions
+  .filter(route => route.showInSidebar)
+  .map(route => ({ ...route, icon: sidebarIcons[route.href] }))

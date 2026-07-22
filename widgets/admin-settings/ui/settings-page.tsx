@@ -144,7 +144,7 @@ function testAlertTone(preset: AlertTonePreset, unsupportedMessage: string) {
 }
 
 export default function SettingsPage() {
-  const { user, canViewAllAgencies } = useAuth()
+  const { user, canViewAllAgencies, hasPermission } = useAuth()
   const { t } = useAdminI18n()
   const { theme, resolvedTheme, setTheme } = useTheme()
   const [alertPreferences, setAlertPreferences] = useState(DEFAULT_ADMIN_ALERT_PREFERENCES)
@@ -169,6 +169,12 @@ export default function SettingsPage() {
   })
 
   const isSuperAdmin = canViewAllAgencies()
+  const canEditPersonalSettings = hasPermission("settings.personal.edit")
+  const canEditOrganizationSettings = hasPermission("settings.organization.edit")
+  const canEditShareChannels = hasPermission("settings.share-channels.edit")
+  const canViewSystemHealth = hasPermission("settings.health.view")
+  const hasPrivilegedSettings =
+    canEditOrganizationSettings || canEditShareChannels || canViewSystemHealth
   const isDarkMode = theme === "dark" || (theme === "system" && resolvedTheme === "dark")
   const roleLabel = isSuperAdmin
     ? t("scopeSuperAdmin")
@@ -245,7 +251,7 @@ export default function SettingsPage() {
   ], [systemHealth, t])
 
   /**
-   * ตรวจ health snapshot สำหรับ super admin
+   * ตรวจ health snapshot เฉพาะ role ที่มี `settings.health.view`
    *
    * Endpoint `/health` ใช้เช็ก API และ DB connection แบบเร็ว ๆ ในหน้า settings
    * ไม่ควรใช้แทน monitoring production จริง แต่ช่วย demo/debug tunnel ได้ดี
@@ -290,14 +296,14 @@ export default function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    if (!isSuperAdmin) return
+    if (!hasPrivilegedSettings) return
 
     let cancelled = false
 
     /**
-     * โหลดค่าองค์กรเฉพาะ super admin
+     * โหลดค่าองค์กรเฉพาะ role ที่มี `settings.organization.edit`
      *
-     * Non-super admin ไม่ควรเรียก endpoint นี้ เพราะไม่มีสิทธิ์แก้ global settings
+     * การซ่อนฟอร์มอย่างเดียวไม่พอ จึงไม่เรียก endpoint นี้ตั้งแต่ต้นเมื่อ permission ไม่ผ่าน
      */
     async function loadOrganizationSettings() {
       try {
@@ -344,14 +350,20 @@ export default function SettingsPage() {
       }
     }
 
-    void loadOrganizationSettings()
-    void loadShareChannels()
-    void refreshSystemHealth()
+    if (canEditOrganizationSettings) void loadOrganizationSettings()
+    if (canEditShareChannels) void loadShareChannels()
+    if (canViewSystemHealth) void refreshSystemHealth()
 
     return () => {
       cancelled = true
     }
-  }, [isSuperAdmin, user])
+  }, [
+    canEditOrganizationSettings,
+    canEditShareChannels,
+    canViewSystemHealth,
+    hasPrivilegedSettings,
+    user,
+  ])
 
   /**
    * รับสถานะ SSE จาก NotificationProvider เพื่อแสดง health realtime
@@ -484,22 +496,27 @@ export default function SettingsPage() {
   }
 
   /**
-   * Save รวมทั้ง personal preference และ super-admin global settings
+   * Personal preference เก็บใน browser ของผู้ใช้ ส่วน organization และ share channels เขียนผ่าน API
    *
-   * ถ้า global settings ส่วนใด fail จะหยุดและแจ้ง error เพื่อไม่ให้ user เข้าใจว่าทุกอย่างถูกบันทึกแล้ว
+   * จึงต้องตรวจ permission แยกก่อน save ทุกส่วน ไม่ใช้แค่การซ่อน tab เพราะผู้ใช้ยังเรียก handler หรือ API ตรงได้
+   * หากข้อมูลระบบส่วนใดบันทึกไม่สำเร็จจะหยุดและแจ้ง error เพื่อไม่ให้เข้าใจว่าทุกส่วนสำเร็จแล้ว
    */
   const handleSave = async () => {
-    saveAdminAlertPreferences(alertPreferences)
-    saveSettingsPreferences(settingsPreferences)
+    if (canEditPersonalSettings) {
+      saveAdminAlertPreferences(alertPreferences)
+      saveSettingsPreferences(settingsPreferences)
+    }
 
-    if (isSuperAdmin) {
+    if (canEditOrganizationSettings) {
       try {
         await saveOrganizationSettings()
       } catch {
         toast.error(t("organizationSettingsSaveError"))
         return
       }
+    }
 
+    if (canEditShareChannels) {
       try {
         await saveShareChannels()
       } catch {
@@ -553,7 +570,7 @@ export default function SettingsPage() {
           <CardContent>
             <div className="font-semibold">{roleLabel}</div>
             <p className="mt-1 text-sm text-muted-foreground">
-              {isSuperAdmin ? t("canSeeSystemSettings") : t("canSeePersonalSettings")}
+              {hasPrivilegedSettings ? t("canSeeSystemSettings") : t("canSeePersonalSettings")}
             </p>
           </CardContent>
         </Card>
@@ -571,9 +588,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {isSuperAdmin && (
-          <>
-            <Card>
+        {canEditShareChannels && (
+          <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">{t("centerChannels")}</CardTitle>
                 <Share2 className="h-4 w-4 text-muted-foreground" />
@@ -584,9 +600,11 @@ export default function SettingsPage() {
                   {t("channelsFromBackend")}
                 </p>
               </CardContent>
-            </Card>
+          </Card>
+        )}
 
-            <Card>
+        {canViewSystemHealth && (
+          <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">{t("systemStatus")}</CardTitle>
                 <Server className="h-4 w-4 text-muted-foreground" />
@@ -603,33 +621,36 @@ export default function SettingsPage() {
                   {t("apiDatabaseSse")}
                 </p>
               </CardContent>
-            </Card>
-          </>
+          </Card>
         )}
       </div>
 
       <Tabs defaultValue="personal" className="space-y-4">
-        <TabsList className={isSuperAdmin ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
+        <TabsList className={hasPrivilegedSettings ? "grid w-full grid-cols-3" : "grid w-full grid-cols-1"}>
           <TabsTrigger value="personal" className="gap-2">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">{t("personalSettingsTab")}</span>
           </TabsTrigger>
-          {isSuperAdmin && (
+          {(canEditShareChannels || canViewSystemHealth) && (
             <>
-              <TabsTrigger value="channels" className="gap-2">
-                <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("channelsTab")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="health" className="gap-2">
-                <Server className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("healthTab")}</span>
-              </TabsTrigger>
+              {canEditShareChannels && (
+                <TabsTrigger value="channels" className="gap-2">
+                  <Share2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("channelsTab")}</span>
+                </TabsTrigger>
+              )}
+              {canViewSystemHealth && (
+                <TabsTrigger value="health" className="gap-2">
+                  <Server className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("healthTab")}</span>
+                </TabsTrigger>
+              )}
             </>
           )}
         </TabsList>
 
         <TabsContent value="personal" className="space-y-4">
-          {isSuperAdmin && (
+          {canEditOrganizationSettings && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -824,7 +845,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {isSuperAdmin && (
+        {canEditShareChannels && (
           <TabsContent value="channels" className="space-y-4">
             <Card>
               <CardHeader>
@@ -891,7 +912,7 @@ export default function SettingsPage() {
           </TabsContent>
         )}
 
-        {isSuperAdmin && (
+        {canViewSystemHealth && (
           <TabsContent value="health" className="space-y-4">
             <Card>
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

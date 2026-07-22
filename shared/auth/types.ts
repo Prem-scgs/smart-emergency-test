@@ -30,9 +30,10 @@ export interface AuthState {
 }
 
 /**
- * Permission matrix ที่ frontend ใช้ซ่อน/แสดงเมนูและ action
+ * Permission matrix ที่ frontend ใช้ควบคุมเมนู route และ action
  *
- * Backend ยังต้องตรวจ scope ซ้ำด้วย header/query เสมอ เพราะ UI permission อย่างเดียวกัน request ตรงไม่ได้
+ * นี่เป็น UI access boundary ไม่ใช่ security boundary ผู้เรียกยังยิง request ตรงได้เสมอ
+ * ดังนั้น Backend ต้องตรวจ role และ category scope ซ้ำทุก endpoint ที่มีข้อมูลหรือ mutation สำคัญ
  */
 export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   super_admin: [
@@ -53,7 +54,10 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'reports.view',
     'reports.export',
     'settings.view',
-    'settings.edit',
+    'settings.personal.edit',
+    'settings.organization.edit',
+    'settings.share-channels.edit',
+    'settings.health.view',
   ],
   agency_admin: [
     'dashboard.view',
@@ -62,11 +66,15 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     'gis.view',
     'reports.view',
     'reports.export',
+    'settings.view',
+    'settings.personal.edit',
   ],
   viewer: [
     'dashboard.view',
     'call-logs.view',
     'gis.view',
     'reports.view',
+    'settings.view',
+    'settings.personal.edit',
   ],
 }

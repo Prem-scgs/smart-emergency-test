@@ -34,6 +34,8 @@ import { cn } from '@/shared/utils'
 import { adminShellSidebarItems } from '../model/navigation'
 import { useOrganizationSettings } from '../model/organization-settings'
 import { getAdminShellRoleBadgeInfo } from '../model/role-badge'
+import { findAdminRouteDefinition } from '../model/route-permissions'
+import { AdminAccessDenied } from './admin-access-denied'
 import { NotificationBell } from './notification-bell'
 
 interface AdminLayoutClientProps {
@@ -49,12 +51,13 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
 
   const { user, isAuthenticated, isLoading, hasPermission, logout, canViewAllAgencies } = useAuth()
   const organizationSettings = useOrganizationSettings(user, isAuthenticated)
+  const currentRoute = findAdminRouteDefinition(pathname)
+  const canAccessCurrentRoute = !currentRoute || hasPermission(currentRoute.permission)
 
   /**
-   * Sidebar menu ต้องอิง permission จาก auth context
+   * Sidebar กรองจาก route definition ชุดเดียวกับ guard ด้านล่าง
    *
-   * ถ้าเพิ่มหน้า admin ใหม่ ต้องเพิ่ม permission/role mapping ให้ครบ ไม่งั้น viewer หรือ agency admin
-   * อาจเห็นเมนูเกิน scope หรือเข้าไม่ได้ทั้งที่ควรเข้าได้
+   * วิธีนี้ทำให้การเพิ่มหน้าใหม่มี owner permission จุดเดียว ลดโอกาสเมนูกับ direct URL ให้สิทธิ์ไม่ตรงกัน
    */
   const visibleMenuItems = useMemo(() => {
     return adminShellSidebarItems.filter(item => hasPermission(item.permission))
@@ -66,10 +69,10 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
   }
 
   /**
-   * Auth guard ฝั่ง client สำหรับ dashboard shell
+   * ต้องรอ session restore จบก่อนตรวจ login และ permission
    *
-   * Root admin provider เป็นคน restore session ก่อน ดังนั้นรอ isLoading จบแล้วค่อย redirect
-   * เพื่อไม่ให้หน้า dashboard กระพริบกลับ login ระหว่าง rehydrate localStorage
+   * ถ้า redirect หรือ render children เร็วเกินไป ผู้ใช้ที่มี session จะถูกส่งกลับ login ผิด ๆ
+   * และข้อมูลของ widget ที่ไม่มีสิทธิ์อาจกระพริบหรือเริ่ม fetch ก่อน guard ตัดสินผล
    */
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -87,6 +90,15 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
 
   if (!isAuthenticated || !user) {
     return null
+  }
+
+  /**
+   * Route guard เป็นขอบเขตการเข้าถึงฝั่ง UI เพื่อไม่ mount widget ที่ไม่มีสิทธิ์
+   * ไม่ใช่ security boundary: Backend ต้องตรวจ role/category scope ซ้ำเสมอ แม้หน้าเว็บจะแสดง 403 แล้ว
+   */
+  let guardedContent = children
+  if (!canAccessCurrentRoute) {
+    guardedContent = <AdminAccessDenied />
   }
 
   const getRoleBadge = () => {
@@ -139,7 +151,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
       <ScrollArea className="flex-1 py-4">
         <nav className="space-y-1 px-3">
           {visibleMenuItems.map(item => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
 
             return (
               <Link
@@ -206,7 +218,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold text-foreground">
-                {t(visibleMenuItems.find(item => item.href === pathname)?.labelKey ?? 'admin')}
+                {t(currentRoute?.labelKey ?? 'admin')}
               </h1>
               {!canViewAllAgencies() && user?.agency && (
                 <Badge variant="outline" className="text-xs">
@@ -278,7 +290,7 @@ export function AdminLayoutClient({ children }: AdminLayoutClientProps) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 overflow-auto">{guardedContent}</main>
       </div>
     </div>
   )
